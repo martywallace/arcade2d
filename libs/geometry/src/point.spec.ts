@@ -1,6 +1,30 @@
 import { Point } from './point';
 
 describe('Point', () => {
+  test('It will allow reading and writing x and y values', () => {
+    const point = new Point(10, 15);
+
+    expect(point.x).toBe(10);
+    expect(point.y).toBe(15);
+
+    point.x = 20;
+    point.y = 25;
+
+    expect(point.x).toBe(20);
+    expect(point.y).toBe(25);
+  });
+
+  test('It will prevent accidental NaN values', () => {
+    const dodgyPoint = new Point(parseFloat('nope'), parseFloat('nope'));
+    const point = new Point(17, 0);
+
+    point.x = parseFloat('nope');
+
+    expect(dodgyPoint.x).toBe(0);
+    expect(dodgyPoint.y).toBe(0);
+    expect(point.x).toBe(17);
+  });
+
   describe('length', () => {
     test('It will calculate the length', () => {
       const point = new Point(5, 8);
