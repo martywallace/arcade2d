@@ -1,0 +1,17 @@
+{
+  "name": "@arcade2d/geometry",
+  "description": "A library for game-focused 2D geometry operations.",
+  "version": "0.0.0",
+  "license": "MIT",
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "rm -rf dist && tsc"
+  },
+  "maintainers": [
+    "Marty Wallace <marty@martywallace.com> (https://martywallace.com)"
+  ],
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

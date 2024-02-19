@@ -1,0 +1,21 @@
+{
+  "name": "@arcade2d/arcade2d",
+  "description": "JavaScript components for developing 2D games.",
+  "maintainers": [
+    "Marty Wallace <marty@martywallace.com> (https://martywallace.com)"
+  ],
+  "scripts": {
+    "build": "turbo build",
+    "test": "turbo test"
+  },
+  "workspaces": {
+    "packages": [
+      "libs/*"
+    ]
+  },
+  "packageManager": "yarn@4.1.0",
+  "devDependencies": {
+    "prettier": "^3.2.5",
+    "turbo": "^1.12.4"
+  }
+}
