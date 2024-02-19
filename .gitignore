@@ -6,3 +6,5 @@ node_modules
 !.yarn/plugins
 
 dist
+coverage
+.turbo
