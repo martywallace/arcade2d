@@ -1,6 +1,7 @@
-import { Point } from '@arcade2d/geometry';
 import { Component } from './component';
 import { Update } from './update';
+import { World } from './world';
+import { Point } from '../geometry';
 
 export type WorldObjectMetadata = {
   readonly id: string;
@@ -9,14 +10,18 @@ export type WorldObjectMetadata = {
 
 export class WorldObject {
   private _destroyed = false;
-  private _components = new Map<string, Component>();
+  private _components = new Map<string, Component<WorldObject>>();
 
   constructor(
+    public readonly world: World,
     public readonly position: Point,
     public readonly metadata: WorldObjectMetadata,
   ) {}
 
-  public addComponent(key: string, component: Component): Component {
+  public addComponent(
+    key: string,
+    component: Component<WorldObject>,
+  ): Component<WorldObject> {
     // @todo: should it throw if a component already exists? Maybe the developer
     // intentionally wants to replace it and we should allow it. But I could
     // also see this being a very annoying bug to track down if it was done
@@ -27,7 +32,7 @@ export class WorldObject {
     return component;
   }
 
-  public getComponent<T extends Component>(key: string): T {
+  public getComponent<T extends Component<WorldObject>>(key: string): T {
     const value = this._components.get(key);
 
     if (!value) {
@@ -37,22 +42,36 @@ export class WorldObject {
     return value as T;
   }
 
-  public getNullableComponent<T extends Component>(key: string): T | null {
+  public getComponentByType<T extends Component<WorldObject>>(
+    type: new (owner: WorldObject) => T,
+  ): T {
+    for (const [_, component] of this._components) {
+      if (component instanceof type) {
+        return component as T;
+      }
+    }
+
+    throw new Error(`Component type not found: ${type.name}`);
+  }
+
+  public getNullableComponent<T extends Component<WorldObject>>(
+    key: string,
+  ): T | null {
     return (this._components.get(key) ?? null) as T | null;
   }
 
   /**
-   * Destroys all components attached to this object.
+   * Lifecycle hook called when this object is actually removed from the world.
    */
-  public destroyComponents(): void {
+  public onDestroy(): void {
     for (const [_, component] of this._components) {
-      component.onDestroyed();
+      component.onDestroy();
     }
 
     this._components = new Map();
   }
 
-  public update(update: Update): void {
+  public onUpdate(update: Update): void {
     for (const [_, component] of this._components) {
       component.onUpdate(update);
     }

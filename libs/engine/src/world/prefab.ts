@@ -1,14 +1,14 @@
 import { World } from './world';
 import { WorldObject } from './world-object';
-import { Point } from '@arcade2d/geometry';
 import { Component } from './component';
+import { Point } from '../geometry';
 
 export type PrefabOptions = {
   readonly name: string;
   readonly components: (
     world: World,
     object: WorldObject,
-  ) => Record<string, Component>;
+  ) => Record<string, () => Component<WorldObject>>;
 };
 
 export class Prefab {
@@ -30,13 +30,14 @@ export class Prefab {
    * @param position The starting position of the new object in the world.
    */
   public buildObject(world: World, position: Point): WorldObject {
-    const object = new WorldObject(position, {
+    const object = new WorldObject(world, position, {
       id: this.generateId(),
       prefabName: this.options.name,
     });
 
-    // Setup the components first.
-    const components = Object.entries(this.options.components(world, object));
+    const components = Object.entries(
+      this.options.components(world, object),
+    ).map(([key, factory]) => [key, factory()] as const);
 
     // Make sure they are all added to the object first.
     for (const [key, component] of components) {

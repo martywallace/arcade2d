@@ -10,7 +10,8 @@
   },
   "workspaces": {
     "packages": [
-      "libs/*"
+      "libs/*",
+      "demos/*"
     ]
   },
   "packageManager": "yarn@4.1.0",
