@@ -1,26 +1,39 @@
+import { Point } from '../geometry';
+import { IDGenerator } from '../utils/id-generator';
+import { ComponentFactoryMap } from './components';
 import { World } from './world';
 import { WorldObject } from './world-object';
-import { Component } from './component';
-import { Point } from '../geometry';
+
+export type PrefabComponentContext = {
+  /**
+   * The `World` that the object is being created in.
+   */
+  readonly world: World;
+
+  /**
+   * The `WorldObject` that is being created from this prefab.
+   */
+  readonly object: WorldObject;
+};
 
 export type PrefabOptions = {
   readonly name: string;
   readonly components: (
-    world: World,
-    object: WorldObject,
-  ) => Record<string, () => Component<WorldObject>>;
+    context: PrefabComponentContext,
+  ) => ComponentFactoryMap<WorldObject>;
 };
 
+/**
+ * Defines a prefab that can be used to create new objects in the world. Defines
+ * the starting components that will be added to the object.
+ */
 export class Prefab {
-  private _lastId = 0;
-
-  private readonly _idPrefix: string;
+  private readonly _idGenerator: IDGenerator;
 
   constructor(private readonly options: PrefabOptions) {
-    // Prefab will assign a unique prefix along with an incrementing value to
-    // produce a complete ID.
-    this._idPrefix =
-      options.name + (Math.random() + 1).toString(36).substring(2, 5);
+    this._idGenerator = new IDGenerator(
+      options.name + (Math.random() + 1).toString(36).substring(2, 5),
+    );
   }
 
   /**
@@ -29,31 +42,16 @@ export class Prefab {
    * @param world The world that the object will be added to.
    * @param position The starting position of the new object in the world.
    */
-  public buildObject(world: World, position: Point): WorldObject {
+  public buildObject(world: World, position = Point.zero()): WorldObject {
     const object = new WorldObject(world, position, {
-      id: this.generateId(),
+      id: this._idGenerator.next(),
       prefabName: this.options.name,
     });
 
-    const components = Object.entries(
-      this.options.components(world, object),
-    ).map(([key, factory]) => [key, factory()] as const);
-
-    // Make sure they are all added to the object first.
-    for (const [key, component] of components) {
-      object.addComponent(key, component);
-    }
-
-    // Then we can call onAdded on all of them (since they will all exist on the
-    // object now).
-    for (const [_, component] of components) {
-      component.onAdded();
-    }
+    object.addComponentsFromFactories(
+      this.options.components({ world, object }),
+    );
 
     return object;
-  }
-
-  public generateId(): string {
-    return this._idPrefix + ':' + (++this._lastId).toString(36);
   }
 }

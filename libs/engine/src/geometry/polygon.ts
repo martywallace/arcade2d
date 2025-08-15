@@ -1,10 +1,14 @@
-import { ImmutablePointPrimitive } from './point';
+import { ImmutablePointPrimitive, PointPrimitive } from './point';
 
 /**
  * Defines a polygon in 2D space.
+ *
+ * @template TPointTuple - The tuple type of points that make up the polygon.
  */
-export class Polygon {
-  constructor(public readonly points: readonly ImmutablePointPrimitive[]) {}
+export class Polygon<
+  TPointTuple extends readonly PointPrimitive[] = readonly PointPrimitive[],
+> {
+  constructor(public readonly points: TPointTuple) {}
 
   public getBoundingBox(): Rectangle {
     const xs = this.points.map((point) => point.x);
@@ -29,7 +33,9 @@ export class Polygon {
 /**
  * Defines a rectangle in 2D space.
  */
-export class Rectangle extends Polygon {
+export class Rectangle extends Polygon<
+  [PointPrimitive, PointPrimitive, PointPrimitive, PointPrimitive]
+> {
   constructor(
     public readonly x: number,
     public readonly y: number,

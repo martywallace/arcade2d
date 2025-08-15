@@ -1,78 +1,60 @@
-import { Component } from './component';
+import { Point } from '../geometry';
+import { AbstractComponentHost } from './components';
 import { Update } from './update';
 import { World } from './world';
-import { Point } from '../geometry';
 
 export type WorldObjectMetadata = {
+  /**
+   * A globally unique identified assigned to this object. Factors in the prefab
+   * the object was created from.
+   */
   readonly id: string;
-  readonly prefabName: string;
+
+  /**
+   * The name of the prefab that was used to create this object. Undefined
+   * indicates the object was not created from a prefab.
+   */
+  readonly prefabName?: string;
 };
 
-export class WorldObject {
+/**
+ * The core object that exists within a `World` - its behaviour and
+ * functionality defined by its `Component`s. Every `WorldObject` has its own
+ * virtual position within a world but otherwise has no engine-defined
+ * characteristics - that is up to you!
+ */
+export class WorldObject extends AbstractComponentHost<WorldObject> {
   private _destroyed = false;
-  private _components = new Map<string, Component<WorldObject>>();
 
   constructor(
+    /**
+     * The world that the object exists within.
+     */
     public readonly world: World,
+
+    /**
+     * The virtual position of the object in the world, expressed in 2D space.
+     */
     public readonly position: Point,
+
+    /**
+     * Metadata about the object and its relationship with the world is is part
+     * of.
+     */
     public readonly metadata: WorldObjectMetadata,
-  ) {}
-
-  public addComponent(
-    key: string,
-    component: Component<WorldObject>,
-  ): Component<WorldObject> {
-    // @todo: should it throw if a component already exists? Maybe the developer
-    // intentionally wants to replace it and we should allow it. But I could
-    // also see this being a very annoying bug to track down if it was done
-    // unintentionally.
-
-    this._components.set(key, component);
-
-    return component;
-  }
-
-  public getComponent<T extends Component<WorldObject>>(key: string): T {
-    const value = this._components.get(key);
-
-    if (!value) {
-      throw new Error(`Component not found: ${key}`);
-    }
-
-    return value as T;
-  }
-
-  public getComponentByType<T extends Component<WorldObject>>(
-    type: new (owner: WorldObject) => T,
-  ): T {
-    for (const [_, component] of this._components) {
-      if (component instanceof type) {
-        return component as T;
-      }
-    }
-
-    throw new Error(`Component type not found: ${type.name}`);
-  }
-
-  public getNullableComponent<T extends Component<WorldObject>>(
-    key: string,
-  ): T | null {
-    return (this._components.get(key) ?? null) as T | null;
+  ) {
+    super();
   }
 
   /**
    * Lifecycle hook called when this object is actually removed from the world.
    */
   public onDestroy(): void {
-    for (const [_, component] of this._components) {
-      component.onDestroy();
-    }
-
-    this._components = new Map();
+    this.removeAllComponents();
   }
 
   public onUpdate(update: Update): void {
-    for (const [_, component] of this._components) {
+    for (const [_, component] of this.components) {
       component.onUpdate(update);
     }
   }
@@ -87,7 +69,15 @@ export class WorldObject {
     this._destroyed = true;
   }
 
+  /**
+   * Whether this object has been marked as destroyed. If `true`, the object
+   * will be removed from the world after the next update step.
+   */
   public get destroyed(): boolean {
     return this._destroyed;
+  }
+
+  public getHostReference(): WorldObject {
+    return this;
   }
 }

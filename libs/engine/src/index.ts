@@ -1,3 +1,4 @@
+export * from './error';
 export * from './geometry';
-export * from './world';
 export * from './graphics';
+export * from './world';

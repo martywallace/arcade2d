@@ -1,7 +1,7 @@
 import { Point } from './point';
 
 describe('Point', () => {
-  test('It will allow reading and writing x and y values', () => {
+  test('it will allow reading and writing x and y values', () => {
     const point = new Point(10, 15);
 
     expect(point.x).toBe(10);
@@ -14,7 +14,7 @@ describe('Point', () => {
     expect(point.y).toBe(25);
   });
 
-  test('It will prevent accidental NaN values', () => {
+  test('it will prevent accidental NaN values', () => {
     const dodgyPoint = new Point(parseFloat('nope'), parseFloat('nope'));
     const point = new Point(17, 0);
 
@@ -26,7 +26,7 @@ describe('Point', () => {
   });
 
   describe('length', () => {
-    test('It will calculate the length', () => {
+    test('it will calculate the length', () => {
       const point = new Point(5, 8);
 
       expect(point.length).toBeCloseTo(9.43398, 5);
@@ -34,7 +34,7 @@ describe('Point', () => {
   });
 
   describe('angle', () => {
-    test('It will calculate the angle', () => {
+    test('it will calculate the angle', () => {
       const point = new Point(12, -6.5);
 
       expect(point.angle).toBeCloseTo(-0.49642, 5);
@@ -42,7 +42,7 @@ describe('Point', () => {
   });
 
   describe('distanceTo', () => {
-    test('It will calculate the distance to another point', () => {
+    test('it will calculate the distance to another point', () => {
       const point = new Point(0, 0);
 
       expect(point.distanceTo({ x: 10, y: 0 })).toBe(10);
@@ -51,7 +51,7 @@ describe('Point', () => {
   });
 
   describe('angleTo', () => {
-    test('It will calculate the angle to another point', () => {
+    test('it will calculate the angle to another point', () => {
       const point = new Point(0, 0);
 
       expect(point.angleTo({ x: 10, y: 0 })).toBe(0);

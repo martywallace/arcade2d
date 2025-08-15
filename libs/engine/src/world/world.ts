@@ -1,65 +1,59 @@
+import { Point } from '../geometry';
+import { IDGenerator } from '../utils/id-generator';
+import { AbstractComponentHost, Component } from './components';
 import { Prefab } from './prefab';
 import { Update } from './update';
 import { WorldObject } from './world-object';
-import { Component } from './component';
-import { Point } from '../geometry';
 
 export type WorldOptions = {
   readonly components: (world: World) => Record<string, () => Component<World>>;
 };
 
-export class World {
+export class World extends AbstractComponentHost<World> {
   private _lastUpdate = 0;
   private _objects: WorldObject[] = [];
-  private _components = new Map<string, Component<World>>();
 
-  constructor(private readonly options: WorldOptions) {
-    for (const [key, factory] of Object.entries(options.components(this))) {
-      this.addComponent(key, factory());
-    }
+  private readonly _mappedObjects: Map<string, WorldObject> = new Map();
+  private readonly _idGenerator = new IDGenerator();
 
-    for (const [_, component] of this._components) {
-      component.onAdded();
-    }
+  constructor(options: WorldOptions) {
+    super();
+
+    this.addComponentsFromFactories(options.components(this));
   }
 
-  public addComponent(
-    key: string,
-    component: Component<World>,
-  ): Component<World> {
-    // @todo: concerns per WorldObject.addComponent()
+  /**
+   * Creates a new world object from a target prefab.
+   *
+   * @param prefab The prefab to create an object from.
+   * @param position The starting position of the new object in the world.
+   */
+  public createFromPrefab(
+    prefab: Prefab,
+    position = Point.zero(),
+  ): WorldObject {
+    const object = prefab.buildObject(this, position);
 
-    this._components.set(key, component);
-
-    return component;
+    return this.add(object);
   }
 
-  public getComponent<T extends Component<World>>(key: string): T {
-    const value = this._components.get(key);
+  /**
+   * Creates a new empty world object. Useful for creating one-off objects that
+   * don't necessarily need to be based on a prefab definition.
+   *
+   * @param position The starting position of the new object in the world.
+   */
+  public createEmpty(position = Point.zero()): WorldObject {
+    const object = new WorldObject(this, position, {
+      id: this._idGenerator.next(),
+    });
 
-    if (!value) {
-      throw new Error(`Component not found: ${key}`);
-    }
-
-    return value as T;
+    return this.add(object);
   }
 
-  public getComponentByType<T extends Component<World>>(
-    type: new (owner: World, ...args: any[]) => T,
-  ): T {
-    for (const [_, component] of this._components) {
-      if (component instanceof type) {
-        return component as T;
-      }
-    }
-
-    throw new Error(`Component type not found: ${type.name}`);
-  }
-
-  public create(prefab: Prefab, position?: Point): WorldObject {
-    const object = prefab.buildObject(this, position ?? new Point());
-
+  protected add(object: WorldObject): WorldObject {
     this._objects.push(object);
+    this._mappedObjects.set(object.metadata.id, object);
 
     return object;
   }
@@ -68,7 +62,7 @@ export class World {
     const update = new Update(this._lastUpdate, Date.now());
 
     // Update all components.
-    for (const [_, component] of this._components) {
+    for (const [_, component] of this.components) {
       component.onUpdate(update);
     }
 
@@ -77,14 +71,25 @@ export class World {
       object.onUpdate(update);
     }
 
+    const destroyedObjects = new Map<string, WorldObject>();
+
     for (const object of this._objects) {
       if (object.destroyed) {
         object.onDestroy();
+        destroyedObjects.set(object.metadata.id, object);
       }
     }
 
     // Remove deleted ones.
-    this._objects = this._objects.filter((object) => !object.destroyed);
+    this._objects = this._objects.filter(
+      (object) => !destroyedObjects.has(object.metadata.id),
+    );
+
+    for (const id of destroyedObjects.keys()) {
+      this._mappedObjects.delete(id);
+    }
+
+    // Update internal state.
     this._lastUpdate = Date.now();
 
     return update;
@@ -99,6 +104,13 @@ export class World {
       object.onDestroy();
     }
 
+    this.removeAllComponents();
+
     this._objects = [];
+    this._mappedObjects.clear();
+  }
+
+  public getHostReference(): World {
+    return this;
   }
 }

@@ -6,7 +6,8 @@
   ],
   "scripts": {
     "build": "turbo build",
-    "test": "turbo test"
+    "test": "turbo test",
+    "start:demo:ts-shooter": "yarn workspace @arcade2d/demo-ts-shooter dev"
   },
   "workspaces": {
     "packages": [

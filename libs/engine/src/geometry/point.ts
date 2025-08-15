@@ -10,13 +10,12 @@ export interface PointPrimitive {
   y: number;
 }
 
-export interface ImmutablePointPrimitive {
-  readonly x: number;
-  readonly y: number;
-}
+export interface ImmutablePointPrimitive extends Readonly<PointPrimitive> {}
 
 /**
- * Defines a point in 2D space.
+ * Defines a point in 2D space. Provides functionality for common operations
+ * between points and the parent space such as calculating distances and angles,
+ * and performing vector operations.
  */
 export class Point implements PointPrimitive {
   /**
@@ -73,86 +72,95 @@ export class Point implements PointPrimitive {
   }
 
   /**
-   * Returns a clone of this point.
+   * Returns a clone of this point. Useful for producing a new point with
+   * displaced coordinates e.g.
+   *
+   * ```typescript
+   * const newPosition = originalPosition.clone().moveToward(target, 10);
+   * ```
    */
   public clone(): Point {
     return new Point(this._x, this._y);
   }
 
   /**
-   * Creates a new point where the current position is "snapped" to the nearest
-   * cell corner in an abstract grid as defined by the input `x` and `y` values.
+   * Updates the coordinates of this point so the position is "snapped" to the
+   * nearest cell corner in an abstract grid as defined by the input `x` and
+   * `y` values.
    *
    * @param x The x spacing between the grid columns.
    * @param y The y spacing between the grid rows.
    */
-  public snap(x = 1, y = 1): Point {
-    return new Point(
-      // Avoids division by zero but might give unexpected results. Tradeoff
-      // seems worth it.
-      x === 0 ? 0 : Math.round(this._x / x) * x,
-      y === 0 ? 0 : Math.round(this._y / y) * y,
-    );
+  public snap(x = 1, y = 1): this {
+    this.x = x === 0 ? 0 : Math.round(this._x / x) * x;
+    this.y = y === 0 ? 0 : Math.round(this._y / y) * y;
+
+    return this;
   }
 
   /**
    * Returns a primitive clone of this point.
    */
-  public toPrimitive(): PointPrimitive {
+  public cloneToPrimitive(): PointPrimitive {
     return { x: this._x, y: this._y };
   }
 
   /**
-   * Returns an immutable primitive clone of this point, where the x and y
-   * values are frozen and marked readonly.
+   * Returns an immutable primitive clone of this point, where the `x` and `y`
+   * values are frozen at runtime and marked readonly by the compiler.
    */
-  public toImmutablePrimitive(): ImmutablePointPrimitive {
+  public cloneToImmutablePrimitive(): ImmutablePointPrimitive {
     return Object.freeze({ x: this._x, y: this._y });
   }
 
   /**
    * Returns a tuple clone of this point expressed as `[x, y]`.
    */
-  public toTuple(): [number, number] {
+  public cloneToTuple(): [number, number] {
     return [this._x, this._y];
-  }
-
-  /**
-   * Produce a new point with the input x and y values added.
-   *
-   * @param x The x value to add.
-   * @param y The y value to add.
-   */
-  public add(x: number, y: number): Point {
-    return new Point(this._x + x, this._y + y);
   }
 
   /**
    * Produce a new point with normalized x and y values.
    */
-  public normalize(): Point {
+  public cloneToNormalized(): Point {
     return new Point(this._x / this.length, this._y / this.length);
   }
 
   /**
-   * Produce a new point that is the result of moving this point towards a
-   * target point.
+   * Adds the input values to this point's coordinates.
+   *
+   * @param x The x value to add.
+   * @param y The y value to add.
+   */
+  public add(x: number, y: number): this {
+    this.x += x;
+    this.y += y;
+
+    return this;
+  }
+
+  /**
+   * Move this point toward a target point by a given distance.
    *
    * @param target The target point.
    * @param distance The distance toward the point to move.
    */
-  public moveTowards(target: PointPrimitive, distance: number): Point {
+  public moveTowards(target: PointPrimitive, distance: number): this {
     const angle = this.angleTo(target);
-    return this.add(Math.cos(angle) * distance, Math.sin(angle) * distance);
+
+    this.x += Math.cos(angle) * distance;
+    this.y += Math.sin(angle) * distance;
+
+    return this;
   }
 
   /**
-   * Produce a new point that is the result of moving this point forward along
-   * its current angle the given distance.
+   * Move this point forward along its current angle by a given distance.
    *
    * @param distance The distance to move forward.
    */
-  public forward(distance: number): Point {
+  public forward(distance: number): this {
     return this.add(
       Math.cos(this.angle) * distance,
       Math.sin(this.angle) * distance,
@@ -191,10 +199,21 @@ export class Point implements PointPrimitive {
     return Math.atan2(target.y - this._y, target.x - this._x);
   }
 
+  /**
+   * Returns a string representation of this point.
+   */
+  public toString(): string {
+    return `Point(${this._x.toFixed(2)}, ${this._y.toFixed(2)})`;
+  }
+
   public get x(): number {
     return this._x;
   }
 
+  /**
+   * Sets the x coordinate of this point. If the input value is not a finite
+   * value, the current value is preserved.
+   */
   public set x(value: number) {
     this._x = Number.isFinite(value) ? value : this._x;
   }
@@ -203,6 +222,10 @@ export class Point implements PointPrimitive {
     return this._y;
   }
 
+  /**
+   * Sets the y coordinate of this point. If the input value is not a finite
+   * value, the current value is preserved.
+   */
   public set y(value: number) {
     this._y = Number.isFinite(value) ? value : this._y;
   }
