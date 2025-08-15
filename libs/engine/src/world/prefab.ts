@@ -1,6 +1,6 @@
+import { ComponentFactoryMap } from '../components';
 import { Point } from '../geometry';
 import { IDGenerator } from '../utils/id-generator';
-import { ComponentFactoryMap } from './components';
 import { World } from './world';
 import { WorldObject } from './world-object';
 
@@ -18,6 +18,7 @@ export type PrefabComponentContext = {
 
 export type PrefabOptions = {
   readonly name: string;
+  readonly tags?: readonly string[];
   readonly components: (
     context: PrefabComponentContext,
   ) => ComponentFactoryMap<WorldObject>;
@@ -46,6 +47,7 @@ export class Prefab {
     const object = new WorldObject(world, position, {
       id: this._idGenerator.next(),
       prefabName: this.options.name,
+      tags: new Set(this.options.tags ?? []),
     });
 
     object.addComponentsFromFactories(

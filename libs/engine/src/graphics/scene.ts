@@ -1,6 +1,7 @@
 import { Application, Container } from 'pixi.js';
+import { Component } from '../components';
 import { Point } from '../geometry';
-import { Component, World } from '../world';
+import { World } from '../world';
 
 export class Scene extends Container implements Component<World> {
   constructor(

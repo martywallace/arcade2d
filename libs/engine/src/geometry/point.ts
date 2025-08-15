@@ -168,6 +168,19 @@ export class Point implements PointPrimitive {
   }
 
   /**
+   * Move this point in a given direction by a given distance.
+   *
+   * @param angle The angle to move in, measured in radians.
+   * @param distance The distance to move in the given direction.
+   */
+  public moveInDirection(angle: number, distance: number): this {
+    this.x += Math.cos(angle) * distance;
+    this.y += Math.sin(angle) * distance;
+
+    return this;
+  }
+
+  /**
    * Determines if this point is equal to a target point with a given precision.
    *
    * @param target The target point.

@@ -1,4 +1,3 @@
-export * from './components';
 export * from './prefab';
 export * from './update';
 export * from './world';

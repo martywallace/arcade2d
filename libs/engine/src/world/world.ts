@@ -1,6 +1,6 @@
+import { AbstractComponentHost, Component } from '../components';
 import { Point } from '../geometry';
 import { IDGenerator } from '../utils/id-generator';
-import { AbstractComponentHost, Component } from './components';
 import { Prefab } from './prefab';
 import { Update } from './update';
 import { WorldObject } from './world-object';
@@ -42,10 +42,15 @@ export class World extends AbstractComponentHost<World> {
    * don't necessarily need to be based on a prefab definition.
    *
    * @param position The starting position of the new object in the world.
+   * @param tags The tags to assign to the new object.
    */
-  public createEmpty(position = Point.zero()): WorldObject {
+  public createEmpty(
+    position = Point.zero(),
+    tags?: readonly string[],
+  ): WorldObject {
     const object = new WorldObject(this, position, {
       id: this._idGenerator.next(),
+      tags: new Set(tags ?? []),
     });
 
     return this.add(object);
@@ -80,13 +85,15 @@ export class World extends AbstractComponentHost<World> {
       }
     }
 
-    // Remove deleted ones.
-    this._objects = this._objects.filter(
-      (object) => !destroyedObjects.has(object.metadata.id),
-    );
+    if (destroyedObjects.size > 0) {
+      // Remove deleted ones.
+      this._objects = this._objects.filter(
+        (object) => !destroyedObjects.has(object.metadata.id),
+      );
 
-    for (const id of destroyedObjects.keys()) {
-      this._mappedObjects.delete(id);
+      for (const id of destroyedObjects.keys()) {
+        this._mappedObjects.delete(id);
+      }
     }
 
     // Update internal state.
@@ -110,7 +117,43 @@ export class World extends AbstractComponentHost<World> {
     this._mappedObjects.clear();
   }
 
-  public getHostReference(): World {
+  /**
+   * Finds an object in the world using its ID.
+   *
+   * @param id The ID of the object to find.
+   *
+   * @returns The object with the given ID, or `null` if it does not exist.
+   */
+  public findById(id: string): WorldObject | null {
+    return this._mappedObjects.get(id) ?? null;
+  }
+
+  /**
+   * Finds all objects in the world with the given tag.
+   *
+   * @param tag The tag to find objects by.
+   *
+   * @returns An array of objects with the given tag.
+   */
+  public findByTag(tag: string): readonly WorldObject[] {
+    return this._objects.filter((object) => object.metadata.tags.has(tag));
+  }
+
+  /**
+   * Finds a single object in the world with the given tag.
+   *
+   * @param tag The tag to find an object by.
+   *
+   * @returns The first object with the given tag, or `null` if no object is
+   * found.
+   */
+  public findOneByTag(tag: string): WorldObject | null {
+    return (
+      this._objects.find((object) => object.metadata.tags.has(tag)) ?? null
+    );
+  }
+
+  protected getHostReference(): World {
     return this;
   }
 }

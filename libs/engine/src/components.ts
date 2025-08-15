@@ -1,5 +1,5 @@
-import { ErrorCode, throwEngineError } from '../error';
-import { Update } from './update';
+import { ErrorCode, throwEngineError } from './error';
+import { Update } from './world/update';
 
 /**
  * Defines a component that can be added to a a host object.

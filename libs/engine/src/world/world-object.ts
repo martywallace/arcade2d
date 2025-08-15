@@ -1,5 +1,5 @@
+import { AbstractComponentHost } from '../components';
 import { Point } from '../geometry';
-import { AbstractComponentHost } from './components';
 import { Update } from './update';
 import { World } from './world';
 
@@ -9,6 +9,11 @@ export type WorldObjectMetadata = {
    * the object was created from.
    */
   readonly id: string;
+
+  /**
+   * A set of tags to assing to the object.
+   */
+  readonly tags: Set<string>;
 
   /**
    * The name of the prefab that was used to create this object. Undefined
@@ -26,6 +31,8 @@ export type WorldObjectMetadata = {
 export class WorldObject extends AbstractComponentHost<WorldObject> {
   private _destroyed = false;
 
+  public readonly position: Point;
+
   constructor(
     /**
      * The world that the object exists within.
@@ -35,7 +42,7 @@ export class WorldObject extends AbstractComponentHost<WorldObject> {
     /**
      * The virtual position of the object in the world, expressed in 2D space.
      */
-    public readonly position: Point,
+    position: Point,
 
     /**
      * Metadata about the object and its relationship with the world is is part
@@ -44,6 +51,8 @@ export class WorldObject extends AbstractComponentHost<WorldObject> {
     public readonly metadata: WorldObjectMetadata,
   ) {
     super();
+
+    this.position = position.clone();
   }
 
   /**
@@ -77,7 +86,7 @@ export class WorldObject extends AbstractComponentHost<WorldObject> {
     return this._destroyed;
   }
 
-  public getHostReference(): WorldObject {
+  protected getHostReference(): WorldObject {
     return this;
   }
 }
