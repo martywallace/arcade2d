@@ -1,23 +1,28 @@
 name: Release
 
+# Publishes @arcade2d/engine to npm when a GitHub Release is published.
+# The version bump is done locally before tagging:
+#   yarn changeset      # record changes
+#   yarn version-packages   # bump versions + changelog, commit
+#   git tag vX.Y.Z && git push --tags
+# then create a GitHub Release for that tag.
 on:
-  push:
-    branches: [main]
+  release:
+    types: [published]
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event.release.tag_name }}
   cancel-in-progress: false
 
 jobs:
-  release:
+  publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          ref: ${{ github.event.release.tag_name }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -25,15 +30,9 @@ jobs:
       - run: corepack enable
       - run: yarn install --immutable
 
-      # Opens/updates a "Version Packages" PR from pending changesets, and
-      # publishes @arcade2d/engine to npm once that PR is merged.
-      - uses: changesets/action@v1
-        with:
-          version: yarn version-packages
-          publish: yarn release
-          commit: 'chore: version packages'
-          title: 'chore: version packages'
+      # Builds the engine then runs `changeset publish`, which publishes any
+      # package whose local version is not yet on npm (idempotent).
+      - run: yarn release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           YARN_NPM_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

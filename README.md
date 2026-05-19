@@ -58,5 +58,7 @@ docker build -f docker/devserver.Dockerfile -t arcade2d-devserver .
 ## Publishing
 
 Only `@arcade2d/engine` is published to npm. Record changes with
-`yarn changeset`; CI versions and publishes on merge to `main`. The dev server
-image is built and pushed to GHCR by the `Dev Server Image` workflow.
+`yarn changeset`, bump with `yarn version-packages`, then tag and publish a
+GitHub Release — the `Release` workflow publishes to npm on `release:
+published`. The dev server image is built and pushed to GHCR by the
+`Dev Server Image` workflow.
