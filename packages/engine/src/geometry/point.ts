@@ -10,7 +10,7 @@ export interface PointPrimitive {
   y: number;
 }
 
-export interface ImmutablePointPrimitive extends Readonly<PointPrimitive> {}
+export type ImmutablePointPrimitive = Readonly<PointPrimitive>;
 
 /**
  * Defines a point in 2D space. Provides functionality for common operations

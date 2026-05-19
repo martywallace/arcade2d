@@ -1,0 +1,31 @@
+import globals from 'globals';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+import base from './base.js';
+
+/**
+ * Flat ESLint config for the React frontend. Extends the shared base with
+ * browser globals and React-specific rules.
+ *
+ * @type {import('eslint').Linter.Config[]}
+ */
+export default [
+  ...base,
+  {
+    files: ['**/*.{ts,tsx}'],
+    languageOptions: {
+      globals: globals.browser,
+    },
+    plugins: {
+      'react-hooks': reactHooks,
+      'react-refresh': reactRefresh,
+    },
+    rules: {
+      ...reactHooks.configs.recommended.rules,
+      'react-refresh/only-export-components': [
+        'warn',
+        { allowConstantExport: true },
+      ],
+    },
+  },
+];

@@ -6,5 +6,12 @@ node_modules
 !.yarn/plugins
 
 dist
+build
 coverage
 .turbo
+*.tsbuildinfo
+
+# env
+.env
+.env.local
+.env.*.local

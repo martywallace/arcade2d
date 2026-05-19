@@ -194,7 +194,7 @@ export interface ComponentHost<THost extends ComponentHost<THost>> {
   removeAllComponents(): void;
 }
 
-export type ComponentHostConstructor<T> = new (...args: any[]) => T;
+export type ComponentHostConstructor<T> = new (...args: never[]) => T;
 export type ComponentFactory<THost extends ComponentHost<THost>> = (
   host: THost,
 ) => Component<THost>;
@@ -217,14 +217,19 @@ export abstract class AbstractComponentHost<THost extends ComponentHost<THost>>
 {
   protected readonly components = new Map<string, Component<THost>>();
 
-  private readonly _componentByTypeCache = new Map<Function, string>();
+  private readonly _componentByTypeCache = new Map<
+    ComponentHostConstructor<Component<THost>>,
+    string
+  >();
 
   public addComponent(
     key: string,
     component: Component<THost>,
     options: AddComponentOptions = {},
   ): Component<THost> {
-    return this.addComponents({ [key]: component }, options)[key];
+    this.addComponents({ [key]: component }, options);
+
+    return component;
   }
 
   public addComponentFromFactory(

@@ -1,0 +1,12 @@
+{
+  "name": "@arcade2d/tsconfig",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "files": [
+    "base.json",
+    "library.json",
+    "react.json",
+    "nestjs.json"
+  ]
+}

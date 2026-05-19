@@ -4,7 +4,7 @@ import { PlayerController } from './player.controller.component';
 export const PlayerPrefab = new Prefab({
   name: 'player',
   tags: ['player'],
-  components: ({ world, object }) => ({
+  components: ({ object }) => ({
     controller: () => new PlayerController(object),
     graphics: () => SimpleGraphics.solidRectangle(object, 50, 50, 0xffffff),
   }),

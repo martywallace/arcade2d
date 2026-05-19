@@ -1,23 +1,33 @@
 {
-  "name": "@arcade2d/arcade2d",
-  "description": "JavaScript components for developing 2D games.",
+  "name": "@arcade2d/root",
+  "description": "JavaScript components and tooling for developing 2D games.",
+  "private": true,
   "maintainers": [
     "Marty Wallace <marty@martywallace.com> (https://martywallace.com)"
   ],
+  "packageManager": "yarn@4.14.1",
+  "workspaces": [
+    "packages/*",
+    "demos/*",
+    "apps/devserver/*"
+  ],
   "scripts": {
     "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
     "test": "turbo test",
-    "start:demo:ts-shooter": "yarn workspace @arcade2d/demo-ts-shooter dev"
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml}\"",
+    "demo:td-shooter": "yarn workspace @arcade2d/demo-td-shooter dev",
+    "devserver": "turbo dev --filter=@arcade2d/devserver-backend --filter=@arcade2d/devserver-frontend",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "turbo build --filter=@arcade2d/engine && changeset publish"
   },
-  "workspaces": {
-    "packages": [
-      "libs/*",
-      "demos/*"
-    ]
-  },
-  "packageManager": "yarn@4.1.0",
   "devDependencies": {
-    "prettier": "^3.2.5",
-    "turbo": "^1.12.4"
+    "@changesets/cli": "^2.27.10",
+    "prettier": "^3.4.2",
+    "turbo": "^2.3.3"
   }
 }
