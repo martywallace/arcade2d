@@ -402,11 +402,7 @@ describe('Point', () => {
   });
 
   test('mutating methods chain together', () => {
-    const point = new Point(0, 0)
-      .add(10, 10)
-      .subtract(2, 2)
-      .scale(2)
-      .negate();
+    const point = new Point(0, 0).add(10, 10).subtract(2, 2).scale(2).negate();
 
     expect(point).toMatchObject({ x: -16, y: -16 });
   });
