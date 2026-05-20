@@ -1,4 +1,7 @@
 import { Component } from '../components';
+import { EngineError, ErrorCode } from '../error';
+import { Prefab } from './prefab';
+import { PrefabRegistry } from './prefab-registry';
 import { World, WorldErrorContext } from './world';
 import { WorldObject } from './world-object';
 
@@ -574,6 +577,85 @@ describe('World', () => {
       world.update();
 
       expect(spawnedSpy!.destroys).toBe(1);
+    });
+  });
+
+  describe('prefab integration', () => {
+    test('createFromPrefab adds the object to the world and exposes it via findById', () => {
+      const prefab = new Prefab({ name: 'enemy', components: {} });
+      const world = createWorld();
+
+      const object = world.createFromPrefab(prefab);
+
+      expect(world.findById(object.metadata.id)).toBe(object);
+      expect(object.metadata.id).toBe('enemy@1');
+      expect(object.metadata.prefabName).toBe('enemy');
+    });
+
+    test('createFromPrefabName resolves through the attached registry', () => {
+      const enemy = new Prefab({ name: 'enemy', components: {} });
+      const prefabs = new PrefabRegistry([enemy]);
+      const world = new World({ components: () => ({}), prefabs });
+
+      const object = world.createFromPrefabName('enemy');
+
+      expect(object.metadata.prefabName).toBe('enemy');
+      expect(world.findById(object.metadata.id)).toBe(object);
+    });
+
+    test('createFromPrefabName throws PREFAB_REGISTRY_NOT_ATTACHED with no registry', () => {
+      const world = createWorld();
+
+      let caught: unknown = null;
+      try {
+        world.createFromPrefabName('enemy');
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(caught).toBeInstanceOf(EngineError);
+      expect((caught as EngineError).code).toBe(
+        ErrorCode.PREFAB_REGISTRY_NOT_ATTACHED,
+      );
+    });
+
+    test('createFromPrefabName surfaces PREFAB_NOT_FOUND from the registry', () => {
+      const prefabs = new PrefabRegistry();
+      const world = new World({ components: () => ({}), prefabs });
+
+      let caught: unknown = null;
+      try {
+        world.createFromPrefabName('ghost');
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(caught).toBeInstanceOf(EngineError);
+      expect((caught as EngineError).code).toBe(ErrorCode.PREFAB_NOT_FOUND);
+    });
+
+    test('world.prefabs exposes the attached registry, or null', () => {
+      const prefabs = new PrefabRegistry();
+      const withRegistry = new World({ components: () => ({}), prefabs });
+      const withoutRegistry = createWorld();
+
+      expect(withRegistry.prefabs).toBe(prefabs);
+      expect(withoutRegistry.prefabs).toBeNull();
+    });
+
+    test('the same registry can be shared across multiple worlds', () => {
+      const prefab = new Prefab({ name: 'shared', components: {} });
+      const prefabs = new PrefabRegistry([prefab]);
+
+      const worldA = new World({ components: () => ({}), prefabs });
+      const worldB = new World({ components: () => ({}), prefabs });
+
+      const a = worldA.createFromPrefabName('shared');
+      const b = worldB.createFromPrefabName('shared');
+
+      // Same prefab object → continuous, monotonically-increasing id stream.
+      expect(a.metadata.id).toBe('shared@1');
+      expect(b.metadata.id).toBe('shared@2');
     });
   });
 });

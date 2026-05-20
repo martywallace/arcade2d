@@ -4,8 +4,9 @@ import { ZombieController } from './zombie.controller.component';
 export const ZombiePrefab = new Prefab({
   name: 'zombie',
   tags: ['enemy'],
-  components: ({ object }) => ({
-    controller: () => new ZombieController(object),
-    graphics: () => SimpleGraphics.solidRectangle(object, 40, 40, 0xff3333),
-  }),
+  components: {
+    controller: ({ object }) => new ZombieController(object),
+    graphics: ({ object }) =>
+      SimpleGraphics.solidRectangle(object, 40, 40, 0xff3333),
+  },
 });

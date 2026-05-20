@@ -1,7 +1,10 @@
 import { AbstractComponentHost, Component } from '../components';
+import { ErrorCode, throwEngineError } from '../error';
 import { Point } from '../geometry';
 import { IDGenerator } from '../utils/id-generator';
+import { PREFAB_BUILD_TOKEN } from './internal';
 import { Prefab } from './prefab';
+import { PrefabRegistry } from './prefab-registry';
 import { Update } from './update';
 import { WorldObject } from './world-object';
 
@@ -57,6 +60,17 @@ export type WorldOptions = {
    * callers an opt-in path to fail-fast.
    */
   readonly onError?: (context: WorldErrorContext) => void;
+
+  /**
+   * Optional {@link PrefabRegistry} that the world can resolve prefabs
+   * against by name. Required for {@link World.createFromPrefabName}.
+   *
+   * The same registry instance may be shared across multiple worlds —
+   * registries are pure lookup tables and do not retain per-world state.
+   * {@link World.createFromPrefab} (taking a `Prefab` directly) works
+   * regardless of whether a registry is attached.
+   */
+  readonly prefabs?: PrefabRegistry;
 };
 
 /**
@@ -101,13 +115,25 @@ export class World extends AbstractComponentHost<World> {
   private readonly _mappedObjects: Map<string, WorldObject> = new Map();
   private readonly _idGenerator = new IDGenerator();
   private readonly _onError?: (context: WorldErrorContext) => void;
+  private readonly _prefabs?: PrefabRegistry;
 
   constructor(options: WorldOptions) {
     super();
 
     this._onError = options.onError;
+    this._prefabs = options.prefabs;
 
     this.addComponentsFromFactories(options.components(this));
+  }
+
+  /**
+   * The {@link PrefabRegistry} this world resolves prefabs against by name,
+   * or `null` if no registry was attached at construction. Exposed so callers
+   * can introspect or share the registry with other systems (e.g. editor
+   * tools).
+   */
+  public get prefabs(): PrefabRegistry | null {
+    return this._prefabs ?? null;
   }
 
   /**
@@ -146,7 +172,10 @@ export class World extends AbstractComponentHost<World> {
   }
 
   /**
-   * Creates a new world object from a target prefab.
+   * Creates a new world object from a target prefab. The object is added to
+   * the world's live set immediately if called outside a tick, or queued
+   * into the pending set if called from within an `onUpdate` handler — see
+   * the {@link World} class docs for the full spawn-timing contract.
    *
    * @param prefab The prefab to create an object from.
    * @param position The starting position of the new object in the world.
@@ -155,9 +184,39 @@ export class World extends AbstractComponentHost<World> {
     prefab: Prefab,
     position = Point.zero(),
   ): WorldObject {
-    const object = prefab.buildObject(this, position);
+    const object = prefab.buildObject(PREFAB_BUILD_TOKEN, this, position);
 
     return this.add(object);
+  }
+
+  /**
+   * Creates a new world object from a prefab looked up by name in the
+   * world's attached {@link PrefabRegistry}. Throws if no registry was
+   * passed at construction, or if the registry has no prefab under the
+   * given name.
+   *
+   * This is the entry point intended for deserialised world state — saved
+   * data refers to prefabs by name, and this method is how the engine
+   * rehydrates them.
+   *
+   * @param name The name of the prefab to look up in the attached registry.
+   * @param position The starting position of the new object in the world.
+   */
+  public createFromPrefabName(
+    name: string,
+    position = Point.zero(),
+  ): WorldObject {
+    if (!this._prefabs) {
+      throwEngineError(
+        ErrorCode.PREFAB_REGISTRY_NOT_ATTACHED,
+        'Cannot create from prefab name — no PrefabRegistry was attached ' +
+          'to this World. Pass `prefabs` in WorldOptions to enable name ' +
+          'lookups.',
+        { name },
+      );
+    }
+
+    return this.createFromPrefab(this._prefabs.get(name), position);
   }
 
   /**
