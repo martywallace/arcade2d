@@ -1,5 +1,6 @@
-import { AbstractComponentHost } from '../components';
+import { AbstractComponentHost, Component } from '../components';
 import { Point } from '../geometry';
+import { WorldObjectComponentDependencyResolver } from './dependencies';
 import { Update } from './update';
 import { World } from './world';
 
@@ -142,8 +143,10 @@ export class WorldObject extends AbstractComponentHost<WorldObject> {
         continue;
       }
 
+      const deps = this._getDepsFor(component);
+
       try {
-        hook.call(component, update);
+        hook.call(component, update, deps);
       } catch (error) {
         this.world.reportError({
           phase: errorPhase,
@@ -198,5 +201,12 @@ export class WorldObject extends AbstractComponentHost<WorldObject> {
 
   protected getHostReference(): WorldObject {
     return this;
+  }
+
+  protected override _createDependencyResolver(
+    component: Component<WorldObject>,
+    key: string,
+  ): WorldObjectComponentDependencyResolver {
+    return new WorldObjectComponentDependencyResolver(this, component, key);
   }
 }

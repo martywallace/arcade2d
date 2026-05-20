@@ -1,13 +1,29 @@
-import type { Component, Update } from '@arcade2d/engine';
+import type {
+  Update,
+  WorldObjectComponent,
+  WorldObjectDependencyResolver,
+} from '@arcade2d/engine';
 import { Point, SimpleGraphics, WorldObject } from '@arcade2d/engine';
 import { ZombiePrefab } from './zombie.prefab';
 
-export class ZombieController implements Component<WorldObject> {
+/**
+ * The zombie only needs to talk to its own visual representation —
+ * a sibling on the same {@link WorldObject}. No cross-tier dependency.
+ */
+type ZombieDeps = {
+  readonly graphics: SimpleGraphics;
+};
+
+export class ZombieController implements WorldObjectComponent<ZombieDeps> {
   constructor(public readonly host: WorldObject) {}
+
+  resolveDependencies(resolver: WorldObjectDependencyResolver): ZombieDeps {
+    return { graphics: resolver.requireSibling(SimpleGraphics) };
+  }
 
   onAdded() {}
 
-  onUpdate(update: Update) {
+  onUpdate(update: Update, { graphics }: ZombieDeps) {
     const player = this.host.world.findOneByTag('player');
 
     if (player) {
@@ -24,8 +40,7 @@ export class ZombieController implements Component<WorldObject> {
         );
       }
 
-      this.host.getComponentByType(SimpleGraphics).rotation =
-        this.host.position.angleTo(player.position);
+      graphics.rotation = this.host.position.angleTo(player.position);
     }
   }
 

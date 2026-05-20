@@ -2,6 +2,7 @@ import { AbstractComponentHost, Component } from '../components';
 import { ErrorCode, throwEngineError } from '../error';
 import { Point } from '../geometry';
 import { IDGenerator } from '../utils/id-generator';
+import { WorldComponentDependencyResolver } from './dependencies';
 import { PREFAB_BUILD_TOKEN } from './internal';
 import { Prefab } from './prefab';
 import { PrefabRegistry } from './prefab-registry';
@@ -647,11 +648,20 @@ export class World extends AbstractComponentHost<World> {
     return this;
   }
 
+  protected override _createDependencyResolver(
+    component: Component<World>,
+    key: string,
+  ): WorldComponentDependencyResolver {
+    return new WorldComponentDependencyResolver(this, component, key);
+  }
+
   /**
    * Iterates this world's own components and invokes the named phase
    * method on each, isolating throws so a single bad component does not
    * abort the tick. Disabled components and components that do not
    * implement the optional hook are skipped at a single property read.
+   * The resolved dependencies cached during `addComponents` are threaded
+   * into every invocation as the trailing `deps` argument.
    *
    * @param method The phase method to invoke on each component.
    * @param errorPhase The {@link WorldErrorPhase} label attached to thrown
@@ -677,8 +687,10 @@ export class World extends AbstractComponentHost<World> {
         continue;
       }
 
+      const deps = this._getDepsFor(component);
+
       try {
-        hook.call(component, update);
+        hook.call(component, update, deps);
       } catch (error) {
         this.reportError({
           phase: errorPhase,

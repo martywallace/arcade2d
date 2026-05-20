@@ -6,6 +6,13 @@ class TestHost extends AbstractComponentHost<TestHost> {
   protected getHostReference(): TestHost {
     return this;
   }
+
+  protected _createDependencyResolver(): unknown {
+    // No resolver behaviour is exercised by these tests — they cover the
+    // host-side surface (registration, lookup, lifecycle) rather than
+    // dependency resolution. Returning an opaque sentinel is sufficient.
+    return {};
+  }
 }
 
 const makeComponent = <T extends TestHost>(

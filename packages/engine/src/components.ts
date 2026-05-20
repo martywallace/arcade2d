@@ -2,7 +2,59 @@ import { ErrorCode, throwEngineError } from './error';
 import { Update } from './world/update';
 
 /**
+ * Sentinel "empty deps" object used for components that don't implement
+ * `resolveDependencies`. Frozen so a misbehaving component can't mutate
+ * the shared instance.
+ *
+ * @internal
+ */
+const EMPTY_DEPS: Readonly<Record<string, never>> = Object.freeze({});
+
+/**
+ * Internal duck-typed shape used to detect whether a component opts into
+ * the dependency-resolution lifecycle. Kept off the public
+ * {@link Component} interface because the resolver type depends on the
+ * host kind, which the structural primitive cannot express.
+ *
+ * @internal
+ */
+type ComponentWithResolveDependencies = {
+  resolveDependencies?: (resolver: unknown) => unknown;
+};
+
+/**
+ * Returns the component's `resolveDependencies` method if it implements
+ * one, or `null` otherwise. Used by the engine to detect whether to enter
+ * the resolve phase for a given component.
+ *
+ * @internal
+ */
+function getResolveDependenciesFn(
+  component: unknown,
+): ((resolver: unknown) => unknown) | null {
+  const candidate = (component as ComponentWithResolveDependencies)
+    .resolveDependencies;
+
+  return typeof candidate === 'function' ? candidate : null;
+}
+
+/**
  * Defines a component that can be added to a host object.
+ *
+ * `Component<THost>` is the **structural primitive** — the lowest-level
+ * shape the engine recognises. For most game code you'll reach for one of
+ * the named specialisations instead:
+ *
+ * - {@link WorldComponent} — a component attached to the {@link World}
+ *   itself (input samplers, physics broadphases, rendering systems,
+ *   audio mixers).
+ * - {@link WorldObjectComponent} — a component attached to a
+ *   {@link WorldObject} (controllers, graphics, colliders, behaviour
+ *   logic).
+ *
+ * Those specialisations layer on a typed
+ * {@link WorldComponent.resolveDependencies resolveDependencies} method
+ * and a richer dependency-aware lifecycle on top of this primitive.
  *
  * ### Update phases
  *
@@ -31,9 +83,24 @@ import { Update } from './world/update';
  * cost. `onUpdate`, `onAdded`, and `onDestroy` are required so the engine
  * can rely on them being callable.
  *
- * @template THost - The type of the host object.
+ * ### Dependencies
+ *
+ * Every lifecycle hook receives a `deps` argument carrying the
+ * dependencies declared by the component's optional `resolveDependencies`
+ * method. Components with no dependencies see an empty object and almost
+ * always omit the parameter at their hook signatures — TypeScript allows
+ * dropping trailing parameters when implementing the interface. Components
+ * that *do* declare dependencies should reach for {@link WorldComponent}
+ * or {@link WorldObjectComponent} so the deps parameter is properly typed
+ * everywhere it appears.
+ *
+ * @template THost The type of the host object.
+ * @template TDeps The shape of the resolved dependencies threaded into
+ * every lifecycle hook. Defaults to `unknown` on the primitive type;
+ * specialisations narrow it to the actual return shape of their
+ * `resolveDependencies`.
  */
-export interface Component<THost> {
+export interface Component<THost, TDeps = unknown> {
   /**
    * The host object that this component is attached to.
    */
@@ -55,8 +122,12 @@ export interface Component<THost> {
   /**
    * Lifecycle hook that is called when the component is added to the host
    * object. Should not be called directly.
+   *
+   * @param deps The resolved dependencies for this component, as returned
+   * by `resolveDependencies`. An empty object for components that don't
+   * declare dependencies.
    */
-  onAdded(): void;
+  onAdded(deps: TDeps): void;
 
   /**
    * Optional lifecycle hook for the **pre-update** phase. Called once per
@@ -65,8 +136,9 @@ export interface Component<THost> {
    * `onUpdate` will read.
    *
    * @param update The `Update` instance for this tick.
+   * @param deps The resolved dependencies for this component.
    */
-  onPreUpdate?(update: Update): void;
+  onPreUpdate?(update: Update, deps: TDeps): void;
 
   /**
    * Lifecycle hook for the **main update** phase. Called once per world
@@ -74,8 +146,9 @@ export interface Component<THost> {
    * `onPostUpdate`.
    *
    * @param update The `Update` instance for this tick.
+   * @param deps The resolved dependencies for this component.
    */
-  onUpdate(update: Update): void;
+  onUpdate(update: Update, deps: TDeps): void;
 
   /**
    * Optional lifecycle hook for the **post-update** phase. Called once per
@@ -84,14 +157,17 @@ export interface Component<THost> {
    * applied — camera follow, transform sync, late-frame audit logs.
    *
    * @param update The `Update` instance for this tick.
+   * @param deps The resolved dependencies for this component.
    */
-  onPostUpdate?(update: Update): void;
+  onPostUpdate?(update: Update, deps: TDeps): void;
 
   /**
    * Lifecycle hook that is called when the host object is destroyed. Should
    * not be called directly.
+   *
+   * @param deps The resolved dependencies for this component.
    */
-  onDestroy(): void;
+  onDestroy(deps: TDeps): void;
 }
 
 export type AddComponentOptions = {
@@ -299,6 +375,24 @@ export abstract class AbstractComponentHost<THost extends ComponentHost<THost>>
 {
   protected readonly components = new Map<string, Component<THost>>();
 
+  /**
+   * Resolved dependencies cached per component. Populated during
+   * {@link AbstractComponentHost.addComponents} from the return value of
+   * each component's `resolveDependencies` method, and threaded into every
+   * lifecycle hook for the remainder of that component's lifetime on this
+   * host. Components without dependencies map to the shared
+   * {@link EMPTY_DEPS} sentinel so the lookup path stays uniform.
+   */
+  private readonly _depsByComponent = new Map<Component<THost>, unknown>();
+
+  /**
+   * Flag set while a component's `resolveDependencies` is running. Used to
+   * detect re-entrant `addComponent` calls and reject them with
+   * {@link ErrorCode.WORLD_COMPONENT_DEPENDENCY_REENTRANT} — the engine
+   * does not allow new components to land on a host mid-resolve.
+   */
+  private _isResolvingDependencies = false;
+
   private readonly _componentByTypeCache = new Map<
     ComponentHostConstructor<Component<THost>>,
     string
@@ -326,8 +420,28 @@ export abstract class AbstractComponentHost<THost extends ComponentHost<THost>>
     components: ComponentMap<THost>,
     { allowReplacement = false }: AddComponentOptions = {},
   ): ComponentMap<THost> {
-    // Register all incoming components first.
-    for (const [key, component] of Object.entries(components)) {
+    // Re-entrancy guard. A component's `resolveDependencies` must not call
+    // back into addComponent — that would mean inspecting the host mid-resolve
+    // when only some components are registered, which is impossible to
+    // reason about cleanly.
+    if (this._isResolvingDependencies) {
+      throwEngineError(
+        ErrorCode.WORLD_COMPONENT_DEPENDENCY_REENTRANT,
+        'Cannot add components from inside resolveDependencies. Register all ' +
+          'components in advance and let the resolver discover them.',
+        { host: this },
+      );
+    }
+
+    const entries = Object.entries(components);
+
+    // Stage 1: register every component. Siblings must already be in the
+    // map by the time we enter the resolve phase so that `requireSibling`
+    // and friends can see them. Track the keys we added in this batch so
+    // we can roll back atomically if resolve fails.
+    const addedKeys: string[] = [];
+
+    for (const [key, component] of entries) {
       if (this.components.has(key)) {
         if (allowReplacement) {
           this.removeComponent(key);
@@ -341,11 +455,51 @@ export abstract class AbstractComponentHost<THost extends ComponentHost<THost>>
       }
 
       this.components.set(key, component);
+      addedKeys.push(key);
     }
 
-    // Then call the onAdded() lifecycle hook on all of them.
+    // Stage 2: resolve dependencies. On failure, undo every registration
+    // from this batch so the host doesn't end up holding components whose
+    // `onAdded` was never called. Components added via `allowReplacement`
+    // can't fully restore their predecessor (the old component already had
+    // `onDestroy` invoked during `removeComponent`), but the failing batch
+    // itself does roll back.
+    this._isResolvingDependencies = true;
+    try {
+      for (const [key, component] of entries) {
+        const resolveFn = getResolveDependenciesFn(component);
+
+        if (!resolveFn) {
+          this._depsByComponent.set(component, EMPTY_DEPS);
+          continue;
+        }
+
+        const resolver = this._createDependencyResolver(component, key);
+        const deps = resolveFn.call(component, resolver);
+        this._depsByComponent.set(component, deps);
+      }
+    } catch (error) {
+      for (const key of addedKeys) {
+        const component = this.components.get(key);
+        this.components.delete(key);
+
+        if (component) {
+          this._depsByComponent.delete(component);
+        }
+      }
+
+      this._isResolvingDependencies = false;
+      throw error;
+    }
+    this._isResolvingDependencies = false;
+
+    // Stage 3: call onAdded on each component. By this point all
+    // dependencies are resolved and cached, so any cross-component
+    // references (whether declared via resolveDependencies or fetched
+    // ad-hoc via `host.getComponent`) work as advertised.
     for (const component of Object.values(components)) {
-      component.onAdded();
+      const deps = this._depsByComponent.get(component) ?? EMPTY_DEPS;
+      component.onAdded(deps);
     }
 
     return components;
@@ -489,9 +643,11 @@ export abstract class AbstractComponentHost<THost extends ComponentHost<THost>>
     const component = this.getNullableComponent(key);
 
     if (component) {
-      component.onDestroy();
+      const deps = this._depsByComponent.get(component) ?? EMPTY_DEPS;
+      component.onDestroy(deps);
 
       this.components.delete(key);
+      this._depsByComponent.delete(component);
 
       for (const [ref, componentKey] of this._componentByTypeCache) {
         if (componentKey === key) {
@@ -508,14 +664,16 @@ export abstract class AbstractComponentHost<THost extends ComponentHost<THost>>
     const snapshot = [...this.components];
 
     for (const [key, component] of snapshot) {
+      const deps = this._depsByComponent.get(component) ?? EMPTY_DEPS;
       try {
-        component.onDestroy();
+        component.onDestroy(deps);
       } catch (error) {
         this._handleComponentDestroyError(error, key);
       }
     }
 
     this.components.clear();
+    this._depsByComponent.clear();
     this._componentByTypeCache.clear();
   }
 
@@ -544,4 +702,33 @@ export abstract class AbstractComponentHost<THost extends ComponentHost<THost>>
    * the host object from a factory function).
    */
   protected abstract getHostReference(): THost;
+
+  /**
+   * Subclass hook that produces the concrete dependency resolver the host
+   * hands to a component's `resolveDependencies`. The {@link World} hosts a
+   * resolver scoped to siblings only; a {@link WorldObject} hosts one that
+   * also exposes cross-tier lookups against the parent world.
+   *
+   * Engine-internal — never called by user code.
+   *
+   * @param component The component about to resolve its dependencies.
+   * @param key The key the component is being registered under.
+   */
+  protected abstract _createDependencyResolver(
+    component: Component<THost>,
+    key: string,
+  ): unknown;
+
+  /**
+   * Internal accessor used by host iteration code (the {@link World}'s
+   * per-phase loops, the per-{@link WorldObject} phase loops) to fetch the
+   * cached deps for a component. Returns the shared empty-deps sentinel
+   * for components that didn't opt into the dependency-resolution
+   * lifecycle.
+   *
+   * @internal
+   */
+  public _getDepsFor(component: Component<THost>): unknown {
+    return this._depsByComponent.get(component) ?? EMPTY_DEPS;
+  }
 }
