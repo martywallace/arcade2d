@@ -82,15 +82,71 @@ export class WorldObject extends AbstractComponentHost<WorldObject> {
     this.removeAllComponents();
   }
 
+  /**
+   * Drives the `onPreUpdate` phase across this object's components. Called
+   * by the {@link World} during the pre-update pass of each tick. Skips
+   * components whose `enabled` is explicitly `false`, and components that
+   * do not implement the optional hook.
+   */
+  public onPreUpdate(update: Update): void {
+    this._runComponentPhase('onPreUpdate', 'component-pre-update', update);
+  }
+
+  /**
+   * Drives the `onUpdate` phase across this object's components. Called by
+   * the {@link World} during the main update pass of each tick. Skips
+   * components whose `enabled` is explicitly `false`.
+   */
   public onUpdate(update: Update): void {
-    // Each component is isolated so one throwing component does not kill
-    // the rest of this object's frame, nor the wider world tick.
+    this._runComponentPhase('onUpdate', 'component-update', update);
+  }
+
+  /**
+   * Drives the `onPostUpdate` phase across this object's components.
+   * Called by the {@link World} during the post-update pass of each tick.
+   * Skips components whose `enabled` is explicitly `false`, and components
+   * that do not implement the optional hook.
+   */
+  public onPostUpdate(update: Update): void {
+    this._runComponentPhase('onPostUpdate', 'component-post-update', update);
+  }
+
+  /**
+   * Iterates this object's components and invokes the named phase method
+   * on each. Each component is isolated in its own try/catch so one
+   * throwing component does not kill the rest of this object's frame, nor
+   * the wider world tick. Disabled components and components that do not
+   * implement the optional hook are skipped at a single property read.
+   *
+   * @param method The phase method to invoke.
+   * @param errorPhase The error-reporting label to attach to any thrown
+   * errors during this phase.
+   * @param update The `Update` instance for this tick.
+   */
+  private _runComponentPhase(
+    method: 'onPreUpdate' | 'onUpdate' | 'onPostUpdate',
+    errorPhase:
+      | 'component-pre-update'
+      | 'component-update'
+      | 'component-post-update',
+    update: Update,
+  ): void {
     for (const [key, component] of this.components) {
+      if (component.enabled === false) {
+        continue;
+      }
+
+      const hook = component[method];
+
+      if (!hook) {
+        continue;
+      }
+
       try {
-        component.onUpdate(update);
+        hook.call(component, update);
       } catch (error) {
         this.world.reportError({
-          phase: 'component-update',
+          phase: errorPhase,
           error,
           host: this,
           componentKey: key,

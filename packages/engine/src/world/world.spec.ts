@@ -658,4 +658,344 @@ describe('World', () => {
       expect(b.metadata.id).toBe('shared@2');
     });
   });
+
+  describe('three-phase update', () => {
+    type PhaseEvent = {
+      readonly source: string;
+      readonly phase: 'pre' | 'update' | 'post';
+    };
+
+    const attachPhaseRecorder = (
+      object: WorldObject,
+      source: string,
+      events: PhaseEvent[],
+      key = 'phases',
+    ) => {
+      const component: Component<WorldObject> = {
+        host: object,
+        onAdded: () => {},
+        onPreUpdate: () => {
+          events.push({ source, phase: 'pre' });
+        },
+        onUpdate: () => {
+          events.push({ source, phase: 'update' });
+        },
+        onPostUpdate: () => {
+          events.push({ source, phase: 'post' });
+        },
+        onDestroy: () => {},
+      };
+
+      object.addComponent(key, component);
+    };
+
+    test('all components fire onPreUpdate before any onUpdate, and all onUpdate before any onPostUpdate', () => {
+      const events: PhaseEvent[] = [];
+      const world: World = new World({
+        components: (w) => ({
+          worldA: () => ({
+            host: w,
+            onAdded: () => {},
+            onPreUpdate: () => events.push({ source: 'worldA', phase: 'pre' }),
+            onUpdate: () => events.push({ source: 'worldA', phase: 'update' }),
+            onPostUpdate: () =>
+              events.push({ source: 'worldA', phase: 'post' }),
+            onDestroy: () => {},
+          }),
+        }),
+      });
+      const objectA = world.createEmpty();
+      const objectB = world.createEmpty();
+      attachPhaseRecorder(objectA, 'objectA', events);
+      attachPhaseRecorder(objectB, 'objectB', events);
+
+      world.update();
+
+      const phases = events.map((e) => e.phase);
+      const lastPre = phases.lastIndexOf('pre');
+      const firstUpdate = phases.indexOf('update');
+      const lastUpdate = phases.lastIndexOf('update');
+      const firstPost = phases.indexOf('post');
+
+      expect(lastPre).toBeLessThan(firstUpdate);
+      expect(lastUpdate).toBeLessThan(firstPost);
+    });
+
+    test('within a phase, world components fire before object components', () => {
+      const events: PhaseEvent[] = [];
+      const world: World = new World({
+        components: (w) => ({
+          worldThing: () => ({
+            host: w,
+            onAdded: () => {},
+            onPreUpdate: () => events.push({ source: 'world', phase: 'pre' }),
+            onUpdate: () => events.push({ source: 'world', phase: 'update' }),
+            onPostUpdate: () =>
+              events.push({ source: 'world', phase: 'post' }),
+            onDestroy: () => {},
+          }),
+        }),
+      });
+      const object = world.createEmpty();
+      attachPhaseRecorder(object, 'object', events);
+
+      world.update();
+
+      // For each phase, the world entry should precede the object entry.
+      for (const phase of ['pre', 'update', 'post'] as const) {
+        const worldIdx = events.findIndex(
+          (e) => e.source === 'world' && e.phase === phase,
+        );
+        const objectIdx = events.findIndex(
+          (e) => e.source === 'object' && e.phase === phase,
+        );
+        expect(worldIdx).toBeGreaterThanOrEqual(0);
+        expect(objectIdx).toBeGreaterThanOrEqual(0);
+        expect(worldIdx).toBeLessThan(objectIdx);
+      }
+    });
+
+    test('components without onPreUpdate or onPostUpdate are skipped silently', () => {
+      const world = createWorld();
+      const object = world.createEmpty();
+
+      let updates = 0;
+      const component: Component<WorldObject> = {
+        host: object,
+        onAdded: () => {},
+        onUpdate: () => {
+          updates++;
+        },
+        onDestroy: () => {},
+      };
+      object.addComponent('only-update', component);
+
+      // No optional hooks present — the world tick should not throw.
+      expect(() => world.update()).not.toThrow();
+      expect(updates).toBe(1);
+    });
+
+    test('a destroyed object skips its remaining phases this tick', () => {
+      const events: PhaseEvent[] = [];
+      const world = createWorld();
+      const object = world.createEmpty();
+
+      // Self-destruct during onPreUpdate. onUpdate and onPostUpdate for this
+      // object should not fire this tick.
+      const component: Component<WorldObject> = {
+        host: object,
+        onAdded: () => {},
+        onPreUpdate: () => {
+          events.push({ source: 'object', phase: 'pre' });
+          object.destroy();
+        },
+        onUpdate: () => {
+          events.push({ source: 'object', phase: 'update' });
+        },
+        onPostUpdate: () => {
+          events.push({ source: 'object', phase: 'post' });
+        },
+        onDestroy: () => {},
+      };
+      object.addComponent('self-destruct', component);
+
+      world.update();
+
+      expect(events).toEqual([{ source: 'object', phase: 'pre' }]);
+    });
+
+    test('a component destroyed mid-tick still gets onDestroy called once', () => {
+      const world = createWorld();
+      const object = world.createEmpty();
+      const spy = attachSpy(object);
+
+      object.destroy();
+      world.update();
+
+      expect(spy.destroys).toBe(1);
+    });
+  });
+
+  describe('enabled flag', () => {
+    test('skips all three update phases when enabled is false', () => {
+      const world = createWorld();
+      const object = world.createEmpty();
+
+      let preCount = 0;
+      let updateCount = 0;
+      let postCount = 0;
+
+      const component: Component<WorldObject> = {
+        host: object,
+        enabled: false,
+        onAdded: () => {},
+        onPreUpdate: () => {
+          preCount++;
+        },
+        onUpdate: () => {
+          updateCount++;
+        },
+        onPostUpdate: () => {
+          postCount++;
+        },
+        onDestroy: () => {},
+      };
+      object.addComponent('off', component);
+
+      world.update();
+      world.update();
+
+      expect(preCount).toBe(0);
+      expect(updateCount).toBe(0);
+      expect(postCount).toBe(0);
+    });
+
+    test('still fires onAdded and onDestroy when enabled is false', () => {
+      const world = createWorld();
+      const object = world.createEmpty();
+
+      let addedCount = 0;
+      let destroyCount = 0;
+
+      const component: Component<WorldObject> = {
+        host: object,
+        enabled: false,
+        onAdded: () => {
+          addedCount++;
+        },
+        onUpdate: () => {},
+        onDestroy: () => {
+          destroyCount++;
+        },
+      };
+
+      object.addComponent('off', component);
+      expect(addedCount).toBe(1);
+
+      object.destroy();
+      world.update();
+      expect(destroyCount).toBe(1);
+    });
+
+    test('flipping enabled back to true re-engages the component', () => {
+      const world = createWorld();
+      const object = world.createEmpty();
+
+      let updates = 0;
+      const component: Component<WorldObject> = {
+        host: object,
+        enabled: false,
+        onAdded: () => {},
+        onUpdate: () => {
+          updates++;
+        },
+        onDestroy: () => {},
+      };
+      object.addComponent('toggle', component);
+
+      world.update();
+      expect(updates).toBe(0);
+
+      component.enabled = true;
+      world.update();
+      expect(updates).toBe(1);
+    });
+
+    test('absent enabled treated as enabled (default)', () => {
+      const world = createWorld();
+      const object = world.createEmpty();
+      const spy = attachSpy(object); // attachSpy doesn't set enabled.
+
+      world.update();
+
+      expect(spy.updates).toBe(1);
+    });
+
+    test('also applies to world-scoped components', () => {
+      let updates = 0;
+      const world: World = new World({
+        components: (w) => ({
+          off: () => ({
+            host: w,
+            enabled: false,
+            onAdded: () => {},
+            onUpdate: () => {
+              updates++;
+            },
+            onDestroy: () => {},
+          }),
+        }),
+      });
+
+      world.update();
+
+      expect(updates).toBe(0);
+    });
+  });
+
+  describe('per-phase error reporting', () => {
+    test('errors from each phase are tagged with the matching error phase', () => {
+      const errors: WorldErrorContext[] = [];
+      const world = new World({
+        components: () => ({}),
+        onError: (ctx) => errors.push(ctx),
+      });
+      const object = world.createEmpty();
+
+      const component: Component<WorldObject> = {
+        host: object,
+        onAdded: () => {},
+        onPreUpdate: () => {
+          throw new Error('pre');
+        },
+        onUpdate: () => {
+          throw new Error('update');
+        },
+        onPostUpdate: () => {
+          throw new Error('post');
+        },
+        onDestroy: () => {},
+      };
+      object.addComponent('boom', component);
+
+      world.update();
+
+      const phases = errors.map((e) => e.phase);
+      expect(phases).toEqual([
+        'component-pre-update',
+        'component-update',
+        'component-post-update',
+      ]);
+    });
+
+    test('a throwing pre-update does not prevent the same component from running onUpdate', () => {
+      const errors: WorldErrorContext[] = [];
+      let updateRan = false;
+
+      const world = new World({
+        components: () => ({}),
+        onError: (ctx) => errors.push(ctx),
+      });
+      const object = world.createEmpty();
+
+      const component: Component<WorldObject> = {
+        host: object,
+        onAdded: () => {},
+        onPreUpdate: () => {
+          throw new Error('pre');
+        },
+        onUpdate: () => {
+          updateRan = true;
+        },
+        onDestroy: () => {},
+      };
+      object.addComponent('partial', component);
+
+      world.update();
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0]!.phase).toBe('component-pre-update');
+      expect(updateRan).toBe(true);
+    });
+  });
 });

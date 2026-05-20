@@ -2,7 +2,34 @@ import { ErrorCode, throwEngineError } from './error';
 import { Update } from './world/update';
 
 /**
- * Defines a component that can be added to a a host object.
+ * Defines a component that can be added to a host object.
+ *
+ * ### Update phases
+ *
+ * Each world tick runs three update phases in order, and every component on
+ * every host is offered each phase before any host advances to the next:
+ *
+ * 1. **`onPreUpdate`** — sample/prepare state that downstream components
+ *    will consume. Good places for input polling, per-frame buffer clears,
+ *    or interpolation snapshots.
+ * 2. **`onUpdate`** — the main per-frame work: behaviour logic, movement,
+ *    simulation. This is the phase that the majority of components will
+ *    implement.
+ * 3. **`onPostUpdate`** — react to the result of everyone else's
+ *    `onUpdate`. Canonical use case: a camera reading the player's
+ *    *already-moved* position, or a graphics component syncing its
+ *    transform from the host position one final time so it never lags by a
+ *    frame.
+ *
+ * Within a single phase, world-scoped components run before object-scoped
+ * components — see `World.update` for the full schedule. All three update
+ * hooks are skipped on components whose {@link Component.enabled} field is
+ * explicitly `false`.
+ *
+ * `onPreUpdate` and `onPostUpdate` are optional — a component that only
+ * needs the main phase can omit them and the engine will skip them at zero
+ * cost. `onUpdate`, `onAdded`, and `onDestroy` are required so the engine
+ * can rely on them being callable.
  *
  * @template THost - The type of the host object.
  */
@@ -13,19 +40,52 @@ export interface Component<THost> {
   readonly host: THost;
 
   /**
+   * Optional gate on the three update hooks (`onPreUpdate`, `onUpdate`,
+   * `onPostUpdate`). When explicitly `false`, the engine skips all three
+   * for this component during the world tick — useful for temporarily
+   * pausing behaviour (e.g. a freeze powerup) without removing the
+   * component and losing its internal state.
+   *
+   * Absent or `true` means "active." The flag does **not** gate
+   * `onAdded`/`onDestroy`; those always fire so the host can never end up
+   * with a half-attached component.
+   */
+  enabled?: boolean;
+
+  /**
    * Lifecycle hook that is called when the component is added to the host
    * object. Should not be called directly.
    */
   onAdded(): void;
 
   /**
-   * Lifecycle hook that is called when the host object is updated. Should not
-   * be called directly.
+   * Optional lifecycle hook for the **pre-update** phase. Called once per
+   * world tick, before any component on any host has its `onUpdate`
+   * called. Use for state preparation work that other components'
+   * `onUpdate` will read.
    *
-   * @param update The `Update` instance containing metadata about the world
-   * update that triggered this component to update.
+   * @param update The `Update` instance for this tick.
+   */
+  onPreUpdate?(update: Update): void;
+
+  /**
+   * Lifecycle hook for the **main update** phase. Called once per world
+   * tick, after every component's `onPreUpdate` and before any
+   * `onPostUpdate`.
+   *
+   * @param update The `Update` instance for this tick.
    */
   onUpdate(update: Update): void;
+
+  /**
+   * Optional lifecycle hook for the **post-update** phase. Called once per
+   * world tick, after every component's `onUpdate` has run. Use for work
+   * that has to observe the world *after* this tick's behaviour has been
+   * applied — camera follow, transform sync, late-frame audit logs.
+   *
+   * @param update The `Update` instance for this tick.
+   */
+  onPostUpdate?(update: Update): void;
 
   /**
    * Lifecycle hook that is called when the host object is destroyed. Should
@@ -123,19 +183,37 @@ export interface ComponentHost<THost extends ComponentHost<THost>> {
   getComponent<T extends Component<THost>>(key: string): T;
 
   /**
-   * Gets a component from the host object using its type. Throws if the
-   * component does not exist. If there are multiple components of the same
-   * type, the earliest registered component is returned, although you should
-   * treat this as non-deterministic from a mental modelling standpoint.
+   * Gets a component from the host object using its type. Throws if no
+   * component of the type exists, or if more than one component of the type
+   * exists — in the multi-match case, `getComponentByType` deliberately
+   * does not pick one for you. Use {@link ComponentHost.getComponentsByType}
+   * when you genuinely expect multiple matches, or look the component up by
+   * its string key.
    *
    * Performs an O(n) lookup once per type initially, then caches the resolved
-   * key and performs an O(1) lookup thereafter.
+   * key for O(1) lookups on subsequent calls. The cache is invalidated
+   * whenever a component is removed.
    *
    * @param type The type of the component to get.
    */
   getComponentByType<T extends Component<THost>>(
     type: ComponentHostConstructor<T>,
   ): T;
+
+  /**
+   * Gets every component on the host of the given type, in the order they
+   * were originally registered. Returns an empty array if no components
+   * match.
+   *
+   * Unlike {@link ComponentHost.getComponentByType}, this method never
+   * throws on multiplicity — it is the explicit "I expect more than one"
+   * accessor.
+   *
+   * @param type The type of the components to get.
+   */
+  getComponentsByType<T extends Component<THost>>(
+    type: ComponentHostConstructor<T>,
+  ): readonly T[];
 
   /**
    * Gets a component from the host object using the key it was registered with.
@@ -149,7 +227,11 @@ export interface ComponentHost<THost extends ComponentHost<THost>> {
 
   /**
    * Gets a component from the host object using its type. Returns `null` if
-   * the component does not exist, rather than throwing an error.
+   * the component does not exist or if more than one component of the type
+   * is registered (i.e. the lookup is ambiguous) — the nullable variant
+   * collapses both "not found" and "ambiguous" into a single `null`. Use
+   * {@link ComponentHost.getComponentsByType} when you need to distinguish
+   * them.
    *
    * @param type The type of the component to get.
    */
@@ -310,21 +392,57 @@ export abstract class AbstractComponentHost<THost extends ComponentHost<THost>>
       return this.getComponent(cachedKey);
     }
 
+    // Walk all entries first so we can spot ambiguity rather than silently
+    // returning the first match. The cache is only populated when the
+    // lookup is unambiguous, so the next call can take the fast path.
+    let matchedKey: string | null = null;
+    let matchedComponent: Component<THost> | null = null;
+
     for (const [key, component] of this.components) {
       if (component instanceof type) {
-        this._componentByTypeCache.set(type, key);
-        return component;
+        if (matchedKey !== null) {
+          throwEngineError(
+            ErrorCode.COMPONENT_AMBIGUOUS_TYPE,
+            `Multiple components of type ${type.name} are registered on ` +
+              `this host. Use getComponentsByType() to retrieve them all, ` +
+              `or look up by key.`,
+            { type, host: this },
+          );
+        }
+
+        matchedKey = key;
+        matchedComponent = component;
       }
     }
 
-    throwEngineError(
-      ErrorCode.COMPONENT_NOT_FOUND,
-      `Component type not found: ${type.name}`,
-      {
-        type,
-        host: this,
-      },
-    );
+    if (matchedKey === null || matchedComponent === null) {
+      throwEngineError(
+        ErrorCode.COMPONENT_NOT_FOUND,
+        `Component type not found: ${type.name}`,
+        {
+          type,
+          host: this,
+        },
+      );
+    }
+
+    this._componentByTypeCache.set(type, matchedKey);
+
+    return matchedComponent as T;
+  }
+
+  public getComponentsByType<T extends Component<THost>>(
+    type: ComponentHostConstructor<T>,
+  ): readonly T[] {
+    const matches: T[] = [];
+
+    for (const component of this.components.values()) {
+      if (component instanceof type) {
+        matches.push(component);
+      }
+    }
+
+    return matches;
   }
 
   public getNullableComponent<T extends Component<THost>>(
@@ -354,7 +472,17 @@ export abstract class AbstractComponentHost<THost extends ComponentHost<THost>>
   public hasComponentByType<T extends Component<THost>>(
     type: ComponentHostConstructor<T>,
   ): boolean {
-    return this.getNullableComponentByType(type) !== null;
+    // Don't delegate to getNullableComponentByType — that returns null both
+    // when the type is missing AND when the lookup is ambiguous, which
+    // would make hasComponentByType lie about a host that has *multiple*
+    // components of the type.
+    for (const component of this.components.values()) {
+      if (component instanceof type) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   public removeComponent(key: string): void {

@@ -11,10 +11,16 @@ import { WorldObject } from './world-object';
 /**
  * Lifecycle phase in which a {@link WorldErrorContext} was produced.
  *
+ * - `component-pre-update`: a component threw during its `onPreUpdate`.
  * - `component-update`: a component threw during its `onUpdate`.
+ * - `component-post-update`: a component threw during its `onPostUpdate`.
  * - `component-destroy`: a component threw during its `onDestroy`.
  */
-export type WorldErrorPhase = 'component-update' | 'component-destroy';
+export type WorldErrorPhase =
+  | 'component-pre-update'
+  | 'component-update'
+  | 'component-post-update'
+  | 'component-destroy';
 
 /**
  * Context handed to the {@link WorldOptions.onError} handler whenever a
@@ -80,18 +86,35 @@ export type WorldOptions = {
  *
  * ### Update phases
  *
- * Each call to {@link World.update} runs three phases in order:
+ * Each call to {@link World.update} runs four phases in order:
  *
- * 1. **Component update.** Every world-scoped component receives `onUpdate`.
- * 2. **Object update.** Every live `WorldObject` (and transitively, its
- *    components) receives `onUpdate`. Objects that were marked destroyed
- *    earlier in the same tick are skipped — destroying an object during the
- *    component phase, or via another object earlier in the iteration, will
- *    prevent its `onUpdate` running this frame.
- * 3. **Sweep + flush.** Destroyed objects get `onDestroy` called and are
+ * 1. **Pre-update.** Every world-scoped component's `onPreUpdate` runs, then
+ *    every live `WorldObject` has its components' `onPreUpdate` driven.
+ *    This is the place for input sampling, per-frame buffer clears, or any
+ *    other state-preparation work that the main update phase will read.
+ * 2. **Update.** Every world-scoped component's `onUpdate` runs, then every
+ *    live `WorldObject` has its components' `onUpdate` driven. The bulk of
+ *    behaviour logic lives here.
+ * 3. **Post-update.** Every world-scoped component's `onPostUpdate` runs,
+ *    then every live `WorldObject` has its components' `onPostUpdate`
+ *    driven. The place for "after everyone has moved" work — camera
+ *    follow, transform sync, late audits.
+ * 4. **Sweep + flush.** Destroyed objects get `onDestroy` called and are
  *    removed from the live set and the id map. Objects spawned during this
  *    tick are then promoted into the live set so they participate in the
  *    *next* tick.
+ *
+ * Within each update phase, **world components run before object
+ * components**, and components iterate in their insertion order. Objects
+ * marked destroyed earlier in the same tick are skipped for all remaining
+ * phases — destroying an object during pre-update prevents its `onUpdate`
+ * and `onPostUpdate` from running this frame. Components whose `enabled`
+ * is explicitly `false` are skipped for the entire tick's update phases
+ * (they still receive `onAdded` and `onDestroy`).
+ *
+ * `onPreUpdate` and `onPostUpdate` are optional members of the
+ * {@link Component} interface; components that don't implement them cost
+ * a single property read per tick.
  *
  * Spawns that happen *during* a tick are deferred so the iteration order of
  * the object update phase stays stable: an object spawned at frame `N` does
@@ -267,25 +290,21 @@ export class World extends AbstractComponentHost<World> {
     // object hook throws. Without this, a single thrown error would wedge
     // every future spawn into pending forever.
     try {
-      // Phase 1: component update. Each component is isolated so one
-      // throwing component does not kill the rest of the world's frame.
-      for (const [key, component] of this.components) {
-        try {
-          component.onUpdate(update);
-        } catch (error) {
-          this.reportError({
-            phase: 'component-update',
-            error,
-            host: this,
-            componentKey: key,
-          });
+      // Phase 1: pre-update. World components first, then objects. Objects
+      // marked destroyed mid-phase are skipped for the remaining phases
+      // this tick.
+      this._runWorldComponentPhase('onPreUpdate', 'component-pre-update', update);
+      for (const object of this._objects) {
+        if (object.destroyed) {
+          continue;
         }
+
+        object.onPreUpdate(update);
       }
 
-      // Phase 2: object update. Skip anything that was destroyed earlier in
-      // the tick (either by the component phase or by another object's
-      // onUpdate) so a dying entity does not get one final tick after its
-      // death is observable to others.
+      // Phase 2: main update. Same ordering rule: world components, then
+      // live objects.
+      this._runWorldComponentPhase('onUpdate', 'component-update', update);
       for (const object of this._objects) {
         if (object.destroyed) {
           continue;
@@ -294,7 +313,23 @@ export class World extends AbstractComponentHost<World> {
         object.onUpdate(update);
       }
 
-      // Phase 3a: sweep destroyed objects from the live set. We track a set
+      // Phase 3: post-update. World components, then live objects. The
+      // place to read state that all preceding components have already
+      // settled — camera follow, transform sync, etc.
+      this._runWorldComponentPhase(
+        'onPostUpdate',
+        'component-post-update',
+        update,
+      );
+      for (const object of this._objects) {
+        if (object.destroyed) {
+          continue;
+        }
+
+        object.onPostUpdate(update);
+      }
+
+      // Phase 4a: sweep destroyed objects from the live set. We track a set
       // of the objects whose onDestroy we actually ran rather than
       // re-checking `destroyed` in the compaction pass — an onDestroy hook
       // is allowed to mark *other* objects destroyed, and those
@@ -322,7 +357,7 @@ export class World extends AbstractComponentHost<World> {
         );
       }
 
-      // Phase 3b: flush objects spawned during this tick. An object that was
+      // Phase 4b: flush objects spawned during this tick. An object that was
       // spawned and then destroyed within the same tick never enters the
       // live set, but we still run onDestroy so component cleanup happens.
       if (this._pendingObjects.length > 0) {
@@ -434,5 +469,48 @@ export class World extends AbstractComponentHost<World> {
 
   protected getHostReference(): World {
     return this;
+  }
+
+  /**
+   * Iterates this world's own components and invokes the named phase
+   * method on each, isolating throws so a single bad component does not
+   * abort the tick. Disabled components and components that do not
+   * implement the optional hook are skipped at a single property read.
+   *
+   * @param method The phase method to invoke on each component.
+   * @param errorPhase The {@link WorldErrorPhase} label attached to thrown
+   * errors during this phase.
+   * @param update The `Update` instance for this tick.
+   */
+  private _runWorldComponentPhase(
+    method: 'onPreUpdate' | 'onUpdate' | 'onPostUpdate',
+    errorPhase:
+      | 'component-pre-update'
+      | 'component-update'
+      | 'component-post-update',
+    update: Update,
+  ): void {
+    for (const [key, component] of this.components) {
+      if (component.enabled === false) {
+        continue;
+      }
+
+      const hook = component[method];
+
+      if (!hook) {
+        continue;
+      }
+
+      try {
+        hook.call(component, update);
+      } catch (error) {
+        this.reportError({
+          phase: errorPhase,
+          error,
+          host: this,
+          componentKey: key,
+        });
+      }
+    }
   }
 }
