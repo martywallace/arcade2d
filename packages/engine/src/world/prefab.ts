@@ -32,9 +32,9 @@ export class Prefab {
   private readonly _idGenerator: IDGenerator;
 
   constructor(private readonly options: PrefabOptions) {
-    this._idGenerator = new IDGenerator(
-      options.name + (Math.random() + 1).toString(36).substring(2, 5),
-    );
+    this._idGenerator = new IDGenerator({
+      prefix: options.name + (Math.random() + 1).toString(36).substring(2, 5),
+    });
   }
 
   /**
