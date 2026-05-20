@@ -1,0 +1,68 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { DEMOS, findDemo } from '../../demos';
+
+export function getStaticPaths() {
+  return DEMOS.map((demo) => ({ params: { slug: demo.slug } }));
+}
+
+const { slug } = Astro.params;
+const demo = findDemo(slug!);
+
+if (!demo) {
+  return Astro.redirect('/demos');
+}
+
+const embedSrc = `/embeds/${demo.slug}/index.html`;
+---
+
+<Layout title={demo.title} description={demo.description}>
+  <header class="demo-header">
+    <a href="/demos" class="back">&larr; All demos</a>
+    <h1>{demo.title}</h1>
+    <p>{demo.description}</p>
+  </header>
+
+  <div class="stage">
+    <iframe
+      src={embedSrc}
+      title={demo.title}
+      loading="lazy"
+      allow="fullscreen; gamepad; autoplay"
+      allowfullscreen></iframe>
+  </div>
+
+  <style>
+    .demo-header {
+      margin-bottom: 1.25rem;
+    }
+    .demo-header .back {
+      display: inline-block;
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+    .demo-header h1 {
+      margin: 0 0 0.35rem;
+    }
+    .demo-header p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 64ch;
+    }
+    .stage {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #000;
+    }
+    .stage iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+    }
+  </style>
+</Layout>

@@ -1,0 +1,81 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { DEMOS } from '../demos';
+---
+
+<Layout
+  title="arcade2d"
+  description="arcade2d is a TypeScript 2D game engine."
+>
+  <section class="hero">
+    <h1>arcade2d</h1>
+    <p class="lede">
+      A TypeScript 2D game engine. Built around composable components,
+      prefab-driven world objects, and the rendering pipeline you already know.
+    </p>
+  </section>
+
+  <section>
+    <h2>Demos</h2>
+    <ul class="demos">
+      {
+        DEMOS.map((demo) => (
+          <li>
+            <a href={`/demos/${demo.slug}`}>
+              <h3>{demo.title}</h3>
+              <p>{demo.description}</p>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <style>
+    .hero {
+      padding: 2rem 0 3rem;
+    }
+    .hero h1 {
+      font-size: 3rem;
+      margin: 0 0 0.5rem;
+    }
+    .lede {
+      font-size: 1.15rem;
+      color: var(--muted);
+      max-width: 56ch;
+    }
+    h2 {
+      font-size: 1.4rem;
+      margin: 0 0 1rem;
+    }
+    .demos {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+    .demos a {
+      display: block;
+      padding: 1rem 1.1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--fg);
+      transition: border-color 0.15s ease;
+    }
+    .demos a:hover {
+      border-color: var(--accent);
+      text-decoration: none;
+    }
+    .demos h3 {
+      margin: 0 0 0.35rem;
+      font-size: 1.05rem;
+    }
+    .demos p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+  </style>
+</Layout>

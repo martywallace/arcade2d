@@ -1,0 +1,6 @@
+dist/
+.astro/
+node_modules/
+
+# Demo bundles are synced in from demos/*/dist at build time.
+public/embeds/

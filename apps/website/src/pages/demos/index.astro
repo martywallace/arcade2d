@@ -1,0 +1,71 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { DEMOS } from '../../demos';
+---
+
+<Layout title="Demos" description="Live arcade2d demos.">
+  <h1>Demos</h1>
+  <p class="lede">
+    Every demo is an independently-built Vite app under <code>demos/</code> in
+    the monorepo. Each one is bundled and embedded here as-is.
+  </p>
+
+  <ul class="demos">
+    {
+      DEMOS.map((demo) => (
+        <li>
+          <a href={`/demos/${demo.slug}`}>
+            <h3>{demo.title}</h3>
+            <p>{demo.description}</p>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+
+  <style>
+    h1 {
+      margin: 0 0 0.5rem;
+    }
+    .lede {
+      color: var(--muted);
+      max-width: 64ch;
+      margin: 0 0 2rem;
+    }
+    .demos {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+    .demos a {
+      display: block;
+      padding: 1rem 1.1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--fg);
+      transition: border-color 0.15s ease;
+    }
+    .demos a:hover {
+      border-color: var(--accent);
+      text-decoration: none;
+    }
+    .demos h3 {
+      margin: 0 0 0.35rem;
+      font-size: 1.05rem;
+    }
+    .demos p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    code {
+      background: #161a21;
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+  </style>
+</Layout>

@@ -9,6 +9,7 @@
   "workspaces": [
     "packages/*",
     "demos/*",
+    "apps/website",
     "apps/devserver/*"
   ],
   "scripts": {
@@ -20,6 +21,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml}\"",
     "demo:td-shooter": "yarn workspace @arcade2d/demo-td-shooter dev",
+    "website": "yarn workspace @arcade2d/website dev",
     "devserver": "turbo dev --filter=@arcade2d/devserver-backend --filter=@arcade2d/devserver-frontend",
     "changeset": "changeset",
     "version-packages": "changeset version",
