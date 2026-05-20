@@ -1,29 +1,19 @@
-import type {
-  Update,
-  WorldObjectComponent,
-  WorldObjectDependencyResolver,
-} from '@arcade2d/engine';
-import { Point, SimpleGraphics, WorldObject } from '@arcade2d/engine';
+import type { Update, WorldObjectComponent } from '@arcade2d/engine';
+import { Point, WorldObject } from '@arcade2d/engine';
 import { ZombiePrefab } from './zombie.prefab';
 
 /**
- * The zombie only needs to talk to its own visual representation —
- * a sibling on the same {@link WorldObject}. No cross-tier dependency.
+ * Zombie has no resolved dependencies — facing is written into
+ * `host.rotation` and movement mutates `host.position`, both of which the
+ * sibling graphics component reads back in its own `onPostUpdate`. No
+ * cross-component references are needed at all.
  */
-type ZombieDeps = {
-  readonly graphics: SimpleGraphics;
-};
-
-export class ZombieController implements WorldObjectComponent<ZombieDeps> {
+export class ZombieController implements WorldObjectComponent {
   constructor(public readonly host: WorldObject) {}
-
-  resolveDependencies(resolver: WorldObjectDependencyResolver): ZombieDeps {
-    return { graphics: resolver.requireSibling(SimpleGraphics) };
-  }
 
   onAdded() {}
 
-  onUpdate(update: Update, { graphics }: ZombieDeps) {
+  onUpdate(update: Update) {
     const player = this.host.world.findOneByTag('player');
 
     if (player) {
@@ -40,7 +30,7 @@ export class ZombieController implements WorldObjectComponent<ZombieDeps> {
         );
       }
 
-      graphics.rotation = this.host.position.angleTo(player.position);
+      this.host.rotation = this.host.position.angleTo(player.position);
     }
   }
 

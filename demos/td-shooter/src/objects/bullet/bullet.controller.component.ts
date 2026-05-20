@@ -1,43 +1,27 @@
-import type {
-  Update,
-  WorldObjectComponent,
-  WorldObjectDependencyResolver,
-} from '@arcade2d/engine';
+import type { Update, WorldObjectComponent } from '@arcade2d/engine';
 import { SimpleGraphics, WorldObject, WorldTimer } from '@arcade2d/engine';
 
 /**
- * Bullet only needs a reference to its own visual so it can sync its
- * orientation when {@link BulletController.setAngle} is called externally
- * by the spawning {@link PlayerController}.
+ * Bullet controller has nothing to resolve from the host or world: it
+ * navigates and self-destructs using only its own state and the host's
+ * transform. The spawning {@link PlayerController} writes the bullet's
+ * facing into `host.rotation` immediately after `world.createFromPrefab`
+ * returns; from there the bullet's own movement and the graphics
+ * component's transform sync both read from `host.rotation` directly —
+ * no manual cross-component plumbing.
  */
-type BulletDeps = {
-  readonly graphics: SimpleGraphics;
-};
-
-export class BulletController implements WorldObjectComponent<BulletDeps> {
-  private _angle = 0;
+export class BulletController implements WorldObjectComponent {
   private readonly _lifetime = new WorldTimer(1000);
-
-  // Captured from the resolved deps in `onAdded` so the externally-called
-  // setAngle method can reach the sibling component without doing its own
-  // lookup. The non-null assertion is the user's contract: setAngle is
-  // never invoked before onAdded has run — the spawning code calls it
-  // immediately after `world.createFromPrefab` returns, at which point the
-  // engine has already driven addComponents → resolveDependencies → onAdded.
-  private _graphics!: SimpleGraphics;
 
   constructor(public readonly host: WorldObject) {}
 
-  resolveDependencies(resolver: WorldObjectDependencyResolver): BulletDeps {
-    return { graphics: resolver.requireSibling(SimpleGraphics) };
-  }
-
-  onAdded({ graphics }: BulletDeps) {
-    this._graphics = graphics;
-  }
+  onAdded() {}
 
   onUpdate(update: Update) {
-    this.host.position.moveInDirection(this._angle, update.delta * 0.8);
+    this.host.position.moveInDirection(
+      this.host.rotation,
+      update.delta * 0.8,
+    );
 
     for (const object of this.host.world.findByTag('enemy')) {
       if (
@@ -57,9 +41,4 @@ export class BulletController implements WorldObjectComponent<BulletDeps> {
   }
 
   onDestroy() {}
-
-  public setAngle(value: number) {
-    this._angle = value;
-    this._graphics.rotation = value;
-  }
 }

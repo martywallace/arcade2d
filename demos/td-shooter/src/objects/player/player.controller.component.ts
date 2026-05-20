@@ -3,40 +3,28 @@ import type {
   WorldObjectComponent,
   WorldObjectDependencyResolver,
 } from '@arcade2d/engine';
-import {
-  Scene,
-  SimpleGraphics,
-  WorldObject,
-  WorldTimer,
-} from '@arcade2d/engine';
-import { BulletController } from '../bullet/bullet.controller.component';
+import { Scene, WorldObject, WorldTimer } from '@arcade2d/engine';
 import { BulletPrefab } from '../bullet/bullet.prefab';
 
 /**
- * Dependencies declared by {@link PlayerController}. Resolved once when
- * the component is added; the engine threads the same reference into
- * every lifecycle hook for the remainder of the component's life.
- *
- * - `scene` lives on the {@link World} (it's the PIXI-backed scene root,
- *   shared by every object), so it's pulled via `requireFromWorld`.
- * - `graphics` is the player's own visual representation, registered as a
- *   sibling on the same {@link WorldObject}, so it's pulled via
- *   `requireSibling`.
+ * Dependencies declared by {@link PlayerController}. The player only needs
+ * to reach across to the world-scoped {@link Scene} so it can read the
+ * mouse position — facing is written into `host.rotation`, which the
+ * graphics component reads back in its own `onPostUpdate`, so there is no
+ * direct sibling reference here at all.
  */
 type PlayerDeps = {
   readonly scene: Scene;
-  readonly graphics: SimpleGraphics;
 };
 
 export class PlayerController implements WorldObjectComponent<PlayerDeps> {
-  private readonly _fireCooldown = new WorldTimer(250);
+  private readonly _fireCooldown = new WorldTimer(100);
 
   constructor(public readonly host: WorldObject) {}
 
   resolveDependencies(resolver: WorldObjectDependencyResolver): PlayerDeps {
     return {
       scene: resolver.requireFromWorld(Scene),
-      graphics: resolver.requireSibling(SimpleGraphics),
     };
   }
 
@@ -44,7 +32,7 @@ export class PlayerController implements WorldObjectComponent<PlayerDeps> {
     console.log(`Added player controller to ${this.host.metadata.id}`);
   }
 
-  onUpdate(update: Update, { scene, graphics }: PlayerDeps) {
+  onUpdate(update: Update, { scene }: PlayerDeps) {
     const mouse = scene.getMousePosition();
     const angle = this.host.position.angleTo(mouse);
 
@@ -52,14 +40,14 @@ export class PlayerController implements WorldObjectComponent<PlayerDeps> {
       this.host.position.moveTowards(mouse, 0.08 * update.delta);
     }
 
-    graphics.rotation = angle;
+    this.host.rotation = angle;
 
     if (this._fireCooldown.decrement(update.delta).isLapsed) {
       const bullet = this.host.world.createFromPrefab(
         BulletPrefab,
         this.host.position,
       );
-      bullet.getComponent<BulletController>('controller').setAngle(angle);
+      bullet.rotation = angle;
 
       this._fireCooldown.reset();
     }

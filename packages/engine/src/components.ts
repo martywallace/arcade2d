@@ -373,6 +373,23 @@ export type ComponentFactoryMap<THost extends ComponentHost<THost>> = Record<
 export abstract class AbstractComponentHost<THost extends ComponentHost<THost>>
   implements ComponentHost<THost>
 {
+  /**
+   * Master gate on every component update phase this host runs. When
+   * `false`, the host's `onPreUpdate`, `onUpdate`, and `onPostUpdate`
+   * iterations short-circuit at a single check — useful for freezing a
+   * single object during a cutscene, pausing a UI widget while a menu is
+   * up, or temporarily disabling a debug overlay without tearing the
+   * components down.
+   *
+   * The flag is **not** propagated to `onAdded` or `onDestroy`. Those
+   * always fire so a host can never end up with half-attached components,
+   * and a disabled object is still cleanly torn down when destroyed.
+   *
+   * Defaults to `true` (active). Flip back to `true` and the host resumes
+   * ticking from its preserved state on the next world `update()`.
+   */
+  public enabled = true;
+
   protected readonly components = new Map<string, Component<THost>>();
 
   /**

@@ -28,8 +28,16 @@ export class SimpleGraphics extends Graphics implements Component<WorldObject> {
   }
 
   public onUpdate(): void {
+    // Intentionally empty — transform sync happens in onPostUpdate so the
+    // visual reflects every behaviour change made earlier in the tick,
+    // regardless of which component made it or what phase they wrote in.
+  }
+
+  public onPostUpdate(): void {
     this.x = this.host.position.x;
     this.y = this.host.position.y;
+    this.rotation = this.host.rotation;
+    this.scale.set(this.host.scale.x, this.host.scale.y);
   }
 
   public onDestroy(): void {

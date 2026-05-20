@@ -1,5 +1,6 @@
 import { Component } from '../components';
 import { EngineError, ErrorCode } from '../error';
+import { Point } from '../geometry';
 import { Prefab } from './prefab';
 import { PrefabRegistry } from './prefab-registry';
 import { World, WorldErrorContext } from './world';
@@ -996,6 +997,215 @@ describe('World', () => {
       expect(errors).toHaveLength(1);
       expect(errors[0]!.phase).toBe('component-pre-update');
       expect(updateRan).toBe(true);
+    });
+  });
+
+  describe('host-level enabled (WorldObject)', () => {
+    test('defaults to true', () => {
+      const world = createWorld();
+      const object = world.createEmpty();
+
+      expect(object.enabled).toBe(true);
+    });
+
+    test('skips all three update phases on the object when false', () => {
+      const world = createWorld();
+      const object = world.createEmpty();
+
+      let preCount = 0;
+      let updateCount = 0;
+      let postCount = 0;
+
+      object.addComponent('spy', {
+        host: object,
+        onAdded: () => {},
+        onPreUpdate: () => {
+          preCount++;
+        },
+        onUpdate: () => {
+          updateCount++;
+        },
+        onPostUpdate: () => {
+          postCount++;
+        },
+        onDestroy: () => {},
+      });
+
+      object.enabled = false;
+
+      world.update();
+      world.update();
+
+      expect(preCount).toBe(0);
+      expect(updateCount).toBe(0);
+      expect(postCount).toBe(0);
+    });
+
+    test('does not gate onAdded or onDestroy when disabled', () => {
+      const world = createWorld();
+      const object = world.createEmpty();
+      object.enabled = false;
+
+      let added = 0;
+      let destroyed = 0;
+
+      object.addComponent('hook', {
+        host: object,
+        onAdded: () => {
+          added++;
+        },
+        onUpdate: () => {},
+        onDestroy: () => {
+          destroyed++;
+        },
+      });
+
+      expect(added).toBe(1);
+
+      object.destroy();
+      world.update();
+
+      expect(destroyed).toBe(1);
+    });
+
+    test('flipping enabled back to true resumes ticking with preserved state', () => {
+      const world = createWorld();
+      const object = world.createEmpty();
+
+      let updates = 0;
+      object.addComponent('spy', {
+        host: object,
+        onAdded: () => {},
+        onUpdate: () => {
+          updates++;
+        },
+        onDestroy: () => {},
+      });
+
+      object.enabled = false;
+      world.update();
+      expect(updates).toBe(0);
+
+      object.enabled = true;
+      world.update();
+      world.update();
+
+      expect(updates).toBe(2);
+    });
+
+    test('a disabled object does not block other objects from ticking', () => {
+      const world = createWorld();
+      const frozen = world.createEmpty();
+      const live = world.createEmpty();
+
+      const frozenSpy = attachSpy(frozen);
+      const liveSpy = attachSpy(live);
+
+      frozen.enabled = false;
+      world.update();
+
+      expect(frozenSpy.updates).toBe(0);
+      expect(liveSpy.updates).toBe(1);
+    });
+  });
+
+  describe('host-level enabled (World)', () => {
+    test('defaults to true', () => {
+      const world = createWorld();
+
+      expect(world.enabled).toBe(true);
+    });
+
+    test('skips world-scoped component phases when false', () => {
+      let worldUpdates = 0;
+      const world = new World({
+        components: (w) => ({
+          system: () => ({
+            host: w,
+            onAdded: () => {},
+            onUpdate: () => {
+              worldUpdates++;
+            },
+            onDestroy: () => {},
+          }),
+        }),
+      });
+
+      world.enabled = false;
+      world.update();
+      world.update();
+
+      expect(worldUpdates).toBe(0);
+    });
+
+    test('does not gate per-object iteration when false (use !update() for that)', () => {
+      const world = createWorld();
+      const object = world.createEmpty();
+      const spy = attachSpy(object);
+
+      world.enabled = false;
+      world.update();
+
+      // Objects keep ticking — world.enabled gates the world's *own*
+      // components, not the object-iteration pass.
+      expect(spy.updates).toBe(1);
+    });
+  });
+
+  describe('WorldObject transform fields', () => {
+    test('rotation defaults to 0 and is mutable', () => {
+      const world = createWorld();
+      const object = world.createEmpty();
+
+      expect(object.rotation).toBe(0);
+
+      object.rotation = Math.PI / 2;
+      expect(object.rotation).toBe(Math.PI / 2);
+    });
+
+    test('scale defaults to 1,1 and exposes a mutable Point', () => {
+      const world = createWorld();
+      const object = world.createEmpty();
+
+      expect(object.scale.x).toBe(1);
+      expect(object.scale.y).toBe(1);
+
+      object.scale.x = 2;
+      object.scale.y = 3;
+
+      expect(object.scale.x).toBe(2);
+      expect(object.scale.y).toBe(3);
+    });
+
+    test('constructor accepts custom rotation and scale', () => {
+      const world = createWorld();
+      const object = new WorldObject(
+        world,
+        Point.zero(),
+        { id: 'manual', tags: new Set() },
+        Math.PI,
+        new Point(2, 0.5),
+      );
+
+      expect(object.rotation).toBe(Math.PI);
+      expect(object.scale.x).toBe(2);
+      expect(object.scale.y).toBe(0.5);
+    });
+
+    test('scale is cloned from the constructor input (no aliasing)', () => {
+      const world = createWorld();
+      const sharedScale = new Point(2, 2);
+      const object = new WorldObject(
+        world,
+        Point.zero(),
+        { id: 'manual', tags: new Set() },
+        0,
+        sharedScale,
+      );
+
+      sharedScale.x = 99;
+
+      expect(object.scale.x).toBe(2);
     });
   });
 });

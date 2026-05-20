@@ -254,15 +254,26 @@ export type WorldOptions = {
  *   live set but *do* receive `onDestroy` during Phase 4b, so component
  *   cleanup is honoured.
  *
- * ## Component enable/disable
+ * ## Enable/disable: per-component and per-host
  *
- * Components carry an optional {@link Component.enabled} flag. When
- * explicitly `false`, the engine skips the component's `onPreUpdate`,
- * `onUpdate`, *and* `onPostUpdate` for the rest of the tick — useful for
- * temporarily pausing behaviour (freeze powerups, debug toggles, AI
- * sleep) without removing the component and losing its internal state.
- * `onAdded` and `onDestroy` always fire regardless of `enabled` so a
- * component is never half-attached.
+ * Two gates control whether update hooks run, layered from most specific
+ * to most general:
+ *
+ * 1. **Per-component** — each {@link Component} carries an optional
+ *    `enabled` flag. When explicitly `false`, the engine skips that
+ *    component's `onPreUpdate`, `onUpdate`, and `onPostUpdate`.
+ * 2. **Per-host** — every host (the {@link World} itself, and every
+ *    {@link WorldObject}) carries an {@link AbstractComponentHost.enabled}
+ *    field. When `false`, *every* component on that host has all three
+ *    update phases skipped at a single early-return — the cheap way to
+ *    freeze an entire object during a cutscene or pause a UI widget while
+ *    a menu is up. The world-level toggle gates the world's own
+ *    components only; object iteration is controlled by whether
+ *    `update()` is called.
+ *
+ * Neither gate touches `onAdded` or `onDestroy`. Both fire regardless so
+ * a component is never left half-attached and a destroyed host is always
+ * cleanly torn down.
  *
  * ## Error isolation
  *
@@ -663,6 +674,12 @@ export class World extends AbstractComponentHost<World> {
    * The resolved dependencies cached during `addComponents` are threaded
    * into every invocation as the trailing `deps` argument.
    *
+   * A host-level {@link AbstractComponentHost.enabled} of `false` short-
+   * circuits this phase before any world component is touched. Note this
+   * gates only the world's own components — the object iteration in
+   * `update()` continues to run. Stop world objects from ticking by not
+   * calling `update()` at all.
+   *
    * @param method The phase method to invoke on each component.
    * @param errorPhase The {@link WorldErrorPhase} label attached to thrown
    * errors during this phase.
@@ -676,6 +693,10 @@ export class World extends AbstractComponentHost<World> {
       | 'component-post-update',
     update: Update,
   ): void {
+    if (!this.enabled) {
+      return;
+    }
+
     for (const [key, component] of this.components) {
       if (component.enabled === false) {
         continue;
