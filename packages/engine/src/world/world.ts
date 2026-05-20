@@ -9,9 +9,44 @@ export type WorldOptions = {
   readonly components: (world: World) => Record<string, () => Component<World>>;
 };
 
+/**
+ * The root container for an arcade2d simulation. Owns the set of live
+ * {@link WorldObject}s, drives the per-frame update loop, and hosts
+ * world-scoped {@link Component}s (e.g. the {@link Scene} graphics component).
+ *
+ * ### Update phases
+ *
+ * Each call to {@link World.update} runs three phases in order:
+ *
+ * 1. **Component update.** Every world-scoped component receives `onUpdate`.
+ * 2. **Object update.** Every live `WorldObject` (and transitively, its
+ *    components) receives `onUpdate`. Objects that were marked destroyed
+ *    earlier in the same tick are skipped — destroying an object during the
+ *    component phase, or via another object earlier in the iteration, will
+ *    prevent its `onUpdate` running this frame.
+ * 3. **Sweep + flush.** Destroyed objects get `onDestroy` called and are
+ *    removed from the live set and the id map. Objects spawned during this
+ *    tick are then promoted into the live set so they participate in the
+ *    *next* tick.
+ *
+ * Spawns that happen *during* a tick are deferred so the iteration order of
+ * the object update phase stays stable: an object spawned at frame `N` does
+ * not have its `onUpdate` called until frame `N+1`. The new object is,
+ * however, findable via {@link World.findById} immediately on spawn so
+ * callers can wire up cross-references in the same tick they created the
+ * object. An object that is both spawned and destroyed within a single tick
+ * never enters the live set; its `onDestroy` still runs during the sweep so
+ * component cleanup is honoured.
+ *
+ * Spawns that happen *outside* a tick (e.g. world setup before the loop
+ * starts) join the live set immediately and participate in the very next
+ * tick.
+ */
 export class World extends AbstractComponentHost<World> {
   private _lastUpdate = 0;
+  private _isUpdating = false;
   private _objects: WorldObject[] = [];
+  private _pendingObjects: WorldObject[] = [];
 
   private readonly _mappedObjects: Map<string, WorldObject> = new Map();
   private readonly _idGenerator = new IDGenerator();
@@ -57,68 +92,118 @@ export class World extends AbstractComponentHost<World> {
   }
 
   protected add(object: WorldObject): WorldObject {
-    this._objects.push(object);
     this._mappedObjects.set(object.metadata.id, object);
+
+    // Outside of an update tick (e.g. setup before the loop starts), objects
+    // join the live set immediately so the very first tick iterates them.
+    // During a tick, spawns are deferred so iteration order stays stable.
+    if (this._isUpdating) {
+      this._pendingObjects.push(object);
+    } else {
+      this._objects.push(object);
+    }
 
     return object;
   }
 
   public update(): Update {
+    this._isUpdating = true;
     const update = new Update(this._lastUpdate, Date.now());
 
-    // Update all components.
+    // Phase 1: component update.
     for (const [_, component] of this.components) {
       component.onUpdate(update);
     }
 
-    // Update all objects.
+    // Phase 2: object update. Skip anything that was destroyed earlier in the
+    // tick (either by the component phase or by another object's onUpdate) so
+    // a dying entity does not get one final tick after its death is observable
+    // to others.
     for (const object of this._objects) {
+      if (object.destroyed) {
+        continue;
+      }
+
       object.onUpdate(update);
     }
 
-    const destroyedObjects = new Map<string, WorldObject>();
+    // Phase 3a: sweep destroyed objects from the live set. We track a set of
+    // the objects whose onDestroy we actually ran rather than re-checking
+    // `destroyed` in the compaction pass — an onDestroy hook is allowed to
+    // mark *other* objects destroyed, and those re-entrantly-destroyed
+    // objects must be left in the live set so they receive their own
+    // onDestroy on the next tick rather than vanishing silently here.
+    const swept: WorldObject[] = [];
 
     for (const object of this._objects) {
       if (object.destroyed) {
         object.onDestroy();
-        destroyedObjects.set(object.metadata.id, object);
+        swept.push(object);
       }
     }
 
-    if (destroyedObjects.size > 0) {
-      // Remove deleted ones.
-      this._objects = this._objects.filter(
-        (object) => !destroyedObjects.has(object.metadata.id),
-      );
+    if (swept.length > 0) {
+      const sweptSet = new Set(swept);
 
-      for (const id of destroyedObjects.keys()) {
-        this._mappedObjects.delete(id);
+      for (const object of swept) {
+        this._mappedObjects.delete(object.metadata.id);
+      }
+
+      this._objects = this._objects.filter((object) => !sweptSet.has(object));
+    }
+
+    // Phase 3b: flush objects spawned during this tick. An object that was
+    // spawned and then destroyed within the same tick never enters the live
+    // set, but we still run onDestroy so component cleanup happens.
+    if (this._pendingObjects.length > 0) {
+      const pending = this._pendingObjects;
+      this._pendingObjects = [];
+
+      for (const object of pending) {
+        if (object.destroyed) {
+          object.onDestroy();
+          this._mappedObjects.delete(object.metadata.id);
+        } else {
+          this._objects.push(object);
+        }
       }
     }
 
-    // Update internal state.
     this._lastUpdate = Date.now();
+    this._isUpdating = false;
 
     return update;
   }
 
   /**
-   * Immediately destroys the world, all of its objects and any included
-   * components.
+   * Immediately destroys the world, all of its objects (including any spawned
+   * during the current tick that have not yet been flushed into the live set),
+   * and any included components.
+   *
+   * Safe to call against objects that have already been marked destroyed but
+   * not yet swept — {@link WorldObject.onDestroy} is idempotent, so cleanup
+   * runs exactly once regardless of prior state.
    */
   public destroy(): void {
     for (const object of this._objects) {
       object.onDestroy();
     }
 
+    for (const object of this._pendingObjects) {
+      object.onDestroy();
+    }
+
     this.removeAllComponents();
 
     this._objects = [];
+    this._pendingObjects = [];
     this._mappedObjects.clear();
   }
 
   /**
-   * Finds an object in the world using its ID.
+   * Finds an object in the world using its ID. Newly spawned objects are
+   * findable from the moment they are created, even before they are promoted
+   * into the live iteration set at the end of the current tick.
    *
    * @param id The ID of the object to find.
    *
