@@ -1,8 +1,9 @@
+import { Game } from '../game';
 import { Camera } from './camera';
 import { World } from './world';
 
 function createBareWorld(): World {
-  return new World({ components: () => ({}) });
+  return new World(Game.createHeadless(),{ components: () => ({}) });
 }
 
 describe('Camera', () => {
@@ -50,7 +51,7 @@ describe('Camera', () => {
   test('throws COMPONENT_ALREADY_EXISTS when a user component tries to claim the reserved key', () => {
     expect(
       () =>
-        new World({
+        new World(Game.createHeadless(),{
           components: (world) => ({
             camera: () => new Camera(world),
           }),
@@ -82,7 +83,7 @@ describe('Camera', () => {
       onDestroy(): void {}
     }
 
-    const world = new World({
+    const world = new World(Game.createHeadless(),{
       components: (world) => ({
         consumer: () => new CameraConsumer(world),
       }),

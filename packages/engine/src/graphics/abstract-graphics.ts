@@ -1,6 +1,5 @@
 import { Container } from 'pixi.js';
-import { Component } from '../components';
-import { WorldObject } from '../world';
+import { AbstractWorldObjectComponent, WorldObject } from '../world';
 import { Scene } from './scene';
 
 /**
@@ -62,9 +61,9 @@ import { Scene } from './scene';
  * }
  * ```
  */
-export abstract class AbstractGraphics<T extends Container>
-  implements Component<WorldObject>
-{
+export abstract class AbstractGraphics<
+  T extends Container,
+> extends AbstractWorldObjectComponent {
   private readonly _display: T;
   private readonly _scene: Scene;
 
@@ -76,10 +75,9 @@ export abstract class AbstractGraphics<T extends Container>
    * subclass and handed up; ownership transfers to this base — it will be
    * destroyed during {@link AbstractGraphics.onDestroy}.
    */
-  constructor(
-    public readonly host: WorldObject,
-    display: T,
-  ) {
+  constructor(host: WorldObject, display: T) {
+    super(host);
+
     this._display = display;
     this._scene = host.world.getComponentByType(Scene);
   }
@@ -106,7 +104,7 @@ export abstract class AbstractGraphics<T extends Container>
     return this._display;
   }
 
-  public onAdded(): void {
+  public override onAdded(): void {
     this._scene.addChild(this._display);
 
     // Seed the display's transform from the host immediately. Spawns that
@@ -116,17 +114,11 @@ export abstract class AbstractGraphics<T extends Container>
     this._syncTransform();
   }
 
-  public onUpdate(): void {
-    // Intentionally empty — transform sync happens in onPostUpdate so the
-    // visual reflects every behavior change made earlier in the tick,
-    // regardless of which component made it or what phase they wrote in.
-  }
-
   public onPostUpdate(): void {
     this._syncTransform();
   }
 
-  public onDestroy(): void {
+  public override onDestroy(): void {
     this._scene.removeChild(this._display);
     this._display.destroy();
   }

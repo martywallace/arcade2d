@@ -1,6 +1,6 @@
 import './style.css';
 
-import { Game, Point } from '@arcade2d/engine';
+import { Game, Random } from '@arcade2d/engine';
 import { PlayerPrefab } from './objects/player/player.prefab';
 import { ZombiePrefab } from './objects/zombie/zombie.prefab';
 
@@ -16,10 +16,7 @@ async function start() {
   world.createFromPrefab(PlayerPrefab);
 
   for (let i = 0; i < 10; i++) {
-    world.createFromPrefab(
-      ZombiePrefab,
-      new Point(Math.random() * 1000, Math.random() * 1000),
-    );
+    world.createFromPrefab(ZombiePrefab, new Random().inRing(0, 0, 500, 700));
   }
 }
 

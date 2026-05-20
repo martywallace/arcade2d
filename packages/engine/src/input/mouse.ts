@@ -1,5 +1,4 @@
-import { Component } from '../components';
-import type { Game } from '../game';
+import { AbstractGameComponent } from '../game-component';
 import { Point } from '../geometry';
 
 /**
@@ -136,7 +135,7 @@ export interface MouseState extends MouseSnapshot {
  * code is free to do that itself if it wants to suppress browser
  * defaults like right-click context menus or middle-click autoscroll.
  */
-export class Mouse implements Component<Game> {
+export class Mouse extends AbstractGameComponent {
   private _pendingScreenX = 0;
   private _pendingScreenY = 0;
   private _pendingLeft = false;
@@ -170,15 +169,7 @@ export class Mouse implements Component<Game> {
     this._writeButton(event.button, false);
   };
 
-  /**
-   * @param host The {@link Game} this mouse belongs to. Used to reach the
-   * canvas the listeners attach to — the engine deliberately does not
-   * pass a raw `Application` here; the canvas is the only piece of
-   * renderer state the mouse component needs.
-   */
-  constructor(public readonly host: Game) {}
-
-  public onAdded(): void {
+  public override onAdded(): void {
     const canvas = this.host.canvas;
 
     canvas.addEventListener('mousemove', this._onMouseMove);
@@ -203,13 +194,7 @@ export class Mouse implements Component<Game> {
     this._snapshotMiddle = this._pendingMiddle;
   }
 
-  public onUpdate(): void {
-    // No work — sampling happens in onPreUpdate so that the active world's
-    // onUpdate phase reads a consistent snapshot. The world-space
-    // projection (when needed) is computed lazily by World.getMouseState.
-  }
-
-  public onDestroy(): void {
+  public override onDestroy(): void {
     const canvas = this.host.canvas;
 
     canvas.removeEventListener('mousemove', this._onMouseMove);

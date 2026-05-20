@@ -1,7 +1,6 @@
 import { Point } from '../geometry';
-import { WorldComponent } from './dependencies';
+import { AbstractWorldComponent } from './dependencies';
 import { WorldUpdate } from './update';
-import { World } from './world';
 
 /**
  * Internal state describing an in-flight camera shake. Exposed only via the
@@ -96,13 +95,10 @@ type ShakeState = {
  * // per frame so the player stays centred on screen. Run inside the
  * // player's `onUpdate` so Scene's post-update transform sync sees a
  * // settled camera before drawing.
- * class CameraFollow implements WorldObjectComponent {
- *   constructor(public readonly host: WorldObject) {}
- *   onAdded() {}
- *   onUpdate() {
- *     this.host.world.camera.position.copyFrom(this.host.position);
+ * class CameraFollow extends AbstractWorldObjectComponent {
+ *   public onUpdate(): void {
+ *     this.world.camera.position.copyFrom(this.host.position);
  *   }
- *   onDestroy() {}
  * }
  * ```
  *
@@ -120,7 +116,7 @@ type ShakeState = {
  * world.camera.zoom = 2;
  * ```
  */
-export class Camera implements WorldComponent {
+export class Camera extends AbstractWorldComponent {
   /**
    * The point in world space the camera is currently looking at. Mutable in
    * place — game code typically writes to this every frame to follow a
@@ -153,8 +149,6 @@ export class Camera implements WorldComponent {
 
   private _shake: ShakeState | null = null;
   private readonly _shakeOffset: Point = Point.zero();
-
-  constructor(public readonly host: World) {}
 
   /**
    * The current shake-induced offset, in screen pixels. Zero unless a
@@ -211,15 +205,13 @@ export class Camera implements WorldComponent {
     this._shakeOffset.set(0, 0);
   }
 
-  public onAdded(): void {}
-
   /**
    * Advances any in-flight shake by one tick. Computes a fresh random
    * offset inside a disc whose radius is the current (decayed) shake
    * intensity, then writes that to {@link Camera.shakeOffset} for
    * {@link Scene} to consume during the post-update phase.
    */
-  public onUpdate(update: WorldUpdate): void {
+  public override onUpdate(update: WorldUpdate): void {
     const shake = this._shake;
 
     if (!shake) {
@@ -246,6 +238,4 @@ export class Camera implements WorldComponent {
       Math.sin(angle) * distance,
     );
   }
-
-  public onDestroy(): void {}
 }

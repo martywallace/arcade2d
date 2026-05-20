@@ -1,9 +1,12 @@
 import { Component } from '../components';
 import { EngineError, ErrorCode } from '../error';
+import { Game } from '../game';
 import { WorldUpdate } from './update';
 import { World } from './world';
 import { WorldObject } from './world-object';
 import {
+  AbstractWorldComponent,
+  AbstractWorldObjectComponent,
   WorldComponent,
   WorldDependencyResolver,
   WorldObjectComponent,
@@ -103,7 +106,7 @@ describe('dependency resolution', () => {
     test('threads the resolved deps into every hook the component implements', () => {
       let physics: PhysicsSystem | null = null;
 
-      const world = new World({
+      const world = new World(Game.createHeadless(),{
         components: (w) => ({
           input: () => new InputSystem(w),
           physics: () => {
@@ -126,7 +129,7 @@ describe('dependency resolution', () => {
 
     test('throws WORLD_COMPONENT_DEPENDENCY_MISSING when a required sibling is absent', () => {
       const error = captureError(() => {
-        new World({
+        new World(Game.createHeadless(),{
           // physics requires InputSystem but the world never registers one.
           components: (w) => ({
             physics: () => new PhysicsSystem(w),
@@ -141,7 +144,7 @@ describe('dependency resolution', () => {
 
     test('throws WORLD_COMPONENT_DEPENDENCY_AMBIGUOUS when a required sibling matches multiply', () => {
       const error = captureError(() => {
-        new World({
+        new World(Game.createHeadless(),{
           components: (w) => ({
             input1: () => new InputSystem(w),
             input2: () => new InputSystem(w),
@@ -174,7 +177,7 @@ describe('dependency resolution', () => {
       }
 
       const error = captureError(() => {
-        new World({
+        new World(Game.createHeadless(),{
           components: (w) => ({ self: () => new SelfReferential(w) }),
         });
       });
@@ -203,7 +206,7 @@ describe('dependency resolution', () => {
 
       let instance: OptionalPhysics | null = null;
 
-      new World({
+      new World(Game.createHeadless(),{
         components: (w) => ({
           input: () => new InputSystem(w),
           physics: () => {
@@ -238,7 +241,7 @@ describe('dependency resolution', () => {
 
       let instance: OptionalPhysics | null = null;
 
-      new World({
+      new World(Game.createHeadless(),{
         components: (w) => ({
           physics: () => {
             instance = new OptionalPhysics(w);
@@ -271,7 +274,7 @@ describe('dependency resolution', () => {
 
       let instance: OptionalPhysics | null = null;
 
-      new World({
+      new World(Game.createHeadless(),{
         components: (w) => ({
           input1: () => new InputSystem(w),
           input2: () => new InputSystem(w),
@@ -301,7 +304,7 @@ describe('dependency resolution', () => {
         onDestroy(): void {}
       }
 
-      const world = new World({
+      const world = new World(Game.createHeadless(),{
         components: (w) => ({
           capture: () => new HostCapturing(w),
         }),
@@ -313,7 +316,7 @@ describe('dependency resolution', () => {
 
   describe('WorldObjectComponent.resolveDependencies', () => {
     test('requireFromWorld resolves a component on the parent world', () => {
-      const world = new World({
+      const world = new World(Game.createHeadless(),{
         components: (w) => ({ input: () => new InputSystem(w) }),
       });
 
@@ -326,7 +329,7 @@ describe('dependency resolution', () => {
     });
 
     test('threads the same deps reference into onDestroy', () => {
-      const world = new World({
+      const world = new World(Game.createHeadless(),{
         components: (w) => ({ input: () => new InputSystem(w) }),
       });
 
@@ -341,7 +344,7 @@ describe('dependency resolution', () => {
     });
 
     test('throws WORLD_COMPONENT_DEPENDENCY_MISSING when the required world component is absent', () => {
-      const world = new World({
+      const world = new World(Game.createHeadless(),{
         components: () => ({}),
       });
 
@@ -359,7 +362,7 @@ describe('dependency resolution', () => {
     });
 
     test('throws WORLD_COMPONENT_DEPENDENCY_AMBIGUOUS when the world has multiple matches', () => {
-      const world = new World({
+      const world = new World(Game.createHeadless(),{
         components: (w) => ({
           inputA: () => new InputSystem(w),
           inputB: () => new InputSystem(w),
@@ -406,7 +409,7 @@ describe('dependency resolution', () => {
         onDestroy(): void {}
       }
 
-      const world = new World({ components: () => ({}) });
+      const world = new World(Game.createHeadless(),{ components: () => ({}) });
       const object = world.createEmpty();
 
       // No sibling exists — the resolver must not hop to the world tier
@@ -439,7 +442,7 @@ describe('dependency resolution', () => {
         onDestroy(): void {}
       }
 
-      const world = new World({ components: () => ({}) });
+      const world = new World(Game.createHeadless(),{ components: () => ({}) });
       const object = world.createEmpty();
       const graphics = new OptionalGraphics(object);
 
@@ -463,7 +466,7 @@ describe('dependency resolution', () => {
         onDestroy(): void {}
       }
 
-      const world = new World({ components: () => ({}) });
+      const world = new World(Game.createHeadless(),{ components: () => ({}) });
       const object = world.createEmpty();
 
       object.addComponent('t1', new Tracker(object));
@@ -479,7 +482,7 @@ describe('dependency resolution', () => {
 
   describe('atomic add semantics', () => {
     test('the failing component is not committed to the host when its resolve throws', () => {
-      const world = new World({ components: () => ({}) });
+      const world = new World(Game.createHeadless(),{ components: () => ({}) });
       const object = world.createEmpty();
       const graphics = new GraphicsComponent(object);
 
@@ -493,7 +496,7 @@ describe('dependency resolution', () => {
     });
 
     test('onAdded is not called on a component whose resolve throws', () => {
-      const world = new World({ components: () => ({}) });
+      const world = new World(Game.createHeadless(),{ components: () => ({}) });
       const object = world.createEmpty();
       const graphics = new GraphicsComponent(object);
 
@@ -522,7 +525,7 @@ describe('dependency resolution', () => {
         onDestroy(): void {}
       }
 
-      const world = new World({ components: () => ({}) });
+      const world = new World(Game.createHeadless(),{ components: () => ({}) });
       const object = world.createEmpty();
 
       try {
@@ -558,7 +561,7 @@ describe('dependency resolution', () => {
       }
 
       const error = captureError(() => {
-        new World({
+        new World(Game.createHeadless(),{
           components: (w) => ({ bad: () => new Reentrant(w) }),
         });
       });
@@ -582,7 +585,7 @@ describe('dependency resolution', () => {
         onDestroy(): void {}
       }
 
-      new World({
+      new World(Game.createHeadless(),{
         components: (w) => ({ bare: () => new Bare(w) }),
       });
 
@@ -599,7 +602,7 @@ describe('dependency resolution', () => {
       let updateCalls = 0;
       let destroyCalls = 0;
 
-      const world = new World({
+      const world = new World(Game.createHeadless(),{
         components: (w) => ({
           legacy: () => ({
             host: w,
@@ -654,7 +657,7 @@ describe('dependency resolution', () => {
         onDestroy(): void {}
       }
 
-      const world = new World({
+      const world = new World(Game.createHeadless(),{
         components: (w) => ({ input: () => new InputSystem(w) }),
       });
 
@@ -700,7 +703,7 @@ describe('dependency resolution', () => {
 
       let mixer: MixerWithInput | null = null;
 
-      new World({
+      new World(Game.createHeadless(),{
         components: (w) => ({
           input: () => new InputSystem(w),
           mixer: () => {
@@ -713,5 +716,131 @@ describe('dependency resolution', () => {
 
       expect(mixer!.addedDeps).not.toBeNull();
     });
+  });
+});
+
+describe('AbstractWorldComponent', () => {
+  test('exposes the host World as both host and world', () => {
+    const game = Game.createHeadless();
+    class Probe extends AbstractWorldComponent {}
+
+    const world = new World(game, { components: () => ({}) });
+    const component = new Probe(world);
+
+    expect(component.host).toBe(world);
+    expect(component.world).toBe(world);
+  });
+
+  test('exposes the parent Game via this.game', () => {
+    const game = Game.createHeadless();
+    class Probe extends AbstractWorldComponent {}
+
+    const world = new World(game, { components: () => ({}) });
+    const component = new Probe(world);
+
+    expect(component.game).toBe(game);
+  });
+
+  test('default no-op hooks do not throw when subclass omits them', () => {
+    const game = Game.createHeadless();
+    class Minimal extends AbstractWorldComponent {}
+
+    const world = new World(game, { components: () => ({}) });
+    const component = new Minimal(world);
+
+    expect(() => component.onAdded({})).not.toThrow();
+    expect(() => component.onUpdate(new WorldUpdate(0, 0, 0), {})).not.toThrow();
+    expect(() => component.onDestroy({})).not.toThrow();
+  });
+
+  test('subclass override fires through the world tick', () => {
+    const game = Game.createHeadless();
+
+    class TickTracker extends AbstractWorldComponent {
+      public ticks = 0;
+
+      public override onUpdate(): void {
+        this.ticks += 1;
+      }
+    }
+
+    let tracker: TickTracker | null = null;
+    const world = new World(game, {
+      components: (w) => ({
+        tracker: () => {
+          tracker = new TickTracker(w);
+          return tracker;
+        },
+      }),
+    });
+
+    world.update();
+    world.update();
+
+    expect(tracker!.ticks).toBe(2);
+  });
+});
+
+describe('AbstractWorldObjectComponent', () => {
+  test('exposes the host WorldObject as host, and shortcuts to world and game', () => {
+    const game = Game.createHeadless();
+    class Probe extends AbstractWorldObjectComponent {}
+
+    const world = new World(game, { components: () => ({}) });
+    const object = world.createEmpty();
+    const component = new Probe(object);
+
+    expect(component.host).toBe(object);
+    expect(component.world).toBe(world);
+    expect(component.game).toBe(game);
+  });
+
+  test('default no-op hooks do not throw when subclass omits them', () => {
+    const game = Game.createHeadless();
+    class Minimal extends AbstractWorldObjectComponent {}
+
+    const world = new World(game, { components: () => ({}) });
+    const object = world.createEmpty();
+    const component = new Minimal(object);
+
+    expect(() => component.onAdded({})).not.toThrow();
+    expect(() => component.onUpdate(new WorldUpdate(0, 0, 0), {})).not.toThrow();
+    expect(() => component.onDestroy({})).not.toThrow();
+  });
+
+  test('subclass override fires through the host lifecycle', () => {
+    const game = Game.createHeadless();
+
+    class TickTracker extends AbstractWorldObjectComponent {
+      public addedCount = 0;
+      public ticks = 0;
+      public destroyed = 0;
+
+      public override onAdded(): void {
+        this.addedCount += 1;
+      }
+
+      public override onUpdate(): void {
+        this.ticks += 1;
+      }
+
+      public override onDestroy(): void {
+        this.destroyed += 1;
+      }
+    }
+
+    const world = new World(game, { components: () => ({}) });
+    const object = world.createEmpty();
+    const tracker = new TickTracker(object);
+
+    object.addComponent('tracker', tracker);
+    expect(tracker.addedCount).toBe(1);
+
+    world.update();
+    expect(tracker.ticks).toBe(1);
+
+    object.destroy();
+    world.update();
+    expect(tracker.destroyed).toBe(1);
   });
 });

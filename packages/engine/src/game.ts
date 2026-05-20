@@ -1,4 +1,4 @@
-import { Application, ApplicationOptions } from 'pixi.js';
+import { Application, ApplicationOptions, Container } from 'pixi.js';
 import {
   AbstractComponentHost,
   Component,
@@ -6,8 +6,10 @@ import {
 } from './components';
 import { ErrorCode, throwEngineError } from './error';
 import { Scene } from './graphics';
-import { Mouse, MouseSnapshot } from './input';
+import { Keyboard, KeyboardState, Mouse, MouseSnapshot } from './input';
 import { SCENE_COMPONENT_KEY, World, WorldOptions } from './world';
+
+export { AbstractGameComponent } from './game-component';
 
 /**
  * Sizing strategy for the application's canvas.
@@ -76,6 +78,15 @@ export type GameOptions = {
  * string.
  */
 export const MOUSE_COMPONENT_KEY = 'mouse';
+
+/**
+ * Reserved component key the engine uses to register the {@link Keyboard}
+ * input sampler on every {@link Game}. Exposed as a constant so callers
+ * that need to introspect or replace the keyboard component (e.g. swapping
+ * in a recorded-input variant for testing) don't have to hard-code a magic
+ * string.
+ */
+export const KEYBOARD_COMPONENT_KEY = 'keyboard';
 
 const DEFAULT_BACKGROUND_COLOUR = 0x000000;
 const DEFAULT_CANVAS: GameCanvasOptions = { width: 800, height: 600 };
@@ -187,6 +198,49 @@ export class Game extends AbstractComponentHost<Game> {
     return new Game(app, options);
   }
 
+  /**
+   * Synchronous test-only factory that constructs a {@link Game} backed by
+   * a stub PIXI {@link Application}. No WebGL context, no canvas mounted
+   * to the DOM, no ticker registered with a real renderer.
+   *
+   * ## When to use this
+   *
+   * **Unit tests and headless tooling only.** The engine's production
+   * surface — every accessor that needs page-scoped services like the
+   * mouse or keyboard — assumes a {@link Game} is present, so unit tests
+   * that exercise a {@link World} in isolation need *something* to satisfy
+   * the new mandatory `game` argument on the {@link World} constructor.
+   * This factory exists to give those tests a cheap, synchronous game
+   * without the cost of bootstrapping a real PIXI renderer.
+   *
+   * ## When **not** to use this
+   *
+   * - **Never in production game code.** The stub application does not
+   *   render anything, does not run a ticker, does not own a canvas
+   *   attached to the page. Anything that depends on actual draw output —
+   *   `Scene`'s transform sync to the screen, `AbstractGraphics`'s
+   *   parenting to the stage during real rendering, any code expecting
+   *   `Game.update` to be driven by the PIXI ticker — will not behave
+   *   correctly when the game is headless. Use {@link Game.bootstrap}
+   *   instead, which performs the asynchronous WebGL/WebGPU init and
+   *   mounts the canvas under `document.body`.
+   * - **Not for renderer-level unit tests** that need to observe the real
+   *   PIXI pipeline. Those should construct their own `Application` and
+   *   pass it to the public `Game` constructor.
+   *
+   * The auto-attached {@link Mouse} and {@link Keyboard} components are
+   * still registered on the returned game. In non-browser environments
+   * (Node, jest's default `node` environment) their `typeof window`
+   * guards short-circuit listener attachment, so they're effectively
+   * inert — callable, but reporting empty input state.
+   *
+   * @param options Same shape as {@link Game.bootstrap}'s options.
+   * `canvas` is ignored — the stub renderer has no canvas of its own.
+   */
+  public static createHeadless(options: GameOptions = {}): Game {
+    return new Game(createStubApplication(), options);
+  }
+
   private _activeWorld: World | null = null;
   private readonly _tickerCallback: () => void;
 
@@ -207,6 +261,7 @@ export class Game extends AbstractComponentHost<Game> {
     // components see them as resolvable siblings.
     this.addComponentsFromFactories({
       [MOUSE_COMPONENT_KEY]: () => new Mouse(this),
+      [KEYBOARD_COMPONENT_KEY]: () => new Keyboard(this),
     });
 
     this.addComponentsFromFactories(options.components?.(this) ?? {});
@@ -279,6 +334,29 @@ export class Game extends AbstractComponentHost<Game> {
   }
 
   /**
+   * Returns the current keyboard state — the set of physical keys held at
+   * tick-snapshot time, plus a `isDown(code)` predicate for membership
+   * tests. Page-global; the same snapshot is visible to menu UI and to
+   * gameplay code alike.
+   *
+   * Keys are identified by `KeyboardEvent.code` (the physical key, not
+   * the logical character) so movement bindings like `KeyW`/`KeyA`/
+   * `KeyS`/`KeyD` keep working across keyboard layouts. See
+   * {@link KeyboardState} for the convention and a pointer to MDN's
+   * full code-value list.
+   *
+   * Allocates a fresh {@link KeyboardState} (with a freshly-cloned
+   * `downKeys` set) per call so callers can safely stash the result.
+   *
+   * Requires the auto-attached {@link Keyboard} component registered
+   * under {@link KEYBOARD_COMPONENT_KEY}. If you removed it deliberately,
+   * calling this method throws {@link ErrorCode.COMPONENT_NOT_FOUND}.
+   */
+  public getKeyboardState(): KeyboardState {
+    return this.getComponent<Keyboard>(KEYBOARD_COMPONENT_KEY).getState();
+  }
+
+  /**
    * Creates a new {@link World} and marks it as the active world for this
    * `Game`. The engine auto-attaches a {@link Scene} (parented to the PIXI
    * application's stage) and a `Camera` to every world it creates, so the
@@ -306,7 +384,7 @@ export class Game extends AbstractComponentHost<Game> {
    * ```
    */
   public createWorld(
-    options: Omit<WorldOptions, 'game' | 'components'> & {
+    options: Omit<WorldOptions, 'components'> & {
       readonly components?: WorldOptions['components'];
     } = {},
   ): World {
@@ -322,9 +400,8 @@ export class Game extends AbstractComponentHost<Game> {
     const userComponents = options.components ?? (() => ({}));
     const app = this._application;
 
-    const world = new World({
+    const world = new World(this, {
       ...options,
-      game: this,
       components: (w) => ({
         // Engine auto-attached components come first so the user's
         // factories run against a world that already has a Scene.
@@ -473,4 +550,57 @@ export class Game extends AbstractComponentHost<Game> {
       }
     }
   }
+}
+
+/**
+ * Default canvas width used by the stub application produced by
+ * {@link Game.createHeadless}. Mirrors the production default in
+ * {@link GameOptions.canvas}.
+ *
+ * @internal
+ */
+const HEADLESS_SCREEN_WIDTH = 800;
+
+/**
+ * Default canvas height used by the stub application produced by
+ * {@link Game.createHeadless}.
+ *
+ * @internal
+ */
+const HEADLESS_SCREEN_HEIGHT = 600;
+
+/**
+ * Builds a minimal PIXI {@link Application} stand-in used by
+ * {@link Game.createHeadless}. Provides the smallest surface the {@link Game}
+ * constructor and the engine's auto-attached components touch — the ticker
+ * (no-op add/remove), the canvas (a duck-typed EventTarget the {@link Mouse}
+ * can attach listeners to), the screen bounds, the stage container, and a
+ * destroy hook — without spinning up a renderer.
+ *
+ * @internal
+ */
+function createStubApplication(): Application {
+  const noopEventTarget = {
+    addEventListener: (): void => {},
+    removeEventListener: (): void => {},
+    getBoundingClientRect: (): DOMRect => ({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 0,
+      bottom: 0,
+      width: 0,
+      height: 0,
+      toJSON: (): unknown => ({}),
+    }),
+  };
+
+  return {
+    canvas: noopEventTarget,
+    screen: { width: HEADLESS_SCREEN_WIDTH, height: HEADLESS_SCREEN_HEIGHT },
+    stage: new Container(),
+    ticker: { add: (): void => {}, remove: (): void => {} },
+    destroy: (): void => {},
+  } as unknown as Application;
 }

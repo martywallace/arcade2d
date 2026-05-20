@@ -1,5 +1,6 @@
 import { Component } from '../components';
 import { EngineError, ErrorCode } from '../error';
+import { Game } from '../game';
 import { Point } from '../geometry';
 import { Prefab } from './prefab';
 import { PrefabRegistry } from './prefab-registry';
@@ -11,7 +12,7 @@ type Spy = {
   destroys: number;
 };
 
-const createWorld = () => new World({ components: () => ({}) });
+const createWorld = () => new World(Game.createHeadless(),{ components: () => ({}) });
 
 const attachSpy = (object: WorldObject, key = 'spy'): Spy => {
   const spy: Spy = { updates: 0, destroys: 0 };
@@ -90,7 +91,7 @@ describe('World', () => {
 
     test('an object destroyed during the component phase has its onUpdate skipped', () => {
       let victim: WorldObject | null = null;
-      const world = new World({
+      const world = new World(Game.createHeadless(),{
         components: (world) => ({
           killer: () => ({
             host: world,
@@ -191,7 +192,7 @@ describe('World', () => {
     test('an object spawned during the component phase does not get onUpdate that tick', () => {
       let spawned: WorldObject | null = null;
       let spawnedSpy: Spy | null = null;
-      const world = new World({
+      const world = new World(Game.createHeadless(),{
         components: (world) => ({
           spawner: () => ({
             host: world,
@@ -307,7 +308,7 @@ describe('World', () => {
     test('a thrown world-component onUpdate is reported and does not abort the tick', () => {
       const errors: WorldErrorContext[] = [];
       let goodRan = false;
-      const world = new World({
+      const world = new World(Game.createHeadless(),{
         components: (world) => ({
           bad: () => ({
             host: world,
@@ -341,7 +342,7 @@ describe('World', () => {
 
     test('a thrown object-component onUpdate isolates per-component on the same object', () => {
       const errors: WorldErrorContext[] = [];
-      const world = new World({
+      const world = new World(Game.createHeadless(),{
         components: () => ({}),
         onError: (context) => errors.push(context),
       });
@@ -370,7 +371,7 @@ describe('World', () => {
 
     test('a thrown component onUpdate on one object does not stop the next object from updating', () => {
       const errors: WorldErrorContext[] = [];
-      const world = new World({
+      const world = new World(Game.createHeadless(),{
         components: () => ({}),
         onError: (context) => errors.push(context),
       });
@@ -392,7 +393,7 @@ describe('World', () => {
 
     test('a thrown component onDestroy isolates per-component and the host still cleans up', () => {
       const errors: WorldErrorContext[] = [];
-      const world = new World({
+      const world = new World(Game.createHeadless(),{
         components: () => ({}),
         onError: (context) => errors.push(context),
       });
@@ -421,7 +422,7 @@ describe('World', () => {
 
     test('a thrown component onDestroy during World.destroy() is reported and other components still clean up', () => {
       const errors: WorldErrorContext[] = [];
-      const world = new World({
+      const world = new World(Game.createHeadless(),{
         components: () => ({}),
         onError: (context) => errors.push(context),
       });
@@ -450,7 +451,7 @@ describe('World', () => {
         .mockImplementation(() => {});
 
       try {
-        const world = new World({ components: () => ({}) });
+        const world = new World(Game.createHeadless(),{ components: () => ({}) });
         const object = world.createEmpty();
         const spy = attachSpy(object, 'good');
         attachHook(
@@ -473,7 +474,7 @@ describe('World', () => {
     });
 
     test('a throwing onError handler is the documented opt-in to fail-fast', () => {
-      const world = new World({
+      const world = new World(Game.createHeadless(),{
         components: () => ({}),
         onError: (context) => {
           throw context.error;
@@ -701,7 +702,7 @@ describe('World', () => {
     test('createFromPrefabName resolves through the attached registry', () => {
       const enemy = new Prefab({ name: 'enemy', components: {} });
       const prefabs = new PrefabRegistry([enemy]);
-      const world = new World({ components: () => ({}), prefabs });
+      const world = new World(Game.createHeadless(),{ components: () => ({}), prefabs });
 
       const object = world.createFromPrefabName('enemy');
 
@@ -727,7 +728,7 @@ describe('World', () => {
 
     test('createFromPrefabName surfaces PREFAB_NOT_FOUND from the registry', () => {
       const prefabs = new PrefabRegistry();
-      const world = new World({ components: () => ({}), prefabs });
+      const world = new World(Game.createHeadless(),{ components: () => ({}), prefabs });
 
       let caught: unknown = null;
       try {
@@ -742,7 +743,7 @@ describe('World', () => {
 
     test('world.prefabs exposes the attached registry, or null', () => {
       const prefabs = new PrefabRegistry();
-      const withRegistry = new World({ components: () => ({}), prefabs });
+      const withRegistry = new World(Game.createHeadless(),{ components: () => ({}), prefabs });
       const withoutRegistry = createWorld();
 
       expect(withRegistry.prefabs).toBe(prefabs);
@@ -753,8 +754,8 @@ describe('World', () => {
       const prefab = new Prefab({ name: 'shared', components: {} });
       const prefabs = new PrefabRegistry([prefab]);
 
-      const worldA = new World({ components: () => ({}), prefabs });
-      const worldB = new World({ components: () => ({}), prefabs });
+      const worldA = new World(Game.createHeadless(),{ components: () => ({}), prefabs });
+      const worldB = new World(Game.createHeadless(),{ components: () => ({}), prefabs });
 
       const a = worldA.createFromPrefabName('shared');
       const b = worldB.createFromPrefabName('shared');
@@ -797,7 +798,7 @@ describe('World', () => {
 
     test('all components fire onPreUpdate before any onUpdate, and all onUpdate before any onPostUpdate', () => {
       const events: PhaseEvent[] = [];
-      const world: World = new World({
+      const world: World = new World(Game.createHeadless(),{
         components: (w) => ({
           worldA: () => ({
             host: w,
@@ -829,7 +830,7 @@ describe('World', () => {
 
     test('within a phase, world components fire before object components', () => {
       const events: PhaseEvent[] = [];
-      const world: World = new World({
+      const world: World = new World(Game.createHeadless(),{
         components: (w) => ({
           worldThing: () => ({
             host: w,
@@ -1019,7 +1020,7 @@ describe('World', () => {
 
     test('also applies to world-scoped components', () => {
       let updates = 0;
-      const world: World = new World({
+      const world: World = new World(Game.createHeadless(),{
         components: (w) => ({
           off: () => ({
             host: w,
@@ -1042,7 +1043,7 @@ describe('World', () => {
   describe('per-phase error reporting', () => {
     test('errors from each phase are tagged with the matching error phase', () => {
       const errors: WorldErrorContext[] = [];
-      const world = new World({
+      const world = new World(Game.createHeadless(),{
         components: () => ({}),
         onError: (ctx) => errors.push(ctx),
       });
@@ -1078,7 +1079,7 @@ describe('World', () => {
       const errors: WorldErrorContext[] = [];
       let updateRan = false;
 
-      const world = new World({
+      const world = new World(Game.createHeadless(),{
         components: () => ({}),
         onError: (ctx) => errors.push(ctx),
       });
@@ -1223,7 +1224,7 @@ describe('World', () => {
 
     test('skips world-scoped component phases when false', () => {
       let worldUpdates = 0;
-      const world = new World({
+      const world = new World(Game.createHeadless(),{
         components: (w) => ({
           system: () => ({
             host: w,

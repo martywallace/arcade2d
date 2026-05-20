@@ -251,6 +251,40 @@ describe('Game', () => {
     });
   });
 
+  describe('createHeadless', () => {
+    test('returns a Game without bootstrapping a real renderer', () => {
+      const game = Game.createHeadless();
+
+      expect(game).toBeInstanceOf(Game);
+      // Auto-attached infrastructure is still registered.
+      expect(game.hasComponent(MOUSE_COMPONENT_KEY)).toBe(true);
+    });
+
+    test('the stub application supports the full createWorld flow', () => {
+      const game = Game.createHeadless();
+
+      const world = game.createWorld();
+
+      expect(game.activeWorld).toBe(world);
+      expect(world.hasComponent(SCENE_COMPONENT_KEY)).toBe(true);
+      expect(world.hasComponent(CAMERA_COMPONENT_KEY)).toBe(true);
+    });
+
+    test('update ticks game components without throwing', () => {
+      const game = Game.createHeadless();
+
+      expect(() => game.update()).not.toThrow();
+    });
+
+    test('destroy tears down the stub application cleanly', () => {
+      const game = Game.createHeadless();
+      game.createWorld();
+
+      expect(() => game.destroy()).not.toThrow();
+      expect(game.activeWorld).toBeNull();
+    });
+  });
+
   describe('destroy', () => {
     test('destroys the active world, removes the ticker callback, and tears down PIXI', () => {
       const app = createFakeApp();

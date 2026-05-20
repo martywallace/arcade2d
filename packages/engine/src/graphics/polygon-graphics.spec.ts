@@ -1,4 +1,5 @@
 import { Application, Container, Graphics as PixiGraphics } from 'pixi.js';
+import { Game } from '../game';
 import { Point, Polygon } from '../geometry';
 import { World } from '../world';
 import { PolygonGraphics } from './polygon-graphics';
@@ -16,7 +17,7 @@ function createFakeApp(): Application {
 
 function createWorldWithScene() {
   const app = createFakeApp();
-  const world = new World({
+  const world = new World(Game.createHeadless(),{
     components: (world) => ({
       scene: () => new Scene(world, app),
     }),

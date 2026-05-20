@@ -1,5 +1,5 @@
-import type { WorldObjectComponent, WorldUpdate } from '@arcade2d/engine';
-import { WorldObject, WorldTimer } from '@arcade2d/engine';
+import type { WorldUpdate } from '@arcade2d/engine';
+import { AbstractWorldObjectComponent, WorldTimer } from '@arcade2d/engine';
 import { BulletPrefab } from '../bullet/bullet.prefab';
 
 /**
@@ -10,34 +10,63 @@ import { BulletPrefab } from '../bullet/bullet.prefab';
  * own `onPostUpdate`. No direct sibling or cross-tier component reference
  * is needed.
  */
-export class PlayerController implements WorldObjectComponent {
+export class PlayerController extends AbstractWorldObjectComponent {
   private readonly _fireCooldown = new WorldTimer(100);
 
-  constructor(public readonly host: WorldObject) {}
-
-  onAdded() {
+  public override onAdded(): void {
     console.log(`Added player controller to ${this.host.metadata.id}`);
   }
 
-  onUpdate(update: WorldUpdate) {
-    const mouse = this.host.world.getMouseState();
+  public override onUpdate(update: WorldUpdate): void {
+    const mouse = this.world.getMouseState();
+    const keyboard = this.game.getKeyboardState();
     const angle = this.host.position.angleTo(mouse.position);
 
-    if (mouse.position.distanceTo(this.host.position) > 10) {
-      this.host.position.moveTowards(
-        mouse.position,
+    // Move towards mouse.
+    // if (
+    //   mouse.position.distanceTo(this.host.position) > 10
+    // ) {
+    //   this.host.position.moveTowards(
+    //     mouse.position,
+    //     0.08 * update.deltaMilliseconds,
+    //   );
+    // }
+
+    if (keyboard.isDown('KeyW')) {
+      this.host.position.moveInDirection(
+        angle,
+        0.08 * update.deltaMilliseconds,
+      );
+    }
+
+    if (keyboard.isDown('KeyS')) {
+      this.host.position.moveInDirection(
+        angle + Math.PI,
+        0.08 * update.deltaMilliseconds,
+      );
+    }
+
+    if (keyboard.isDown('KeyA')) {
+      this.host.position.moveInDirection(
+        angle - Math.PI / 2,
+        0.08 * update.deltaMilliseconds,
+      );
+    }
+
+    if (keyboard.isDown('KeyD')) {
+      this.host.position.moveInDirection(
+        angle + Math.PI / 2,
         0.08 * update.deltaMilliseconds,
       );
     }
 
     this.host.rotation = angle;
-    // this.host.world.camera.rotation += 0.01;
 
     if (
       mouse.buttons.left &&
       this._fireCooldown.decrement(update.deltaMilliseconds).isLapsed
     ) {
-      const bullet = this.host.world.createFromPrefab(
+      const bullet = this.world.createFromPrefab(
         BulletPrefab,
         this.host.position,
       );
@@ -46,6 +75,4 @@ export class PlayerController implements WorldObjectComponent {
       this._fireCooldown.reset();
     }
   }
-
-  onDestroy() {}
 }

@@ -29,7 +29,7 @@ import { Prefab } from './prefab';
  * prefabs.register(PlayerPrefab);
  * prefabs.register(EnemyPrefab);
  *
- * const world = new World({ components: setup, prefabs });
+ * const world = game.createWorld({ components: setup, prefabs });
  * world.createFromPrefabName('enemy', new Point(100, 100));
  * ```
  */

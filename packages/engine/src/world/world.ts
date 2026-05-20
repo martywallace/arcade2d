@@ -2,6 +2,7 @@ import { AbstractComponentHost, Component } from '../components';
 import { ErrorCode, throwEngineError } from '../error';
 import type { Game } from '../game';
 import { Point, PointPrimitive } from '../geometry';
+import type { KeyboardState } from '../input/keyboard';
 import type { MouseState } from '../input/mouse';
 import { IDGenerator } from '../utils/id-generator';
 import { Camera } from './camera';
@@ -120,16 +121,6 @@ export type WorldOptions = {
    * `Game.createWorld`, which auto-attaches a `Scene`.
    */
   readonly components: (world: World) => Record<string, () => Component<World>>;
-
-  /**
-   * The {@link Game} this world belongs to. Populated by `Game.createWorld`
-   * — game code does not pass this directly. The reference is what makes
-   * {@link World.getMouseState} (and any other game-routed accessor)
-   * resolvable; worlds constructed without a game still work for
-   * headless/test cases, but accessors that need page-scoped services
-   * will throw {@link ErrorCode.WORLD_GAME_NOT_ATTACHED}.
-   */
-  readonly game?: Game;
 
   /**
    * Optional error handler invoked whenever a component callback throws
@@ -382,8 +373,10 @@ export type WorldOptions = {
  *
  * @example
  * ```typescript
- * // Bootstrap a world with an input sampler and a physics system.
- * const world = new World({
+ * // The blessed path: bootstrap a Game, then ask it for a World.
+ * const game = await Game.bootstrap({ canvas: { fill: 'window' } });
+ *
+ * const world = game.createWorld({
  *   components: (world) => ({
  *     // Phase 1a (pre-update) — registered first so it runs first.
  *     input: () => new InputSystem(world),
@@ -394,9 +387,6 @@ export type WorldOptions = {
  *   }),
  *   prefabs: prefabRegistry,
  * });
- *
- * // Per-frame loop: arcade2d does the rest.
- * app.ticker.add(() => world.update());
  * ```
  */
 export class World extends AbstractComponentHost<World> {
@@ -429,14 +419,25 @@ export class World extends AbstractComponentHost<World> {
   private readonly _idGenerator = new IDGenerator();
   private readonly _onError?: (context: WorldErrorContext) => void;
   private readonly _prefabs?: PrefabRegistry;
-  private readonly _game: Game | null;
+  private readonly _game: Game;
 
-  constructor(options: WorldOptions) {
+  /**
+   * @param game The {@link Game} this world belongs to. Required —
+   * world-tier accessors like {@link World.getMouseState} and the
+   * `this.game` convenience on {@link AbstractWorldComponent} /
+   * {@link AbstractWorldObjectComponent} treat the reference as a
+   * non-null invariant. The blessed construction path is
+   * {@link Game.createWorld}, which passes its own `this`. Unit tests
+   * that don't need a real renderer use {@link Game.createHeadless} to
+   * mint a synchronous game with a stub PIXI application.
+   * @param options Per-world configuration. See {@link WorldOptions}.
+   */
+  constructor(game: Game, options: WorldOptions) {
     super();
 
     this._onError = options.onError;
     this._prefabs = options.prefabs;
-    this._game = options.game ?? null;
+    this._game = game;
 
     // Auto-attach the engine's own world-scoped infrastructure before the
     // user's components run. This makes {@link World.camera} a non-null
@@ -466,12 +467,12 @@ export class World extends AbstractComponentHost<World> {
   }
 
   /**
-   * The {@link Game} this world belongs to, or `null` for worlds
-   * constructed outside the `Game.createWorld` flow (typically tests or
-   * headless tooling). Most application code can treat this as non-null
-   * because the only blessed way to create a world is via the game.
+   * The {@link Game} this world belongs to. Always present — passed
+   * positionally at construction and held as a non-null invariant.
+   * Test/headless callers that don't want to bootstrap a real renderer
+   * mint one via {@link Game.createHeadless}.
    */
-  public get game(): Game | null {
+  public get game(): Game {
     return this._game;
   }
 
@@ -491,9 +492,6 @@ export class World extends AbstractComponentHost<World> {
    * via `Game.createWorld` have both components attached automatically.
    *
    * @throws {@link EngineError} with code
-   *   {@link ErrorCode.WORLD_GAME_NOT_ATTACHED} when the world was created
-   *   without a parent {@link Game} (so there's no mouse to read from).
-   * @throws {@link EngineError} with code
    *   {@link ErrorCode.COMPONENT_NOT_FOUND} when the world has no
    *   {@link Scene} component registered (so screen→world projection is
    *   not possible).
@@ -510,16 +508,6 @@ export class World extends AbstractComponentHost<World> {
    * ```
    */
   public getMouseState(): MouseState {
-    if (!this._game) {
-      throwEngineError(
-        ErrorCode.WORLD_GAME_NOT_ATTACHED,
-        'Cannot read mouse state — this World has no parent Game. Create ' +
-          'the world via game.createWorld() to attach one, or call ' +
-          'game.getMouseState() directly if you only need screen-space input.',
-        { world: this },
-      );
-    }
-
     const snapshot = this._game.getMouseState();
     const scene = this.getComponent<SceneStateProvider>(SCENE_COMPONENT_KEY);
 
@@ -528,6 +516,32 @@ export class World extends AbstractComponentHost<World> {
       screenPosition: snapshot.screenPosition,
       buttons: snapshot.buttons,
     };
+  }
+
+  /**
+   * Returns the current keyboard state — the set of physical keys held at
+   * tick-snapshot time, plus an `isDown(code)` predicate for membership
+   * tests. Sourced from the parent {@link Game}'s {@link Keyboard}
+   * component; this method is a thin pass-through that exists for symmetry
+   * with {@link World.getMouseState} (keyboards have no camera-projected
+   * variant of their own — the same held-key set is meaningful in screen
+   * space and world space alike).
+   *
+   * See {@link KeyboardState} for the `KeyboardEvent.code` convention used
+   * to identify physical keys.
+   *
+   * @example
+   * ```typescript
+   * onUpdate() {
+   *   const keys = this.host.world.getKeyboardState();
+   *
+   *   if (keys.isDown('KeyW')) this.host.position.y -= 5;
+   *   if (keys.isDown('KeyS')) this.host.position.y += 5;
+   * }
+   * ```
+   */
+  public getKeyboardState(): KeyboardState {
+    return this._game.getKeyboardState();
   }
 
   /**

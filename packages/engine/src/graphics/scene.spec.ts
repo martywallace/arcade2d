@@ -1,4 +1,5 @@
 import { Application, Container } from 'pixi.js';
+import { Game } from '../game';
 import { World } from '../world';
 import { Scene } from './scene';
 
@@ -14,7 +15,7 @@ function createFakeApp(width = 800, height = 600): Application {
 
 function createWorldWithScene(width?: number, height?: number) {
   const app = createFakeApp(width, height);
-  const world = new World({
+  const world = new World(Game.createHeadless(),{
     components: (world) => ({
       scene: () => new Scene(world, app),
     }),

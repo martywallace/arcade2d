@@ -1,5 +1,6 @@
 import { Component } from '../components';
 import { EngineError, ErrorCode } from '../error';
+import { Game } from '../game';
 import { Point } from '../geometry';
 import { PREFAB_BUILD_TOKEN } from './internal';
 import { Prefab } from './prefab';
@@ -30,7 +31,7 @@ const makeComponent = (
   };
 };
 
-const createWorld = () => new World({ components: () => ({}) });
+const createWorld = () => new World(Game.createHeadless(),{ components: () => ({}) });
 
 describe('Prefab', () => {
   describe('construction', () => {

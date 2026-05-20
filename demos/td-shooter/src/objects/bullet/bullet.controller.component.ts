@@ -1,5 +1,9 @@
-import type { WorldObjectComponent, WorldUpdate } from '@arcade2d/engine';
-import { PolygonGraphics, WorldObject, WorldTimer } from '@arcade2d/engine';
+import type { WorldUpdate } from '@arcade2d/engine';
+import {
+  AbstractWorldObjectComponent,
+  PolygonGraphics,
+  WorldTimer,
+} from '@arcade2d/engine';
 
 /**
  * Bullet controller has nothing to resolve from the host or world: it
@@ -10,20 +14,16 @@ import { PolygonGraphics, WorldObject, WorldTimer } from '@arcade2d/engine';
  * component's transform sync both read from `host.rotation` directly —
  * no manual cross-component plumbing.
  */
-export class BulletController implements WorldObjectComponent {
+export class BulletController extends AbstractWorldObjectComponent {
   private readonly _lifetime = new WorldTimer(1000);
 
-  constructor(public readonly host: WorldObject) {}
-
-  onAdded() {}
-
-  onUpdate(update: WorldUpdate) {
+  public override onUpdate(update: WorldUpdate): void {
     this.host.position.moveInDirection(
       this.host.rotation,
-      update.deltaMilliseconds * 0.8,
+      update.deltaSeconds * 800,
     );
 
-    for (const object of this.host.world.findByTag('enemy')) {
+    for (const object of this.world.findByTag('enemy')) {
       const body = object.getComponentByType(PolygonGraphics);
 
       if (body.containsWorldPoint(this.host.position)) {
@@ -36,6 +36,4 @@ export class BulletController implements WorldObjectComponent {
       this.host.destroy();
     }
   }
-
-  onDestroy() {}
 }

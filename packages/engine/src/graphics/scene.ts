@@ -2,9 +2,9 @@ import { Application, Container } from 'pixi.js';
 import { Point } from '../geometry';
 import { PointPrimitive } from '../geometry/point';
 import {
+  AbstractWorldComponent,
   Camera,
   World,
-  WorldComponent,
   WorldDependencyResolver,
 } from '../world';
 
@@ -59,20 +59,17 @@ type SceneDeps = {
  *
  * @example
  * ```ts
- * const app = new Application();
- * await app.init({ width: 800, height: 600 });
- *
- * const world = new World({
- *   components: (world) => ({
- *     scene: () => new Scene(world, app),
- *   }),
- * });
+ * // In normal use, the engine wires Scene up for you: `game.createWorld()`
+ * // auto-attaches one bound to the game's PIXI application stage. Reach for
+ * // the constructor directly only when you're mounting under a custom
+ * // application — typically a test, devtool, or alternative renderer.
+ * const world = game.createWorld();
  *
  * // The auto-attached camera makes "follow the player" a one-liner.
  * world.camera.position.copyFrom(player.position);
  * ```
  */
-export class Scene implements WorldComponent<SceneDeps> {
+export class Scene extends AbstractWorldComponent<SceneDeps> {
   private readonly _container: Container;
 
   /**
@@ -80,9 +77,11 @@ export class Scene implements WorldComponent<SceneDeps> {
    * @param _app The Pixi application whose `stage` the scene mounts under.
    */
   constructor(
-    public readonly host: World,
+    host: World,
     private readonly _app: Application,
   ) {
+    super(host);
+
     this._container = new Container();
   }
 
@@ -202,14 +201,8 @@ export class Scene implements WorldComponent<SceneDeps> {
     return result.add(camera.position);
   }
 
-  public onAdded(): void {
+  public override onAdded(): void {
     this._app.stage.addChild(this._container);
-  }
-
-  public onUpdate(): void {
-    // Scene has no per-frame work of its own — child display objects update
-    // via their own components, and camera-driven framing happens in
-    // `onPostUpdate` so it observes a settled tick.
   }
 
   /**
@@ -238,7 +231,7 @@ export class Scene implements WorldComponent<SceneDeps> {
     this._container.scale.set(camera.zoom);
   }
 
-  public onDestroy(): void {
+  public override onDestroy(): void {
     this._app.stage.removeChild(this._container);
   }
 }

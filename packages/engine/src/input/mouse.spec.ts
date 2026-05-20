@@ -3,9 +3,7 @@
  */
 
 import { Application, Container } from 'pixi.js';
-import { EngineError, ErrorCode } from '../error';
 import { Game, MOUSE_COMPONENT_KEY } from '../game';
-import { World } from '../world';
 import { Mouse } from './mouse';
 
 function createTestHarness(width = 800, height = 600) {
@@ -213,19 +211,4 @@ describe('Mouse', () => {
     expect(fresh.game.getMouseState().buttons.left).toBe(false);
   });
 
-  test('world.getMouseState throws WORLD_GAME_NOT_ATTACHED when constructed without a Game', () => {
-    const world = new World({ components: () => ({}) });
-
-    let caught: unknown = null;
-    try {
-      world.getMouseState();
-    } catch (error) {
-      caught = error;
-    }
-
-    expect(caught).toBeInstanceOf(EngineError);
-    expect((caught as EngineError).code).toBe(
-      ErrorCode.WORLD_GAME_NOT_ATTACHED,
-    );
-  });
 });

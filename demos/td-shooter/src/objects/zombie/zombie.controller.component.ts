@@ -1,5 +1,5 @@
-import type { WorldObjectComponent, WorldUpdate } from '@arcade2d/engine';
-import { Random, WorldObject } from '@arcade2d/engine';
+import type { WorldUpdate } from '@arcade2d/engine';
+import { AbstractWorldObjectComponent, Random } from '@arcade2d/engine';
 import { ZombiePrefab } from './zombie.prefab';
 
 /**
@@ -8,13 +8,9 @@ import { ZombiePrefab } from './zombie.prefab';
  * sibling graphics component reads back in its own `onPostUpdate`. No
  * cross-component references are needed at all.
  */
-export class ZombieController implements WorldObjectComponent {
-  constructor(public readonly host: WorldObject) {}
-
-  onAdded() {}
-
-  onUpdate(update: WorldUpdate) {
-    const player = this.host.world.findOneByTag('player');
+export class ZombieController extends AbstractWorldObjectComponent {
+  public override onUpdate(update: WorldUpdate): void {
+    const player = this.world.findOneByTag('player');
 
     if (player) {
       if (this.host.position.distanceTo(player.position) > 10) {
@@ -23,7 +19,6 @@ export class ZombieController implements WorldObjectComponent {
           update.deltaMilliseconds * 0.05,
         );
       } else {
-        // Destroy this zombie.
         this.host.destroy();
       }
 
@@ -31,17 +26,17 @@ export class ZombieController implements WorldObjectComponent {
     }
   }
 
-  onDestroy() {
-    const player = this.host.world.findOneByTag('player');
+  public override onDestroy(): void {
+    const player = this.world.findOneByTag('player');
 
-    if (player)
+    if (player) {
       // Spawn a new zombie somewhere in a ring around the player.
-      // Create a new one.
-      this.host.world.createFromPrefab(
+      this.world.createFromPrefab(
         ZombiePrefab,
         new Random().inRing(player.position.x, player.position.y, 300, 500),
       );
+    }
 
-    this.host.world.camera.shake(20, 300);
+    this.world.camera.shake(20, 300);
   }
 }

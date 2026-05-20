@@ -1,9 +1,11 @@
 import {
+  AbstractComponent,
+  AbstractComponentHost,
   Component,
   ComponentHostConstructor,
-  AbstractComponentHost,
 } from '../components';
 import { ErrorCode, throwEngineError } from '../error';
+import type { Game } from '../game';
 import { WorldUpdate } from './update';
 import { World } from './world';
 import { WorldObject } from './world-object';
@@ -547,3 +549,146 @@ export class WorldObjectComponentDependencyResolver
  * dipping into a separate module.
  */
 export type { WorldUpdate };
+
+/**
+ * Abstract base class for components attached to a {@link World}.
+ *
+ * The recommended way to implement the {@link WorldComponent} contract.
+ * Supplies the boilerplate every world-scoped system would otherwise
+ * write by hand:
+ *
+ * - The {@link AbstractComponent.host} reference, typed as {@link World}.
+ * - A {@link AbstractWorldComponent.world} alias (identical to `host`
+ *   at this tier) so subclass code reads symmetrically with the
+ *   {@link AbstractWorldObjectComponent} convenience.
+ * - A {@link AbstractWorldComponent.game} accessor that hops through
+ *   the world to the parent {@link Game} — the single-step way to reach
+ *   page-scoped services like the keyboard or mouse samplers.
+ * - No-op default implementations of the required lifecycle hooks
+ *   (`onAdded`, `onUpdate`, `onDestroy`) so subclasses only override
+ *   the ones they actually use. The optional `onPreUpdate` and
+ *   `onPostUpdate` hooks remain opt-in — declare them only when
+ *   needed.
+ *
+ * Subclasses that take additional constructor arguments must define
+ * their own constructor and forward `host` via `super(host)`. Subclasses
+ * that need nothing beyond the host can omit the constructor entirely
+ * and inherit the one on this base.
+ *
+ * @template TDeps The shape of the resolved dependencies threaded into
+ * every lifecycle hook. Defaults to an empty object for components with
+ * no dependencies — they can omit the `deps` parameter at each hook
+ * entirely.
+ *
+ * @example
+ * ```typescript
+ * class PauseGate extends AbstractWorldComponent {
+ *   public onUpdate(): void {
+ *     if (this.game.getKeyboardState().isDown('Escape')) {
+ *       this.world.enabled = false;
+ *     }
+ *   }
+ * }
+ * ```
+ */
+export abstract class AbstractWorldComponent<TDeps = Record<string, never>>
+  extends AbstractComponent<World>
+  implements WorldComponent<TDeps>
+{
+  /**
+   * The {@link World} this component is attached to — identical to
+   * {@link AbstractComponent.host} at this tier, exposed under the
+   * `world` name so subclass code reads the same on every tier.
+   */
+  public get world(): World {
+    return this.host;
+  }
+
+  /**
+   * The {@link Game} the host world belongs to. Always non-null — the
+   * world's `game` field is a mandatory construction argument, not an
+   * option.
+   */
+  public get game(): Game {
+    return this.host.game;
+  }
+
+  public onAdded(_deps: TDeps): void {}
+
+  public onUpdate(_update: WorldUpdate, _deps: TDeps): void {}
+
+  public onDestroy(_deps: TDeps): void {}
+}
+
+/**
+ * Abstract base class for components attached to a {@link WorldObject}.
+ *
+ * The recommended way to implement the {@link WorldObjectComponent}
+ * contract. Supplies the boilerplate every per-object system would
+ * otherwise write by hand:
+ *
+ * - The {@link AbstractComponent.host} reference, typed as
+ *   {@link WorldObject}.
+ * - A {@link AbstractWorldObjectComponent.world} accessor that hops
+ *   through the host to the parent {@link World} — the short-hand for
+ *   the very common `this.host.world.findOneByTag(...)` /
+ *   `this.host.world.camera.shake(...)` patterns.
+ * - A {@link AbstractWorldObjectComponent.game} accessor that hops
+ *   one further through the world to the {@link Game} — the single-step
+ *   way to reach page-scoped services like the keyboard or mouse
+ *   samplers from inside per-object behaviour code.
+ * - No-op default implementations of the required lifecycle hooks
+ *   (`onAdded`, `onUpdate`, `onDestroy`) so subclasses only override
+ *   the ones they actually use.
+ *
+ * Subclasses that take additional constructor arguments must define
+ * their own constructor and forward `host` via `super(host)`.
+ *
+ * @template TDeps The shape of the resolved dependencies threaded into
+ * every lifecycle hook. Defaults to an empty object for components with
+ * no dependencies — they can omit the `deps` parameter at each hook
+ * entirely.
+ *
+ * @example
+ * ```typescript
+ * class WASDController extends AbstractWorldObjectComponent {
+ *   public onUpdate(update: WorldUpdate): void {
+ *     const keys = this.game.getKeyboardState();
+ *     const speed = 0.2 * update.deltaMilliseconds;
+ *
+ *     if (keys.isDown('KeyW')) this.host.position.y -= speed;
+ *     if (keys.isDown('KeyS')) this.host.position.y += speed;
+ *     if (keys.isDown('KeyA')) this.host.position.x -= speed;
+ *     if (keys.isDown('KeyD')) this.host.position.x += speed;
+ *   }
+ * }
+ * ```
+ */
+export abstract class AbstractWorldObjectComponent<
+  TDeps = Record<string, never>,
+> extends AbstractComponent<WorldObject>
+  implements WorldObjectComponent<TDeps>
+{
+  /**
+   * The {@link World} the host {@link WorldObject} lives in. Shorthand
+   * for `this.host.world`.
+   */
+  public get world(): World {
+    return this.host.world;
+  }
+
+  /**
+   * The {@link Game} the host's world belongs to. Always non-null —
+   * the world's `game` field is a mandatory construction argument, not
+   * an option.
+   */
+  public get game(): Game {
+    return this.host.world.game;
+  }
+
+  public onAdded(_deps: TDeps): void {}
+
+  public onUpdate(_update: WorldUpdate, _deps: TDeps): void {}
+
+  public onDestroy(_deps: TDeps): void {}
+}
