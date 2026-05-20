@@ -86,6 +86,26 @@ type SceneStateProvider = Component<World> & {
   screenToWorld(p: PointPrimitive): Point;
 };
 
+/**
+ * Optional flags accepted by {@link World.findByTag} and
+ * {@link World.findOneByTag}.
+ */
+export type FindByTagOptions = {
+  /**
+   * When `true`, the query also considers objects that were spawned
+   * during the current tick and are still in the world's pending buffer
+   * (i.e. have not yet been promoted into the live iteration set). The
+   * default `false` excludes them so bulk tag queries never see an object
+   * whose components have not started ticking — see
+   * {@link World.findByTag} for the rationale.
+   *
+   * The flag is meaningful only when called from inside a {@link World.update}
+   * tick. Outside a tick, every spawned object is already live and the
+   * pending set is empty, so the flag has no observable effect.
+   */
+  readonly includePending?: boolean;
+};
+
 export type WorldOptions = {
   /**
    * Factory map of world-scoped components to register on this world. Run
@@ -292,7 +312,14 @@ export type WorldOptions = {
  * - **Either way**, the new object is findable via {@link World.findById}
  *   *immediately* — the id map is updated synchronously on spawn — so
  *   cross-references in the same tick are valid even if the spawned
- *   object hasn't yet been driven by an update.
+ *   object hasn't yet been driven by an update. Bulk tag queries are
+ *   deliberately the other way: {@link World.findByTag} and
+ *   {@link World.findOneByTag} exclude pending objects by default,
+ *   because iterating over a mix of "fully ticked" and "exists but has
+ *   never ticked" objects silently produces wrong answers (an AOE
+ *   damaging enemies that have not initialised, a counter reporting
+ *   non-yet-rendered units). Opt back into the same-tick view with
+ *   `{ includePending: true }` when you genuinely want it.
  *
  * ### Destroying
  *
@@ -796,7 +823,10 @@ export class World extends AbstractComponentHost<World> {
   /**
    * Finds an object in the world using its ID. Newly spawned objects are
    * findable from the moment they are created, even before they are promoted
-   * into the live iteration set at the end of the current tick.
+   * into the live iteration set at the end of the current tick — this is
+   * the "spawn and immediately wire references by id" pattern. Bulk tag
+   * queries are deliberately *not* symmetric with this behaviour; see
+   * {@link World.findByTag} for the reasoning.
    *
    * @param id The ID of the object to find.
    *
@@ -807,23 +837,34 @@ export class World extends AbstractComponentHost<World> {
   }
 
   /**
-   * Finds all objects in the world with the given tag. Includes objects that
-   * have just been spawned this tick and are awaiting promotion into the
-   * live set, matching the same-tick visibility offered by
-   * {@link World.findById}.
+   * Finds all live objects in the world with the given tag. By default
+   * **excludes** objects that were spawned during the current tick and are
+   * still awaiting promotion into the live set — bulk iteration that
+   * mixes fully-ticked objects with ones whose components have never run
+   * is the canonical source of "I damaged the enemy before it existed"
+   * bugs, so the engine defaults to live-only. Use
+   * {@link FindByTagOptions.includePending includePending} to opt back
+   * into the same-tick view (debug overlays, editor tooling, the rare
+   * gameplay system that genuinely wants both).
    *
    * @param tag The tag to find objects by.
+   * @param options Optional query flags. See {@link FindByTagOptions}.
    *
    * @returns An array of objects with the given tag.
    */
-  public findByTag(tag: string): readonly WorldObject[] {
+  public findByTag(
+    tag: string,
+    options: FindByTagOptions = {},
+  ): readonly WorldObject[] {
     const matches = this._objects.filter((object) =>
       object.metadata.tags.has(tag),
     );
 
-    for (const object of this._pendingObjects) {
-      if (object.metadata.tags.has(tag)) {
-        matches.push(object);
+    if (options.includePending) {
+      for (const object of this._pendingObjects) {
+        if (object.metadata.tags.has(tag)) {
+          matches.push(object);
+        }
       }
     }
 
@@ -831,26 +872,36 @@ export class World extends AbstractComponentHost<World> {
   }
 
   /**
-   * Finds a single object in the world with the given tag. Includes objects
-   * that have just been spawned this tick and are awaiting promotion into
-   * the live set.
+   * Finds a single live object in the world with the given tag. Same
+   * default exclusion rule as {@link World.findByTag} — pending objects
+   * are skipped unless {@link FindByTagOptions.includePending} is set.
+   * Returns the first live match in spawn order, or the first pending
+   * match (when opted in) if no live object matches.
    *
    * @param tag The tag to find an object by.
+   * @param options Optional query flags. See {@link FindByTagOptions}.
    *
-   * @returns The first object with the given tag, or `null` if no object is
-   * found.
+   * @returns The first object with the given tag, or `null` if no object
+   * is found.
    */
-  public findOneByTag(tag: string): WorldObject | null {
+  public findOneByTag(
+    tag: string,
+    options: FindByTagOptions = {},
+  ): WorldObject | null {
     const match = this._objects.find((object) => object.metadata.tags.has(tag));
 
     if (match) {
       return match;
     }
 
-    return (
-      this._pendingObjects.find((object) => object.metadata.tags.has(tag)) ??
-      null
-    );
+    if (options.includePending) {
+      return (
+        this._pendingObjects.find((object) => object.metadata.tags.has(tag)) ??
+        null
+      );
+    }
+
+    return null;
   }
 
   protected getHostReference(): World {

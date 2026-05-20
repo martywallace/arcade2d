@@ -505,7 +505,7 @@ describe('World', () => {
   });
 
   describe('tag queries', () => {
-    test('findByTag and findOneByTag see objects spawned during the current tick', () => {
+    test('findByTag and findOneByTag exclude same-tick pending spawns by default', () => {
       const world = createWorld();
       const spawner = world.createEmpty();
       let matchedAll: readonly WorldObject[] = [];
@@ -523,8 +523,80 @@ describe('World', () => {
 
       world.update();
 
+      // Pending object exists, but the default tag query is live-only —
+      // it stays invisible until promoted into the live set on the next
+      // tick. This is what prevents an AOE / damage system iterating over
+      // tagged enemies from hitting objects whose components have never
+      // ticked.
+      expect(matchedAll).toHaveLength(0);
+      expect(matchedOne).toBeNull();
+    });
+
+    test('findByTag returns same-tick pending spawns when includePending is set', () => {
+      const world = createWorld();
+      const spawner = world.createEmpty();
+      let matchedAll: readonly WorldObject[] = [];
+      let matchedOne: WorldObject | null = null;
+
+      attachHook(spawner, {
+        onUpdate: () => {
+          if (matchedAll.length === 0) {
+            world.createEmpty(undefined, ['enemy']);
+            matchedAll = world.findByTag('enemy', { includePending: true });
+            matchedOne = world.findOneByTag('enemy', { includePending: true });
+          }
+        },
+      });
+
+      world.update();
+
       expect(matchedAll).toHaveLength(1);
       expect(matchedOne).not.toBeNull();
+    });
+
+    test('a pending spawn is invisible during its spawn tick but visible after promotion', () => {
+      const world = createWorld();
+      const spawner = world.createEmpty();
+      let duringTick: number | null = null;
+      attachHook(spawner, {
+        onUpdate: () => {
+          if (duringTick === null) {
+            world.createEmpty(undefined, ['enemy']);
+            // Mid-tick read with the default query — pending object is
+            // present but the live-only query refuses to surface it.
+            duringTick = world.findByTag('enemy').length;
+          }
+        },
+      });
+
+      world.update();
+
+      expect(duringTick).toBe(0);
+      // After the tick returns, Phase 4b has promoted the pending object
+      // into the live set. The default query now finds it.
+      expect(world.findByTag('enemy')).toHaveLength(1);
+    });
+
+    test('findOneByTag prefers a live match over a pending one when includePending is set', () => {
+      const world = createWorld();
+      const live = world.createEmpty(undefined, ['enemy']);
+      const spawner = world.createEmpty();
+      let observed: WorldObject | null = null;
+
+      attachHook(spawner, {
+        onUpdate: () => {
+          if (!observed) {
+            world.createEmpty(undefined, ['enemy']);
+            observed = world.findOneByTag('enemy', { includePending: true });
+          }
+        },
+      });
+
+      world.update();
+
+      // Live objects iterate first in findOneByTag — the live enemy wins
+      // over the pending one even though both match.
+      expect(observed).toBe(live);
     });
 
     test('tag queries do not return a spawned-then-destroyed object after the sweep', () => {
@@ -541,7 +613,13 @@ describe('World', () => {
       world.update();
 
       expect(world.findByTag('enemy')).toHaveLength(0);
+      expect(world.findByTag('enemy', { includePending: true })).toHaveLength(
+        0,
+      );
       expect(world.findOneByTag('enemy')).toBeNull();
+      expect(
+        world.findOneByTag('enemy', { includePending: true }),
+      ).toBeNull();
     });
   });
 
