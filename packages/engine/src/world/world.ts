@@ -80,54 +80,228 @@ export type WorldOptions = {
 };
 
 /**
- * The root container for an arcade2d simulation. Owns the set of live
- * {@link WorldObject}s, drives the per-frame update loop, and hosts
- * world-scoped {@link Component}s (e.g. the {@link Scene} graphics component).
+ * The root container for an arcade2d simulation. A `World` owns the set of
+ * live {@link WorldObject}s, drives the per-frame update loop that animates
+ * them, and itself hosts world-scoped {@link Component}s — i.e. components
+ * that conceptually belong to the simulation as a whole rather than to any
+ * single object (a {@link Scene} graphics root, a physics broadphase, an
+ * input sampler, an audio mixer, and so on). It also optionally resolves
+ * named prefab lookups against a {@link PrefabRegistry} passed at
+ * construction.
  *
- * ### Update phases
+ * The class is designed so a typical game's "main loop" is one line:
+ * construct the world, then call {@link World.update} once per animation
+ * frame. Everything else — when components run, what order they run in,
+ * how spawns/destroys interact with the running tick — is the
+ * responsibility of this class and is described below.
  *
- * Each call to {@link World.update} runs four phases in order:
+ * ## The update tick
  *
- * 1. **Pre-update.** Every world-scoped component's `onPreUpdate` runs, then
- *    every live `WorldObject` has its components' `onPreUpdate` driven.
- *    This is the place for input sampling, per-frame buffer clears, or any
- *    other state-preparation work that the main update phase will read.
- * 2. **Update.** Every world-scoped component's `onUpdate` runs, then every
- *    live `WorldObject` has its components' `onUpdate` driven. The bulk of
- *    behaviour logic lives here.
- * 3. **Post-update.** Every world-scoped component's `onPostUpdate` runs,
- *    then every live `WorldObject` has its components' `onPostUpdate`
- *    driven. The place for "after everyone has moved" work — camera
- *    follow, transform sync, late audits.
- * 4. **Sweep + flush.** Destroyed objects get `onDestroy` called and are
- *    removed from the live set and the id map. Objects spawned during this
- *    tick are then promoted into the live set so they participate in the
- *    *next* tick.
+ * Each call to {@link World.update} executes the following schedule, in
+ * this exact order. Understanding the schedule is the single most
+ * important thing about working with arcade2d, because everything else
+ * (spawn semantics, destroy semantics, cross-component wiring, ordering
+ * pitfalls) is downstream of it.
  *
- * Within each update phase, **world components run before object
- * components**, and components iterate in their insertion order. Objects
- * marked destroyed earlier in the same tick are skipped for all remaining
- * phases — destroying an object during pre-update prevents its `onUpdate`
- * and `onPostUpdate` from running this frame. Components whose `enabled`
- * is explicitly `false` are skipped for the entire tick's update phases
- * (they still receive `onAdded` and `onDestroy`).
+ * ```
+ * ┌──────────────────────────────────────────────────────────────────┐
+ * │ Phase 1 — Pre-update                                             │
+ * │   1a. World components, in insertion order, call `onPreUpdate`   │
+ * │   1b. Each live WorldObject, in spawn order, has every component │
+ * │       (in component insertion order) call `onPreUpdate`          │
+ * ├──────────────────────────────────────────────────────────────────┤
+ * │ Phase 2 — Update                                                 │
+ * │   2a. World components, in insertion order, call `onUpdate`      │
+ * │   2b. Each live WorldObject, in spawn order, has every component │
+ * │       (in component insertion order) call `onUpdate`             │
+ * ├──────────────────────────────────────────────────────────────────┤
+ * │ Phase 3 — Post-update                                            │
+ * │   3a. World components, in insertion order, call `onPostUpdate`  │
+ * │   3b. Each live WorldObject, in spawn order, has every component │
+ * │       (in component insertion order) call `onPostUpdate`         │
+ * ├──────────────────────────────────────────────────────────────────┤
+ * │ Phase 4 — Sweep + flush                                          │
+ * │   4a. Run `onDestroy` on every object marked destroyed this tick │
+ * │       (or earlier) and remove them from the live set + id map    │
+ * │   4b. Promote objects spawned mid-tick into the live set so they │
+ * │       participate in the *next* tick                             │
+ * └──────────────────────────────────────────────────────────────────┘
+ * ```
  *
- * `onPreUpdate` and `onPostUpdate` are optional members of the
- * {@link Component} interface; components that don't implement them cost
- * a single property read per tick.
+ * ### Two ordering rules that follow from the schedule
  *
- * Spawns that happen *during* a tick are deferred so the iteration order of
- * the object update phase stays stable: an object spawned at frame `N` does
- * not have its `onUpdate` called until frame `N+1`. The new object is,
- * however, findable via {@link World.findById} immediately on spawn so
- * callers can wire up cross-references in the same tick they created the
- * object. An object that is both spawned and destroyed within a single tick
- * never enters the live set; its `onDestroy` still runs during the sweep so
- * component cleanup is honoured.
+ * 1. **Phases are strict.** Every component on every host finishes its
+ *    `onPreUpdate` before *any* component anywhere starts `onUpdate`.
+ *    Every `onUpdate` finishes before *any* `onPostUpdate` starts. This
+ *    is the contract you rely on to make camera-follows-player and
+ *    similar "I need everyone else's results" patterns work without race
+ *    conditions.
  *
- * Spawns that happen *outside* a tick (e.g. world setup before the loop
- * starts) join the live set immediately and participate in the very next
- * tick.
+ * 2. **Within a phase, world components run before object components.**
+ *    A world-scoped input sampler in Phase 1a will have finished polling
+ *    by the time a controller component in Phase 1b reads it. A
+ *    world-scoped physics step in Phase 2a will have resolved collisions
+ *    by the time a per-object damage handler in Phase 2b decides what to
+ *    do about them.
+ *
+ * Within each of those two sub-orderings (world components among
+ * themselves; object components on a single host among themselves), the
+ * order is **insertion order** — i.e. the order they were registered via
+ * `addComponents` (or the order they appear in a {@link Prefab}'s
+ * component map). There is no priority or weight system; if A must run
+ * before B, register A first.
+ *
+ * ## Choosing the right phase
+ *
+ * The three update hooks aren't "early, middle, late" so much as three
+ * specific roles. Picking the right one is mostly about asking *what does
+ * this code need to be true when it runs?*
+ *
+ * ### `onPreUpdate` — sample and prepare
+ *
+ * Use when you produce state that other components will consume during
+ * `onUpdate`. The hook is optional: components that don't have prep work
+ * to do should omit it. Canonical uses:
+ *
+ * - **Input polling.** A world-scoped `InputSystem` reads keyboard/mouse
+ *   state once per tick in `onPreUpdate` and exposes it via getters.
+ *   Every controller component then queries it in `onUpdate` and sees a
+ *   consistent snapshot.
+ * - **Per-frame buffer clears.** A world-scoped collision broadphase
+ *   clears the previous tick's overlap set in `onPreUpdate` so per-object
+ *   colliders can populate it during their own `onUpdate` without
+ *   stepping on the previous frame's results.
+ * - **Interpolation snapshots.** A graphics component caches its
+ *   pre-update transform so any other system that wants to interpolate
+ *   between "before" and "after" positions during the post phase has a
+ *   clean snapshot to work from.
+ *
+ * ### `onUpdate` — do the work
+ *
+ * The main per-frame body of behaviour. Required on every component —
+ * even if it's empty. Use when the work doesn't depend on having seen the
+ * results of everyone else's update this frame. The vast majority of
+ * components only need this hook. Canonical uses:
+ *
+ * - **Movement and behaviour.** Controllers reading input and translating
+ *   it into changes to the host's `position`, AI components evaluating
+ *   their decision logic, projectile components advancing themselves.
+ * - **World simulation steps.** A world-scoped physics system stepping
+ *   its solver, a particle emitter advancing emission timers, a wave
+ *   manager spawning enemies on a cadence.
+ * - **Lifetime accounting.** A bullet decrementing its remaining
+ *   lifetime and self-destructing when it hits zero.
+ *
+ * ### `onPostUpdate` — react to everyone else's updates
+ *
+ * Use when your work *requires* that every other component has finished
+ * its `onUpdate` first. Optional; skip when not needed. Canonical uses:
+ *
+ * - **Camera follow.** A world- or object-scoped camera component reads
+ *   the player's *already-moved* position in `onPostUpdate` and centres
+ *   the viewport on it. If you did this in `onUpdate` and the player's
+ *   controller ran later in the iteration order, you'd lag by a frame.
+ * - **Transform sync to a renderer.** A graphics component copying
+ *   `host.position` into a PIXI display object in `onPostUpdate`
+ *   guarantees the final visual reflects every behaviour change that
+ *   happened this tick, including ones from late-running components.
+ * - **Late audits and assertions.** A debug overlay that needs to inspect
+ *   the world's settled state, count active enemies, etc.
+ *
+ * ### Rule of thumb
+ *
+ * If the code reads state set by other components: pre-update produces,
+ * update consumes, post-update reacts. If you only set state, you almost
+ * certainly want `onUpdate`. If you're not sure, start with `onUpdate`
+ * and move to a different phase only if you see a one-frame-lag bug.
+ *
+ * ## Spawn and destroy semantics
+ *
+ * Both spawns (`createFromPrefab`, `createFromPrefabName`,
+ * `createEmpty`) and destroys ({@link WorldObject.destroy}) are
+ * **deferred and re-entrancy-safe** so that running components can't
+ * observe inconsistent state mid-tick.
+ *
+ * ### Spawning
+ *
+ * - **Outside a tick** (e.g. during world setup before the first
+ *   `update()` call), spawned objects join the live set immediately and
+ *   participate in the very next tick from Phase 1 onward.
+ * - **During a tick**, spawned objects are queued and only join the live
+ *   set during Phase 4b. They first participate in the *next* tick. This
+ *   keeps Phase 2/3 iteration order stable even if a component spawns ten
+ *   new objects mid-update.
+ * - **Either way**, the new object is findable via {@link World.findById}
+ *   *immediately* — the id map is updated synchronously on spawn — so
+ *   cross-references in the same tick are valid even if the spawned
+ *   object hasn't yet been driven by an update.
+ *
+ * ### Destroying
+ *
+ * {@link WorldObject.destroy} only *marks* the object. The real removal
+ * happens in Phase 4a. Consequences:
+ *
+ * - **An object destroyed mid-tick is skipped for all remaining phases.**
+ *   If a controller destroys itself in Phase 1, neither Phase 2 nor Phase
+ *   3 will touch it. This is the "no final tick" rule and exists so
+ *   destroyed objects can't observe state from *after* their own death.
+ * - **`onDestroy` is idempotent.** Calling `destroy()` twice, or
+ *   destroying an already-cleaned object during teardown, is a no-op.
+ *   Components on a destroyed object also have their `onDestroy` run
+ *   exactly once during sweep.
+ * - **Spawned-and-destroyed-in-the-same-tick** objects never enter the
+ *   live set but *do* receive `onDestroy` during Phase 4b, so component
+ *   cleanup is honoured.
+ *
+ * ## Component enable/disable
+ *
+ * Components carry an optional {@link Component.enabled} flag. When
+ * explicitly `false`, the engine skips the component's `onPreUpdate`,
+ * `onUpdate`, *and* `onPostUpdate` for the rest of the tick — useful for
+ * temporarily pausing behaviour (freeze powerups, debug toggles, AI
+ * sleep) without removing the component and losing its internal state.
+ * `onAdded` and `onDestroy` always fire regardless of `enabled` so a
+ * component is never half-attached.
+ *
+ * ## Error isolation
+ *
+ * Every component hook (`onPreUpdate`, `onUpdate`, `onPostUpdate`,
+ * `onDestroy`) is wrapped in a try/catch by the engine. A thrown error in
+ * one component does **not** abort the tick — the rest of the host's
+ * components, and every other host, continue to run. Errors are routed
+ * through {@link World.reportError}, which forwards to the optional
+ * {@link WorldOptions.onError} handler (defaulting to `console.error`).
+ * If you *want* fail-fast, throw from inside `onError` and the engine's
+ * `try/finally` will let the exception propagate out of `update()`.
+ *
+ * ## Cross-references
+ *
+ * - {@link Component} — the per-host lifecycle interface.
+ * - {@link WorldObject} — the per-object host driven by Phases 1b/2b/3b.
+ * - {@link Prefab} — the declarative template used to build objects.
+ * - {@link PrefabRegistry} — name-keyed prefab lookup, attachable to a
+ *   world for {@link World.createFromPrefabName}.
+ * - {@link WorldErrorContext} — payload handed to `onError` when a
+ *   component callback throws.
+ *
+ * @example
+ * ```typescript
+ * // Bootstrap a world with an input sampler and a physics system.
+ * const world = new World({
+ *   components: (world) => ({
+ *     // Phase 1a (pre-update) — registered first so it runs first.
+ *     input: () => new InputSystem(world),
+ *     // Phase 2a (update) — runs second, sees fresh input.
+ *     physics: () => new PhysicsSystem(world),
+ *     // Phase 3a (post-update) — runs third, sees settled positions.
+ *     camera: () => new CameraSystem(world),
+ *   }),
+ *   prefabs: prefabRegistry,
+ * });
+ *
+ * // Per-frame loop: arcade2d does the rest.
+ * app.ticker.add(() => world.update());
+ * ```
  */
 export class World extends AbstractComponentHost<World> {
   private _lastUpdate = 0;
@@ -293,7 +467,11 @@ export class World extends AbstractComponentHost<World> {
       // Phase 1: pre-update. World components first, then objects. Objects
       // marked destroyed mid-phase are skipped for the remaining phases
       // this tick.
-      this._runWorldComponentPhase('onPreUpdate', 'component-pre-update', update);
+      this._runWorldComponentPhase(
+        'onPreUpdate',
+        'component-pre-update',
+        update,
+      );
       for (const object of this._objects) {
         if (object.destroyed) {
           continue;
@@ -352,9 +530,7 @@ export class World extends AbstractComponentHost<World> {
           this._mappedObjects.delete(object.metadata.id);
         }
 
-        this._objects = this._objects.filter(
-          (object) => !sweptSet.has(object),
-        );
+        this._objects = this._objects.filter((object) => !sweptSet.has(object));
       }
 
       // Phase 4b: flush objects spawned during this tick. An object that was
