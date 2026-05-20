@@ -146,4 +146,37 @@ export class PolygonGraphics extends AbstractGraphics<PixiGraphics> {
 
     super(host, display);
   }
+
+  /**
+   * Returns `true` if the given **world-space** point lies inside this
+   * polygon, accounting for the host's position, rotation, and scale.
+   * Composes {@link WorldObject.worldToLocal} with the underlying
+   * {@link Polygon.containsPoint} ray-cast so callers don't have to manage
+   * the inverse transform themselves.
+   *
+   * This is the typed replacement for reaching at
+   * `.raw.getBounds().containsPoint(...)`: the Pixi bounds query returns
+   * post-transform (screen-space) extents, so it silently disagrees with
+   * world coordinates the moment the camera moves, scales, or rotates.
+   * Use this method instead.
+   *
+   * @param point The world-space point to test.
+   *
+   * @example
+   * ```ts
+   * // Bullet hit-test against any enemy whose polygon body contains the
+   * // bullet's world position.
+   * for (const enemy of world.findByTag('enemy')) {
+   *   const body = enemy.getComponentByType(PolygonGraphics);
+   *   if (body.containsWorldPoint(bullet.position)) {
+   *     enemy.destroy();
+   *     bullet.destroy();
+   *     break;
+   *   }
+   * }
+   * ```
+   */
+  public containsWorldPoint(point: PointPrimitive): boolean {
+    return this.polygon.containsPoint(this.host.worldToLocal(point));
+  }
 }

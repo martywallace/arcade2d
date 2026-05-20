@@ -1,5 +1,5 @@
 import { AbstractComponentHost, Component } from '../components';
-import { Point } from '../geometry';
+import { Point, PointPrimitive } from '../geometry';
 import { WorldObjectComponentDependencyResolver } from './dependencies';
 import { WorldUpdate } from './update';
 import { World } from './world';
@@ -175,6 +175,78 @@ export class WorldObject extends AbstractComponentHost<WorldObject> {
     this.position = position.clone();
     this.rotation = rotation;
     this.scale = scale.clone();
+  }
+
+  /**
+   * Maps a point expressed in this object's **local** space into the
+   * world's coordinate system. The forward transform applied — in order —
+   * is scale, rotate, then translate by {@link WorldObject.position}, so
+   * `(0, 0)` always maps to the host's world position, and a local point
+   * "10 units along +x" lands wherever the host is currently facing,
+   * scaled to whatever the host's `scale.x` is.
+   *
+   * Pairs with {@link WorldObject.worldToLocal} — round-tripping a point
+   * through both methods is the identity (modulo floating-point error).
+   *
+   * Allocates a fresh {@link Point} per call so callers can mutate the
+   * result without affecting host state.
+   *
+   * @param point The point to convert, in the host's local space.
+   * @returns A new {@link Point} expressing the same location in world
+   * space.
+   */
+  public localToWorld(point: PointPrimitive): Point {
+    const result = new Point(
+      point.x * this.scale.x,
+      point.y * this.scale.y,
+    );
+
+    if (this.rotation !== 0) {
+      result.rotate(this.rotation);
+    }
+
+    return result.add(this.position);
+  }
+
+  /**
+   * Maps a point expressed in **world** space into this object's local
+   * coordinate system — the inverse of {@link WorldObject.localToWorld}.
+   * This is the primitive that hit-tests and other shape-vs-world queries
+   * are built on: convert the world point to local, then ask the local-
+   * space shape (a {@link Polygon}, a {@link Circle}, ...) whether it
+   * contains it.
+   *
+   * Axes with zero {@link WorldObject.scale} are left untouched on that
+   * axis (rather than dividing by zero); a fully zero-scaled object
+   * collapses to a point and containment against it is undefined either
+   * way, so this is just the cheaper of two equally-degenerate
+   * behaviours.
+   *
+   * Allocates a fresh {@link Point} per call.
+   *
+   * @param point The point to convert, in world space.
+   * @returns A new {@link Point} expressing the same location in the
+   * host's local space.
+   */
+  public worldToLocal(point: PointPrimitive): Point {
+    const result = new Point(
+      point.x - this.position.x,
+      point.y - this.position.y,
+    );
+
+    if (this.rotation !== 0) {
+      result.rotate(-this.rotation);
+    }
+
+    if (this.scale.x !== 0) {
+      result.x = result.x / this.scale.x;
+    }
+
+    if (this.scale.y !== 0) {
+      result.y = result.y / this.scale.y;
+    }
+
+    return result;
   }
 
   /**

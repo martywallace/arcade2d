@@ -1,5 +1,5 @@
 import { Application, Container, Graphics as PixiGraphics } from 'pixi.js';
-import { Polygon } from '../geometry';
+import { Point, Polygon } from '../geometry';
 import { World } from '../world';
 import { PolygonGraphics } from './polygon-graphics';
 import { Scene } from './scene';
@@ -7,6 +7,7 @@ import { Scene } from './scene';
 function createFakeApp(): Application {
   return {
     stage: new Container(),
+    screen: { width: 800, height: 600 },
     renderer: {
       events: { pointer: { global: { x: 0, y: 0 } } },
     },
@@ -115,6 +116,54 @@ describe('PolygonGraphics', () => {
 
       expect(graphics.polygon.points).toEqual([]);
       expect(graphics.raw.context.instructions).toHaveLength(0);
+    });
+  });
+
+  describe('containsWorldPoint', () => {
+    test('respects the host position', () => {
+      const { world } = createWorldWithScene();
+      const object = world.createEmpty(new Point(100, 100));
+      const graphics = PolygonGraphics.asRectangle(object, 20, 20);
+
+      // World point exactly on the host position lies inside a centered
+      // rectangle, even though the local-space test would put it on (0, 0).
+      expect(graphics.containsWorldPoint({ x: 100, y: 100 })).toBe(true);
+      expect(graphics.containsWorldPoint({ x: 95, y: 105 })).toBe(true);
+      expect(graphics.containsWorldPoint({ x: 0, y: 0 })).toBe(false);
+    });
+
+    test('respects host rotation', () => {
+      const { world } = createWorldWithScene();
+      const object = world.createEmpty(new Point(0, 0));
+      object.rotation = Math.PI / 4; // 45°
+      // A 10x4 rectangle (long axis on local x). After 45° rotation it now
+      // extends diagonally in world space.
+      const graphics = PolygonGraphics.asRectangle(object, 10, 4);
+
+      // Point along the rotated long axis (diagonal in world space).
+      expect(graphics.containsWorldPoint({ x: 3, y: 3 })).toBe(true);
+      // Point along the original (unrotated) +x axis no longer hits — the
+      // long edge has rotated off it.
+      expect(graphics.containsWorldPoint({ x: 5, y: 0 })).toBe(false);
+    });
+
+    test('respects host scale', () => {
+      const { world } = createWorldWithScene();
+      const object = world.createEmpty(new Point(0, 0));
+      object.scale.set(2, 2);
+      const graphics = PolygonGraphics.asRectangle(object, 10, 10);
+
+      // Native rectangle extends to ±5 locally → ±10 in world space.
+      expect(graphics.containsWorldPoint({ x: 9, y: 9 })).toBe(true);
+      expect(graphics.containsWorldPoint({ x: 11, y: 0 })).toBe(false);
+    });
+
+    test('returns false for points outside the polygon', () => {
+      const { world } = createWorldWithScene();
+      const object = world.createEmpty(new Point(50, 50));
+      const graphics = PolygonGraphics.asRectangle(object, 8, 8);
+
+      expect(graphics.containsWorldPoint({ x: 100, y: 100 })).toBe(false);
     });
   });
 

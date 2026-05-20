@@ -1,7 +1,9 @@
 import { AbstractComponentHost, Component } from '../components';
 import { ErrorCode, throwEngineError } from '../error';
 import { Point } from '../geometry';
+import type { MouseState } from '../input/mouse';
 import { IDGenerator } from '../utils/id-generator';
+import { Camera } from './camera';
 import { WorldComponentDependencyResolver } from './dependencies';
 import { PREFAB_BUILD_TOKEN } from './internal';
 import { Prefab } from './prefab';
@@ -51,7 +53,47 @@ export type WorldErrorContext = {
   readonly componentKey: string;
 };
 
+/**
+ * Reserved component key used by the engine to register the auto-attached
+ * {@link Camera} on every {@link World}. Surfaces as a constant so user
+ * code that — for whatever reason — needs to introspect the camera by key
+ * doesn't have to hard-code a magic string, and so the collision message
+ * in `addComponents` can mention the constant rather than a raw literal.
+ */
+export const CAMERA_COMPONENT_KEY = 'camera';
+
+/**
+ * Reserved component key used by {@link bootstrap} (and by callers writing
+ * their own bootstrap) to register the world's mouse input sampler. The
+ * matching component implements `getState(): MouseState`; see the input
+ * module's `Mouse` class. {@link World.getMouseState} looks up this exact
+ * key.
+ */
+export const MOUSE_COMPONENT_KEY = 'mouse';
+
+/**
+ * Internal structural type used by {@link World.getMouseState} to look up
+ * the mouse component without taking a value-level dependency on the
+ * `Mouse` class itself (which lives in the `input/` module and would
+ * otherwise create an avoidable import cycle with the world tier).
+ *
+ * @internal
+ */
+type MouseStateProvider = Component<World> & {
+  getState(): MouseState;
+};
+
 export type WorldOptions = {
+  /**
+   * Factory map of world-scoped components to register on this world. Run
+   * after the engine's own auto-attached components, so the user's
+   * components see the {@link Camera} (and any future auto-attached
+   * infrastructure) as already-resolvable siblings.
+   *
+   * The key {@link CAMERA_COMPONENT_KEY} is reserved by the engine —
+   * attempting to register a component under that key will throw
+   * {@link ErrorCode.COMPONENT_ALREADY_EXISTS}.
+   */
   readonly components: (world: World) => Record<string, () => Component<World>>;
 
   /**
@@ -352,7 +394,64 @@ export class World extends AbstractComponentHost<World> {
     this._onError = options.onError;
     this._prefabs = options.prefabs;
 
+    // Auto-attach the engine's own world-scoped infrastructure before the
+    // user's components run. This makes {@link World.camera} a non-null
+    // invariant and lets user components resolve `Camera` as a dependency
+    // through the normal `requireSibling` channel.
+    this.addComponentsFromFactories({
+      [CAMERA_COMPONENT_KEY]: () => new Camera(this),
+    });
+
     this.addComponentsFromFactories(options.components(this));
+  }
+
+  /**
+   * The world's auto-attached {@link Camera}. Always present — the engine
+   * registers a camera during construction before any user components run,
+   * so this getter never returns `null` and game code can treat the
+   * camera's existence as an invariant.
+   *
+   * @example
+   * ```typescript
+   * // Anchor the view on the player every frame.
+   * world.camera.position.copyFrom(player.position);
+   * ```
+   */
+  public get camera(): Camera {
+    return this.getComponentByType(Camera);
+  }
+
+  /**
+   * Returns the current mouse state — cursor position (both in world
+   * space, with the camera transform inverted, and in raw canvas-local
+   * pixels) and the held/released state of the three standard buttons.
+   *
+   * The returned {@link MouseState} is a fresh snapshot per call; the
+   * engine deliberately never hands back a live reference, so a caller
+   * stashing the value for a frame won't see it change mid-tick.
+   *
+   * Requires a mouse component registered under {@link MOUSE_COMPONENT_KEY}.
+   * The convenience {@link bootstrap} function does this automatically; if
+   * you're constructing the world yourself, register a `Mouse` from the
+   * `input/` module the same way you'd register a {@link Scene}. Calling
+   * this method without a registered mouse throws
+   * {@link ErrorCode.COMPONENT_NOT_FOUND}.
+   *
+   * @example
+   * ```typescript
+   * onUpdate() {
+   *   const { position, leftButton } = this.host.world.getMouseState();
+   *
+   *   if (leftButton) {
+   *     this.host.position.moveTowards(position, 5);
+   *   }
+   * }
+   * ```
+   */
+  public getMouseState(): MouseState {
+    return this.getComponent<MouseStateProvider>(
+      MOUSE_COMPONENT_KEY,
+    ).getState();
   }
 
   /**

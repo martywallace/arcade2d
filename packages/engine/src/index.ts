@@ -1,11 +1,13 @@
 import { Application, ApplicationOptions } from 'pixi.js';
 import { Scene } from './graphics';
-import { World } from './world';
+import { Mouse } from './input';
+import { MOUSE_COMPONENT_KEY, World } from './world';
 
 export * from './components';
 export * from './error';
 export * from './geometry';
 export * from './graphics';
+export * from './input';
 export * from './world';
 
 export type BootstrapOptions = {
@@ -44,6 +46,7 @@ export async function bootstrap({
   const world = new World({
     components: (world) => ({
       scene: () => new Scene(world, app),
+      [MOUSE_COMPONENT_KEY]: () => new Mouse(world, app),
     }),
   });
 

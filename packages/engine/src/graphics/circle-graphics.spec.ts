@@ -1,5 +1,5 @@
 import { Application, Container, Graphics as PixiGraphics } from 'pixi.js';
-import { Circle } from '../geometry';
+import { Circle, Point } from '../geometry';
 import { World } from '../world';
 import { CircleGraphics } from './circle-graphics';
 import { Scene } from './scene';
@@ -7,6 +7,7 @@ import { Scene } from './scene';
 function createFakeApp(): Application {
   return {
     stage: new Container(),
+    screen: { width: 800, height: 600 },
     renderer: {
       events: { pointer: { global: { x: 0, y: 0 } } },
     },
@@ -61,6 +62,30 @@ describe('CircleGraphics', () => {
     object.destroy();
     world.update();
     expect(scene.raw.children).not.toContain(graphics.raw);
+  });
+
+  describe('containsWorldPoint', () => {
+    test('respects the host position and radius', () => {
+      const { world } = createWorldWithScene();
+      const object = world.createEmpty(new Point(100, 100));
+      const graphics = new CircleGraphics(object, new Circle(10));
+
+      expect(graphics.containsWorldPoint({ x: 100, y: 100 })).toBe(true);
+      expect(graphics.containsWorldPoint({ x: 109, y: 100 })).toBe(true);
+      expect(graphics.containsWorldPoint({ x: 100, y: 111 })).toBe(false);
+      expect(graphics.containsWorldPoint({ x: 0, y: 0 })).toBe(false);
+    });
+
+    test('respects host scale (treated as the visual extent)', () => {
+      const { world } = createWorldWithScene();
+      const object = world.createEmpty(new Point(0, 0));
+      object.scale.set(2, 2);
+      const graphics = new CircleGraphics(object, new Circle(5));
+
+      // Native radius 5 → on screen, the circle reads as radius 10.
+      expect(graphics.containsWorldPoint({ x: 9, y: 0 })).toBe(true);
+      expect(graphics.containsWorldPoint({ x: 11, y: 0 })).toBe(false);
+    });
   });
 
   test('syncs the host transform to the display object during onPostUpdate', () => {

@@ -1,7 +1,14 @@
 import { Application, Container } from 'pixi.js';
-import { Component } from '../components';
-import { Point } from '../geometry';
-import { World } from '../world';
+import {
+  Camera,
+  World,
+  WorldComponent,
+  WorldDependencyResolver,
+} from '../world';
+
+type SceneDeps = {
+  readonly camera: Camera;
+};
 
 /**
  * The world-scoped graphics root: every {@link WorldObject}-attached
@@ -16,6 +23,28 @@ import { World } from '../world';
  * `stage` in {@link Scene.onAdded}, and detached again in
  * {@link Scene.onDestroy}.
  *
+ * ## Camera-driven framing
+ *
+ * `Scene` is the renderer-aware half of the engine's camera system. It
+ * declares a sibling dependency on the auto-attached {@link Camera} and,
+ * during {@link Scene.onPostUpdate}, applies the camera's *inverse*
+ * transform to the underlying container via Pixi's `pivot`:
+ *
+ * - The container's pivot is set to the camera's world-space position, so
+ *   that world point becomes the container's rotation/origin anchor.
+ * - The container is positioned at the centre of the application's screen,
+ *   so the pivoted world point lands in the middle of the canvas.
+ * - The container's rotation is set to the negated camera rotation, so
+ *   increasing {@link Camera.rotation} spins the world clockwise beneath a
+ *   stationary viewer.
+ *
+ * With the default camera (`position = (0, 0)`, `rotation = 0`), the
+ * world's origin appears at the centre of the canvas and the world's axes
+ * line up with the canvas's. Moving the camera is the only supported way
+ * to change framing; child graphics components continue to push their host
+ * positions into local display objects without any awareness of the
+ * camera.
+ *
  * @example
  * ```ts
  * const app = new Application();
@@ -26,9 +55,12 @@ import { World } from '../world';
  *     scene: () => new Scene(world, app),
  *   }),
  * });
+ *
+ * // The auto-attached camera makes "follow the player" a one-liner.
+ * world.camera.position.copyFrom(player.position);
  * ```
  */
-export class Scene implements Component<World> {
+export class Scene implements WorldComponent<SceneDeps> {
   private readonly _container: Container;
 
   /**
@@ -40,6 +72,12 @@ export class Scene implements Component<World> {
     private readonly _app: Application,
   ) {
     this._container = new Container();
+  }
+
+  public resolveDependencies(resolver: WorldDependencyResolver): SceneDeps {
+    return {
+      camera: resolver.requireSibling(Camera),
+    };
   }
 
   /**
@@ -86,24 +124,33 @@ export class Scene implements Component<World> {
     this._container.removeChild(child);
   }
 
-  /**
-   * Returns the current pointer position in scene-space, as an arcade2d
-   * {@link Point}. Useful for hover tests, aim controllers, and any other
-   * code that reads where the mouse currently is.
-   */
-  public getMousePosition(): Point {
-    const base = this._app.renderer.events.pointer.global;
-
-    return new Point(base.x, base.y);
-  }
-
   public onAdded(): void {
     this._app.stage.addChild(this._container);
   }
 
   public onUpdate(): void {
     // Scene has no per-frame work of its own — child display objects update
-    // via their own components.
+    // via their own components, and camera-driven framing happens in
+    // `onPostUpdate` so it observes a settled tick.
+  }
+
+  /**
+   * Reads the auto-attached {@link Camera}'s state and applies its inverse
+   * transform to the underlying Pixi container. Runs in the post-update
+   * phase so any camera mutation made during `onUpdate` (a follow
+   * controller writing `camera.position = player.position`, for example) is
+   * already settled by the time the scene re-frames.
+   */
+  public onPostUpdate(_update: unknown, { camera }: SceneDeps): void {
+    const screen = this._app.screen;
+
+    // pivot in the container's local coords — i.e. world space — followed by
+    // moving the container so the pivot lands at the canvas centre. This
+    // is the standard 2D "look-at" idiom and keeps rotation centred on the
+    // camera's position automatically.
+    this._container.pivot.set(camera.position.x, camera.position.y);
+    this._container.position.set(screen.width / 2, screen.height / 2);
+    this._container.rotation = -camera.rotation;
   }
 
   public onDestroy(): void {

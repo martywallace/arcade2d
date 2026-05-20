@@ -1,3 +1,4 @@
+export * from './camera';
 export * from './dependencies';
 export * from './prefab';
 export * from './prefab-registry';

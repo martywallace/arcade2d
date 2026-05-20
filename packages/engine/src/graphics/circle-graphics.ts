@@ -1,5 +1,6 @@
 import { Graphics as PixiGraphics } from 'pixi.js';
 import { Circle } from '../geometry';
+import { PointPrimitive } from '../geometry/point';
 import { WorldObject } from '../world';
 import { AbstractGraphics } from './abstract-graphics';
 
@@ -40,5 +41,19 @@ export class CircleGraphics extends AbstractGraphics<PixiGraphics> {
     }
 
     super(host, display);
+  }
+
+  /**
+   * Returns `true` if the given **world-space** point lies inside this
+   * circle, accounting for the host's position, rotation, and scale.
+   * Composes {@link WorldObject.worldToLocal} with the underlying
+   * {@link Circle.containsPoint}; under non-uniform scale, the test
+   * becomes against the *scaled* shape (the local point's coordinates are
+   * divided per-axis), which matches what's drawn on screen.
+   *
+   * @param point The world-space point to test.
+   */
+  public containsWorldPoint(point: PointPrimitive): boolean {
+    return this.circle.containsPoint(this.host.worldToLocal(point));
   }
 }
