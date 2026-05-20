@@ -8,6 +8,7 @@ export * from './error';
 export * from './geometry';
 export * from './graphics';
 export * from './input';
+export * from './utils';
 export * from './world';
 
 export type BootstrapOptions = {

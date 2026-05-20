@@ -1,6 +1,6 @@
 import { AbstractComponentHost, Component } from '../components';
 import { ErrorCode, throwEngineError } from '../error';
-import { Point } from '../geometry';
+import { PointPrimitive } from '../geometry';
 import type { MouseState } from '../input/mouse';
 import { IDGenerator } from '../utils/id-generator';
 import { Camera } from './camera';
@@ -10,6 +10,8 @@ import { Prefab } from './prefab';
 import { PrefabRegistry } from './prefab-registry';
 import { WorldUpdate } from './update';
 import { WorldObject } from './world-object';
+
+const ORIGIN: PointPrimitive = Object.freeze({ x: 0, y: 0 });
 
 /**
  * Lifecycle phase in which a {@link WorldErrorContext} was produced.
@@ -506,11 +508,14 @@ export class World extends AbstractComponentHost<World> {
    * the {@link World} class docs for the full spawn-timing contract.
    *
    * @param prefab The prefab to create an object from.
-   * @param position The starting position of the new object in the world.
+   * @param position The starting position of the new object in the world, as
+   * any {@link PointPrimitive}. A plain `{ x, y }` literal is fine — the
+   * value is copied into the spawned object's internal {@link Point}.
+   * Defaults to the origin.
    */
   public createFromPrefab(
     prefab: Prefab,
-    position = Point.zero(),
+    position: PointPrimitive = ORIGIN,
   ): WorldObject {
     const object = prefab.buildObject(PREFAB_BUILD_TOKEN, this, position);
 
@@ -528,11 +533,13 @@ export class World extends AbstractComponentHost<World> {
    * rehydrates them.
    *
    * @param name The name of the prefab to look up in the attached registry.
-   * @param position The starting position of the new object in the world.
+   * @param position The starting position of the new object in the world, as
+   * any {@link PointPrimitive}. See {@link World.createFromPrefab} for the
+   * full contract. Defaults to the origin.
    */
   public createFromPrefabName(
     name: string,
-    position = Point.zero(),
+    position: PointPrimitive = ORIGIN,
   ): WorldObject {
     if (!this._prefabs) {
       throwEngineError(
@@ -551,11 +558,12 @@ export class World extends AbstractComponentHost<World> {
    * Creates a new empty world object. Useful for creating one-off objects that
    * don't necessarily need to be based on a prefab definition.
    *
-   * @param position The starting position of the new object in the world.
+   * @param position The starting position of the new object in the world, as
+   * any {@link PointPrimitive}. Defaults to the origin.
    * @param tags The tags to assign to the new object.
    */
   public createEmpty(
-    position = Point.zero(),
+    position: PointPrimitive = ORIGIN,
     tags?: readonly string[],
   ): WorldObject {
     const object = new WorldObject(this, position, {

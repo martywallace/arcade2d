@@ -1,10 +1,12 @@
 import { Component, ComponentMap } from '../components';
 import { ErrorCode, throwEngineError } from '../error';
-import { Point } from '../geometry';
+import { PointPrimitive } from '../geometry';
 import { IDGenerator } from '../utils/id-generator';
 import { PREFAB_BUILD_TOKEN, PrefabBuildToken } from './internal';
 import { World } from './world';
 import { WorldObject } from './world-object';
+
+const ORIGIN: PointPrimitive = Object.freeze({ x: 0, y: 0 });
 
 /**
  * Context handed to each {@link PrefabComponentFactory} when a prefab is
@@ -188,14 +190,15 @@ export class Prefab {
    * @param token Engine-internal authorisation token. Held privately and
    * passed through by `World`.
    * @param world The world the new object will belong to.
-   * @param position Starting position for the new object. Cloned by the
-   * {@link WorldObject} constructor so subsequent mutations of the input do
-   * not bleed into the spawned object.
+   * @param position Starting position for the new object, as any
+   * {@link PointPrimitive}. Copied into the {@link WorldObject}'s internal
+   * {@link Point} on construction so subsequent mutations of the input do
+   * not bleed into the spawned object. Defaults to the origin.
    */
   public buildObject(
     token: PrefabBuildToken,
     world: World,
-    position = Point.zero(),
+    position: PointPrimitive = ORIGIN,
   ): WorldObject {
     if (token !== PREFAB_BUILD_TOKEN) {
       throwEngineError(

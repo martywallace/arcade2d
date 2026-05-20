@@ -1,5 +1,5 @@
 import type { WorldObjectComponent, WorldUpdate } from '@arcade2d/engine';
-import { Point, WorldObject } from '@arcade2d/engine';
+import { Random, WorldObject } from '@arcade2d/engine';
 import { ZombiePrefab } from './zombie.prefab';
 
 /**
@@ -25,12 +25,6 @@ export class ZombieController implements WorldObjectComponent {
       } else {
         // Destroy this zombie.
         this.host.destroy();
-
-        // Create a new one.
-        this.host.world.createFromPrefab(
-          ZombiePrefab,
-          new Point(Math.random() * 1000, Math.random() * 1000),
-        );
       }
 
       this.host.rotation = this.host.position.angleTo(player.position);
@@ -38,7 +32,16 @@ export class ZombieController implements WorldObjectComponent {
   }
 
   onDestroy() {
+    const player = this.host.world.findOneByTag('player');
+
+    if (player)
+      // Spawn a new zombie somewhere in a ring around the player.
+      // Create a new one.
+      this.host.world.createFromPrefab(
+        ZombiePrefab,
+        new Random().inRing(player.position.x, player.position.y, 300, 500),
+      );
+
     this.host.world.camera.shake(20, 300);
-    this.host.world.createFromPrefab(ZombiePrefab);
   }
 }

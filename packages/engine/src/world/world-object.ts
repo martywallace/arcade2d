@@ -108,10 +108,11 @@ export class WorldObject extends AbstractComponentHost<WorldObject> {
   private _lifecycle: WorldObjectLifecycle = 'live';
 
   /**
-   * The object's position in world space, in pixels. Cloned from the value
-   * passed to the constructor so external mutations of that input cannot
-   * leak in; the `Point` exposed here is mutable and intended to be written
-   * by controllers / physics / movement code (`host.position.x += dx`).
+   * The object's position in world space, in pixels. Constructed fresh from
+   * the value passed to the constructor so external mutations of that input
+   * cannot leak in; the `Point` exposed here is mutable and intended to be
+   * written by controllers / physics / movement code
+   * (`host.position.x += dx`).
    */
   public readonly position: Point;
 
@@ -148,9 +149,11 @@ export class WorldObject extends AbstractComponentHost<WorldObject> {
 
     /**
      * The virtual position of the object in the world, expressed in 2D space.
-     * Cloned on construction.
+     * Accepted as any {@link PointPrimitive} — a plain `{ x, y }` literal is
+     * fine — and copied into a fresh internal {@link Point} on construction
+     * so subsequent mutations of the input do not leak into this object.
      */
-    position: Point,
+    position: PointPrimitive,
 
     /**
      * Metadata about the object and its relationship with the world it is part
@@ -172,7 +175,7 @@ export class WorldObject extends AbstractComponentHost<WorldObject> {
   ) {
     super();
 
-    this.position = position.clone();
+    this.position = new Point(position.x, position.y);
     this.rotation = rotation;
     this.scale = scale.clone();
   }
