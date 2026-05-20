@@ -1,6 +1,7 @@
 import { AbstractComponentHost, Component } from '../components';
 import { ErrorCode, throwEngineError } from '../error';
-import { PointPrimitive } from '../geometry';
+import type { Game } from '../game';
+import { Point, PointPrimitive } from '../geometry';
 import type { MouseState } from '../input/mouse';
 import { IDGenerator } from '../utils/id-generator';
 import { Camera } from './camera';
@@ -65,24 +66,24 @@ export type WorldErrorContext = {
 export const CAMERA_COMPONENT_KEY = 'camera';
 
 /**
- * Reserved component key used by {@link bootstrap} (and by callers writing
- * their own bootstrap) to register the world's mouse input sampler. The
- * matching component implements `getState(): MouseState`; see the input
- * module's `Mouse` class. {@link World.getMouseState} looks up this exact
- * key.
+ * Reserved component key used by {@link Game.createWorld} to register the
+ * world's {@link Scene} graphics root. Exposed so callers that need to
+ * introspect or replace the scene (e.g. swapping in a custom renderer
+ * mount) have a name to refer to without hard-coding a magic string.
  */
-export const MOUSE_COMPONENT_KEY = 'mouse';
+export const SCENE_COMPONENT_KEY = 'scene';
 
 /**
  * Internal structural type used by {@link World.getMouseState} to look up
- * the mouse component without taking a value-level dependency on the
- * `Mouse` class itself (which lives in the `input/` module and would
- * otherwise create an avoidable import cycle with the world tier).
+ * the world's {@link Scene} for screen→world coordinate conversion
+ * without taking a value-level dependency on the `Scene` class itself
+ * (which lives in the `graphics/` module and would otherwise create an
+ * avoidable import cycle with the world tier).
  *
  * @internal
  */
-type MouseStateProvider = Component<World> & {
-  getState(): MouseState;
+type SceneStateProvider = Component<World> & {
+  screenToWorld(p: PointPrimitive): Point;
 };
 
 export type WorldOptions = {
@@ -94,9 +95,21 @@ export type WorldOptions = {
    *
    * The key {@link CAMERA_COMPONENT_KEY} is reserved by the engine —
    * attempting to register a component under that key will throw
-   * {@link ErrorCode.COMPONENT_ALREADY_EXISTS}.
+   * {@link ErrorCode.COMPONENT_ALREADY_EXISTS}. The same is true of
+   * {@link SCENE_COMPONENT_KEY} when the world is created via
+   * `Game.createWorld`, which auto-attaches a `Scene`.
    */
   readonly components: (world: World) => Record<string, () => Component<World>>;
+
+  /**
+   * The {@link Game} this world belongs to. Populated by `Game.createWorld`
+   * — game code does not pass this directly. The reference is what makes
+   * {@link World.getMouseState} (and any other game-routed accessor)
+   * resolvable; worlds constructed without a game still work for
+   * headless/test cases, but accessors that need page-scoped services
+   * will throw {@link ErrorCode.WORLD_GAME_NOT_ATTACHED}.
+   */
+  readonly game?: Game;
 
   /**
    * Optional error handler invoked whenever a component callback throws
@@ -389,12 +402,14 @@ export class World extends AbstractComponentHost<World> {
   private readonly _idGenerator = new IDGenerator();
   private readonly _onError?: (context: WorldErrorContext) => void;
   private readonly _prefabs?: PrefabRegistry;
+  private readonly _game: Game | null;
 
   constructor(options: WorldOptions) {
     super();
 
     this._onError = options.onError;
     this._prefabs = options.prefabs;
+    this._game = options.game ?? null;
 
     // Auto-attach the engine's own world-scoped infrastructure before the
     // user's components run. This makes {@link World.camera} a non-null
@@ -424,6 +439,16 @@ export class World extends AbstractComponentHost<World> {
   }
 
   /**
+   * The {@link Game} this world belongs to, or `null` for worlds
+   * constructed outside the `Game.createWorld` flow (typically tests or
+   * headless tooling). Most application code can treat this as non-null
+   * because the only blessed way to create a world is via the game.
+   */
+  public get game(): Game | null {
+    return this._game;
+  }
+
+  /**
    * Returns the current mouse state — cursor position (both in world
    * space, with the camera transform inverted, and in raw canvas-local
    * pixels) and the held/released state of the three standard buttons.
@@ -432,12 +457,19 @@ export class World extends AbstractComponentHost<World> {
    * engine deliberately never hands back a live reference, so a caller
    * stashing the value for a frame won't see it change mid-tick.
    *
-   * Requires a mouse component registered under {@link MOUSE_COMPONENT_KEY}.
-   * The convenience {@link bootstrap} function does this automatically; if
-   * you're constructing the world yourself, register a `Mouse` from the
-   * `input/` module the same way you'd register a {@link Scene}. Calling
-   * this method without a registered mouse throws
-   * {@link ErrorCode.COMPONENT_NOT_FOUND}.
+   * The screen-space snapshot is sourced from the parent {@link Game}'s
+   * {@link Mouse} component; this method then projects the screen
+   * coordinate through the world's {@link Scene} (which knows the camera
+   * transform) to populate the world-space `position`. Worlds constructed
+   * via `Game.createWorld` have both components attached automatically.
+   *
+   * @throws {@link EngineError} with code
+   *   {@link ErrorCode.WORLD_GAME_NOT_ATTACHED} when the world was created
+   *   without a parent {@link Game} (so there's no mouse to read from).
+   * @throws {@link EngineError} with code
+   *   {@link ErrorCode.COMPONENT_NOT_FOUND} when the world has no
+   *   {@link Scene} component registered (so screen→world projection is
+   *   not possible).
    *
    * @example
    * ```typescript
@@ -451,9 +483,24 @@ export class World extends AbstractComponentHost<World> {
    * ```
    */
   public getMouseState(): MouseState {
-    return this.getComponent<MouseStateProvider>(
-      MOUSE_COMPONENT_KEY,
-    ).getState();
+    if (!this._game) {
+      throwEngineError(
+        ErrorCode.WORLD_GAME_NOT_ATTACHED,
+        'Cannot read mouse state — this World has no parent Game. Create ' +
+          'the world via game.createWorld() to attach one, or call ' +
+          'game.getMouseState() directly if you only need screen-space input.',
+        { world: this },
+      );
+    }
+
+    const snapshot = this._game.getMouseState();
+    const scene = this.getComponent<SceneStateProvider>(SCENE_COMPONENT_KEY);
+
+    return {
+      position: scene.screenToWorld(snapshot.screenPosition),
+      screenPosition: snapshot.screenPosition,
+      buttons: snapshot.buttons,
+    };
   }
 
   /**

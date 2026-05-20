@@ -1,17 +1,17 @@
 import './style.css';
 
-import { bootstrap, Point } from '@arcade2d/engine';
+import { Game, Point } from '@arcade2d/engine';
 import { PlayerPrefab } from './objects/player/player.prefab';
 import { ZombiePrefab } from './objects/zombie/zombie.prefab';
 
 async function start() {
-  const { world } = await bootstrap({
-    bindToWindow: true,
-    renderOptions: {
-      background: 0x1099bb,
-      resizeTo: window,
-    },
+  const game = await Game.bootstrap({
+    backgroundColour: 0x1099bb,
+    canvas: { fill: 'window' },
+    debug: true,
   });
+
+  const world = game.createWorld();
 
   world.createFromPrefab(PlayerPrefab);
 

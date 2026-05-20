@@ -1,17 +1,13 @@
-import { Application } from 'pixi.js';
+import { Component } from '../components';
+import type { Game } from '../game';
 import { Point } from '../geometry';
-import { Scene } from '../graphics/scene';
-import {
-  World,
-  WorldComponent,
-  WorldDependencyResolver,
-} from '../world';
 
 /**
  * Held-state booleans for the three standard mouse buttons, exposed as a
- * named bag on {@link MouseState} so they're a) addressable as a group
- * (`if (state.buttons.left)`) and b) easy to extend with extra buttons
- * (`back`, `forward`) without flattening the top-level shape further.
+ * named bag on {@link MouseSnapshot} (and {@link MouseState}) so they're
+ * a) addressable as a group (`if (state.buttons.left)`) and b) easy to
+ * extend with extra buttons (`back`, `forward`) without flattening the
+ * top-level shape further.
  */
 export interface MouseButtons {
   /**
@@ -35,38 +31,26 @@ export interface MouseButtons {
 }
 
 /**
- * Per-tick snapshot of mouse state exposed by {@link World.getMouseState}.
+ * Per-tick snapshot of mouse state at the **game tier** — canvas-local
+ * pointer position and held button state, with no concept of a camera or
+ * world transform. Returned by {@link Mouse.getState} and by
+ * `Game.getMouseState()`.
+ *
+ * Game-tier code working in screen space (HUDs, menus, click-through
+ * detection on UI overlays) should read this directly. Game-world code
+ * that wants the cursor in world coordinates should reach for
+ * `World.getMouseState`, which extends this snapshot into a full
+ * {@link MouseState} with a `position` field projected through the active
+ * world's camera.
+ *
  * Returned objects are fresh on every call — the engine intentionally
  * does **not** hand back a live reference, so a caller stashing the value
  * for a frame won't see it change mid-update.
- *
- * - {@link MouseState.position} is in **world space**, with the camera's
- *   position, rotation, and zoom already inverted out. Use this when
- *   comparing against a {@link WorldObject}'s `position` — "where is the
- *   cursor in the game's coordinate system?"
- * - {@link MouseState.screenPosition} is the raw canvas-local pixel
- *   position, with the canvas's top-left at `(0, 0)`. Use this for HUDs,
- *   menus, or any logic that should ignore camera framing.
- * - {@link MouseState.buttons} groups the held-state booleans for the
- *   three standard buttons. These are NOT edge-triggered "just pressed" /
- *   "just released" flags; for that, components should compare against
- *   last frame's state themselves.
  */
-export interface MouseState {
-  /**
-   * Cursor position in world space. Reflects the camera's inverse
-   * transform: with the default camera, this matches
-   * {@link MouseState.screenPosition} shifted so the canvas centre maps to
-   * world `(0, 0)`. Moving, rotating, or zooming the camera shifts the
-   * world position accordingly. Camera *shake* is excluded so a click
-   * during a shake still resolves to the logical world point.
-   */
-  readonly position: Point;
-
+export interface MouseSnapshot {
   /**
    * Cursor position in canvas-local pixels. `(0, 0)` is the canvas's
-   * top-left, regardless of where the canvas sits on the page. Independent
-   * of the camera.
+   * top-left, regardless of where the canvas sits on the page.
    */
   readonly screenPosition: Point;
 
@@ -77,41 +61,62 @@ export interface MouseState {
   readonly buttons: MouseButtons;
 }
 
-type MouseDeps = {
-  readonly scene: Scene;
-};
+/**
+ * Per-tick snapshot of mouse state at the **world tier** — the
+ * {@link MouseSnapshot} plus a `position` field giving the cursor's
+ * location in world space, with the active world's camera transform
+ * already inverted out. Returned by `World.getMouseState`.
+ *
+ * - {@link MouseState.position} reflects the camera's inverse transform.
+ *   With the default camera, this matches {@link MouseSnapshot.screenPosition}
+ *   shifted so the canvas centre maps to world `(0, 0)`. Moving, rotating,
+ *   or zooming the camera shifts the world position accordingly. Camera
+ *   *shake* is excluded so a click during a shake still resolves to the
+ *   logical world point.
+ * - Inherits the screen-space `screenPosition` and `buttons` fields from
+ *   {@link MouseSnapshot}.
+ */
+export interface MouseState extends MouseSnapshot {
+  /**
+   * Cursor position in world space. See the interface-level docs for the
+   * exact camera-transform semantics.
+   */
+  readonly position: Point;
+}
 
 /**
- * World-scoped input sampler that tracks the canvas-local mouse position
+ * Game-scoped input sampler that tracks the canvas-local mouse position
  * and the state of the three standard buttons (left, middle, right).
  *
- * Most game code reads mouse state via the convenience accessor on the
- * world — `world.getMouseState()` — rather than touching this component
- * directly; the class itself is exported so that callers writing their own
- * bootstrap, or users who want to swap in a custom input source, have
- * something concrete to construct and register.
+ * `Mouse` lives at the {@link Game} tier rather than on a {@link World}
+ * because mouse input is inherently page-global — DOM events fire whether
+ * a world is mounted or not, and the same physical cursor is shared
+ * across world swaps (menu → gameplay → game-over). The world-space
+ * projection of the cursor is layered on top by {@link World.getMouseState}
+ * which reads this snapshot and runs it through the active world's camera.
+ *
+ * Most game code reads mouse state via the convenience accessors on the
+ * game or world — `game.getMouseState()` for screen space,
+ * `world.getMouseState()` for world space — rather than touching this
+ * component directly; the class itself is exported so that callers
+ * writing custom bootstrap, or users who want to swap in a custom input
+ * source (e.g. a recorded-input variant for tests), have something
+ * concrete to construct and register.
  *
  * ## Snapshot semantics
  *
  * The component follows the canonical "input sampler" pattern described in
- * the {@link World} docblock:
+ * the {@link World} docblock, applied one tier up:
  *
  * 1. DOM events update a private *pending* buffer as they arrive — this is
  *    asynchronous and can happen at any time relative to the engine's
  *    update tick.
  * 2. {@link Mouse.onPreUpdate} copies the pending buffer into a private
- *    *snapshot* once per tick, before any other component's `onUpdate`
+ *    *snapshot* once per game tick, before the active world's update phase
  *    runs.
- * 3. {@link Mouse.getState} returns a {@link MouseState} derived from the
+ * 3. {@link Mouse.getState} returns a {@link MouseSnapshot} derived from the
  *    snapshot, so every component reading the mouse during a single tick
  *    sees the same screen-space position and the same button states.
- *
- * The world-space `position` field is recomputed on each `getState()` call
- * by delegating to {@link Scene.screenToWorld}, which reads the *current*
- * camera state. This way a follow-camera that moves in `onPostUpdate`
- * still produces correct mouse-to-world coordinates for the very next
- * tick's `onUpdate` reads, and the inverse-transform math lives in one
- * place (`Scene`) rather than being duplicated here.
  *
  * ## Event sourcing
  *
@@ -131,7 +136,7 @@ type MouseDeps = {
  * code is free to do that itself if it wants to suppress browser
  * defaults like right-click context menus or middle-click autoscroll.
  */
-export class Mouse implements WorldComponent<MouseDeps> {
+export class Mouse implements Component<Game> {
   private _pendingScreenX = 0;
   private _pendingScreenY = 0;
   private _pendingLeft = false;
@@ -143,10 +148,6 @@ export class Mouse implements WorldComponent<MouseDeps> {
   private _snapshotRight = false;
   private _snapshotMiddle = false;
 
-  // Cached at `onAdded` so `getState` doesn't have to thread deps through.
-  // The scene reference is stable for the lifetime of this component.
-  private _scene: Scene | null = null;
-
   private readonly _onMouseMove = (event: MouseEvent): void => {
     // clientX/Y are page-relative; subtract the canvas's current bounding
     // rect to land in canvas-local coordinates. `getBoundingClientRect` is
@@ -155,7 +156,7 @@ export class Mouse implements WorldComponent<MouseDeps> {
     // being positioned anywhere on the page — including inside scrolled
     // containers and CSS-transformed layouts, where `offsetX/Y` and the
     // various older alternatives quietly disagree.
-    const rect = this._app.canvas.getBoundingClientRect();
+    const rect = this.host.canvas.getBoundingClientRect();
 
     this._pendingScreenX = event.clientX - rect.left;
     this._pendingScreenY = event.clientY - rect.top;
@@ -170,26 +171,15 @@ export class Mouse implements WorldComponent<MouseDeps> {
   };
 
   /**
-   * @param host The world this mouse belongs to.
-   * @param _app The Pixi {@link Application} whose `canvas` the mouse
-   * listens on. Held privately rather than resolved each frame because
-   * the application instance is stable for the lifetime of the world.
+   * @param host The {@link Game} this mouse belongs to. Used to reach the
+   * canvas the listeners attach to — the engine deliberately does not
+   * pass a raw `Application` here; the canvas is the only piece of
+   * renderer state the mouse component needs.
    */
-  constructor(
-    public readonly host: World,
-    private readonly _app: Application,
-  ) {}
+  constructor(public readonly host: Game) {}
 
-  public resolveDependencies(resolver: WorldDependencyResolver): MouseDeps {
-    return {
-      scene: resolver.requireSibling(Scene),
-    };
-  }
-
-  public onAdded({ scene }: MouseDeps): void {
-    this._scene = scene;
-
-    const canvas = this._app.canvas;
+  public onAdded(): void {
+    const canvas = this.host.canvas;
 
     canvas.addEventListener('mousemove', this._onMouseMove);
     canvas.addEventListener('mousedown', this._onMouseDown);
@@ -214,14 +204,13 @@ export class Mouse implements WorldComponent<MouseDeps> {
   }
 
   public onUpdate(): void {
-    // No work — the input sampling that this component is responsible for
-    // already happened in onPreUpdate, and the world-space transform that
-    // turns the snapshot into a `MouseState.position` is computed lazily
-    // in `getState` so it picks up the freshest camera value.
+    // No work — sampling happens in onPreUpdate so that the active world's
+    // onUpdate phase reads a consistent snapshot. The world-space
+    // projection (when needed) is computed lazily by World.getMouseState.
   }
 
   public onDestroy(): void {
-    const canvas = this._app.canvas;
+    const canvas = this.host.canvas;
 
     canvas.removeEventListener('mousemove', this._onMouseMove);
     canvas.removeEventListener('mousedown', this._onMouseDown);
@@ -232,21 +221,13 @@ export class Mouse implements WorldComponent<MouseDeps> {
   }
 
   /**
-   * Returns the current {@link MouseState} snapshot. The world-space
-   * `position` is recomputed each call via {@link Scene.screenToWorld}
-   * using the *current* {@link Camera} transform, so a follow-camera that
-   * mutates `camera.position` during `onPostUpdate` is honoured by the
-   * very next tick's reads.
-   *
-   * Allocates a new {@link MouseState} (and two fresh {@link Point}s) per
-   * call — game code may stash the returned object for the duration of a
-   * frame without worrying about mid-frame mutation.
+   * Returns a fresh {@link MouseSnapshot} per call — game code may stash
+   * the returned object for the duration of a frame without worrying
+   * about mid-frame mutation. The contained {@link Point} for
+   * `screenPosition` is also a fresh clone.
    */
-  public getState(): MouseState {
+  public getState(): MouseSnapshot {
     return {
-      position: this._scene
-        ? this._scene.screenToWorld(this._snapshotScreenPosition)
-        : this._snapshotScreenPosition.clone(),
       screenPosition: this._snapshotScreenPosition.clone(),
       buttons: {
         left: this._snapshotLeft,
