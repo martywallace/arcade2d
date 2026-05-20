@@ -48,13 +48,16 @@
     "rootDir": "./src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.ts$": [
+      "^.+\\.(ts|js|mjs)$": [
         "ts-jest",
         {
           "tsconfig": "<rootDir>/../tsconfig.spec.json"
         }
       ]
     },
+    "transformIgnorePatterns": [
+      "/node_modules/(?!(earcut|@pixi/colord)/)"
+    ],
     "collectCoverageFrom": [
       "**/*.ts",
       "!**/*.spec.ts"

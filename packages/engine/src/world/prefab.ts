@@ -125,7 +125,7 @@ export type PrefabOptions = {
  *   tags: ['hostile'],
  *   components: {
  *     controller: ({ object }) => new EnemyController(object),
- *     graphics: ({ object }) => SimpleGraphics.solidRectangle(object, 32, 32),
+ *     graphics: ({ object }) => PolygonGraphics.asRectangle(object, 32, 32),
  *   },
  * });
  *

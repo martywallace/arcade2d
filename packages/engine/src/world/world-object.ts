@@ -50,10 +50,10 @@ type WorldObjectLifecycle = 'live' | 'marked' | 'cleaned';
  * components agreeing about where the thing is" coordination problem —
  * authoritative state lives on the host, and components are either:
  *
- * - **Projections of the host transform** — a `SimpleGraphics` reading
- *   `host.position` / `host.rotation` / `host.scale` in its `onUpdate` and
- *   pushing them to its underlying PIXI display object. A collider reading
- *   the same fields to transform its local shape into world space.
+ * - **Projections of the host transform** — a {@link PolygonGraphics}
+ *   reading `host.position` / `host.rotation` / `host.scale` and pushing
+ *   them to its underlying PIXI display object once per frame. A collider
+ *   reading the same fields to transform its local shape into world space.
  * - **Writers of the host transform** — controllers and AI setting
  *   `host.rotation` to face a target, dynamic physics writing back simulated
  *   results in `onPostUpdate`.

@@ -1,4 +1,4 @@
-import { Prefab, SimpleGraphics } from '@arcade2d/engine';
+import { Prefab, PolygonGraphics } from '@arcade2d/engine';
 import { BulletController } from './bullet.controller.component';
 
 export const BulletPrefab = new Prefab({
@@ -6,6 +6,6 @@ export const BulletPrefab = new Prefab({
   components: {
     controller: ({ object }) => new BulletController(object),
     graphics: ({ object }) =>
-      SimpleGraphics.solidRectangle(object, 8, 3, 0x00cc11),
+      PolygonGraphics.asRectangle(object, 8, 3, 0x00cc11),
   },
 });

@@ -5,6 +5,7 @@
     "moduleResolution": "Node",
     "isolatedModules": false,
     "noEmit": false,
+    "allowJs": true,
     "types": ["jest", "node"]
   },
   "include": ["src/**/*.ts"]
