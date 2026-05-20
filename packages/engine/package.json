@@ -31,7 +31,7 @@
     "Marty Wallace <marty@martywallace.com> (https://martywallace.com)"
   ],
   "dependencies": {
-    "pixi.js": "^8.12.0"
+    "pixi.js": "^8.18.1"
   },
   "devDependencies": {
     "@arcade2d/eslint-config": "workspace:*",
