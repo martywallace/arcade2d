@@ -440,9 +440,9 @@ export class World extends AbstractComponentHost<World> {
    * @example
    * ```typescript
    * onUpdate() {
-   *   const { position, leftButton } = this.host.world.getMouseState();
+   *   const { position, buttons } = this.host.world.getMouseState();
    *
-   *   if (leftButton) {
+   *   if (buttons.left) {
    *     this.host.position.moveTowards(position, 5);
    *   }
    * }

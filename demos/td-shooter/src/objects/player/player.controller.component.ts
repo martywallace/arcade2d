@@ -20,17 +20,23 @@ export class PlayerController implements WorldObjectComponent {
   }
 
   onUpdate(update: WorldUpdate) {
-    const { position: mouse } = this.host.world.getMouseState();
-    const angle = this.host.position.angleTo(mouse);
+    const mouse = this.host.world.getMouseState();
+    const angle = this.host.position.angleTo(mouse.position);
 
-    if (mouse.distanceTo(this.host.position) > 10) {
-      this.host.position.moveTowards(mouse, 0.08 * update.deltaMilliseconds);
+    if (mouse.position.distanceTo(this.host.position) > 10) {
+      this.host.position.moveTowards(
+        mouse.position,
+        0.08 * update.deltaMilliseconds,
+      );
     }
 
     this.host.rotation = angle;
     // this.host.world.camera.rotation += 0.01;
 
-    if (this._fireCooldown.decrement(update.deltaMilliseconds).isLapsed) {
+    if (
+      mouse.buttons.left &&
+      this._fireCooldown.decrement(update.deltaMilliseconds).isLapsed
+    ) {
       const bullet = this.host.world.createFromPrefab(
         BulletPrefab,
         this.host.position,

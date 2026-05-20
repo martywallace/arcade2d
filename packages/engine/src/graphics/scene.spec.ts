@@ -102,4 +102,103 @@ describe('Scene', () => {
     expect(scene.raw.pivot.x).toBe(99);
     expect(scene.raw.pivot.y).toBe(11);
   });
+
+  test('camera zoom maps to the container scale', () => {
+    const { scene, world } = createWorldWithScene(800, 600);
+
+    world.camera.zoom = 2;
+    world.update();
+
+    expect(scene.raw.scale.x).toBe(2);
+    expect(scene.raw.scale.y).toBe(2);
+  });
+
+  test('camera shake offset adds to the container position, not the pivot', () => {
+    const { scene, world } = createWorldWithScene(800, 600);
+
+    // Pin Math.random so the shake produces a deterministic offset of (-5, 0)
+    // — see camera.spec.ts for the reasoning.
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+
+    try {
+      world.camera.shake(10, 1000);
+      world.update();
+
+      // Pivot stays on the camera's logical position, not pushed around by
+      // the shake.
+      expect(scene.raw.pivot.x).toBe(0);
+      expect(scene.raw.pivot.y).toBe(0);
+      // Container position is canvas centre + shake offset.
+      expect(scene.raw.x).toBeCloseTo(400 + -5);
+      expect(scene.raw.y).toBeCloseTo(300);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  describe('worldToScreen / screenToWorld', () => {
+    test('default camera maps world origin to canvas centre', () => {
+      const { scene } = createWorldWithScene(800, 600);
+
+      const screen = scene.worldToScreen({ x: 0, y: 0 });
+
+      expect(screen.x).toBe(400);
+      expect(screen.y).toBe(300);
+    });
+
+    test('camera position shifts the mapping', () => {
+      const { scene, world } = createWorldWithScene(800, 600);
+      world.camera.position.set(100, 50);
+
+      const screen = scene.worldToScreen({ x: 100, y: 50 });
+
+      expect(screen.x).toBe(400);
+      expect(screen.y).toBe(300);
+    });
+
+    test('camera zoom scales the mapping', () => {
+      const { scene, world } = createWorldWithScene(800, 600);
+      world.camera.zoom = 2;
+
+      // A world point 10 units right of the camera lands 20 pixels right of
+      // the canvas centre at 2x zoom.
+      const screen = scene.worldToScreen({ x: 10, y: 0 });
+
+      expect(screen.x).toBe(420);
+      expect(screen.y).toBe(300);
+    });
+
+    test('worldToScreen and screenToWorld are inverses', () => {
+      const { scene, world } = createWorldWithScene(800, 600);
+      world.camera.position.set(33, -17);
+      world.camera.rotation = 0.7;
+      world.camera.zoom = 1.5;
+
+      const worldPoint = { x: 42, y: 99 };
+      const roundTripped = scene.screenToWorld(scene.worldToScreen(worldPoint));
+
+      expect(roundTripped.x).toBeCloseTo(worldPoint.x);
+      expect(roundTripped.y).toBeCloseTo(worldPoint.y);
+    });
+
+    test('uses logical camera state (ignores shake)', () => {
+      const { scene, world } = createWorldWithScene(800, 600);
+
+      // With Math.random pinned to 0.5, shake offset is (-5, 0).
+      const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+
+      try {
+        world.camera.shake(10, 1000);
+        world.update();
+
+        // Despite a shake being in flight, worldToScreen ignores it — the
+        // conversion remains a clean inverse of screenToWorld.
+        const screen = scene.worldToScreen({ x: 0, y: 0 });
+        expect(screen.x).toBe(400);
+        expect(screen.y).toBe(300);
+      } finally {
+        randomSpy.mockRestore();
+      }
+    });
+  });
 });

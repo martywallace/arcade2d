@@ -2,7 +2,8 @@
  * @jest-environment jsdom
  */
 
-import { Application } from 'pixi.js';
+import { Application, Container } from 'pixi.js';
+import { Scene } from '../graphics/scene';
 import { World } from '../world';
 import { Mouse } from './mouse';
 
@@ -11,11 +12,12 @@ function createTestHarness(width = 800, height = 600) {
   const app = {
     canvas,
     screen: { width, height },
-    stage: { addChild: () => {}, removeChild: () => {} },
+    stage: new Container(),
   } as unknown as Application;
 
   const world = new World({
     components: (world) => ({
+      scene: () => new Scene(world, app),
       mouse: () => new Mouse(world, app),
     }),
   });
@@ -30,9 +32,9 @@ describe('Mouse', () => {
 
     expect(state.screenPosition.x).toBe(0);
     expect(state.screenPosition.y).toBe(0);
-    expect(state.leftButton).toBe(false);
-    expect(state.rightButton).toBe(false);
-    expect(state.middleButton).toBe(false);
+    expect(state.buttons.left).toBe(false);
+    expect(state.buttons.right).toBe(false);
+    expect(state.buttons.middle).toBe(false);
   });
 
   test('mousemove updates the screen position snapshot after onPreUpdate', () => {
@@ -62,11 +64,11 @@ describe('Mouse', () => {
 
     world.update();
 
-    const state = world.getMouseState();
+    const { buttons } = world.getMouseState();
 
-    expect(state.leftButton).toBe(true);
-    expect(state.middleButton).toBe(true);
-    expect(state.rightButton).toBe(true);
+    expect(buttons.left).toBe(true);
+    expect(buttons.middle).toBe(true);
+    expect(buttons.right).toBe(true);
   });
 
   test('window mouseup clears button state', () => {
@@ -74,11 +76,11 @@ describe('Mouse', () => {
 
     canvas.dispatchEvent(new MouseEvent('mousedown', { button: 0 }));
     world.update();
-    expect(world.getMouseState().leftButton).toBe(true);
+    expect(world.getMouseState().buttons.left).toBe(true);
 
     window.dispatchEvent(new MouseEvent('mouseup', { button: 0 }));
     world.update();
-    expect(world.getMouseState().leftButton).toBe(false);
+    expect(world.getMouseState().buttons.left).toBe(false);
   });
 
   test('ignores buttons outside the standard left/middle/right range', () => {
@@ -88,10 +90,10 @@ describe('Mouse', () => {
     canvas.dispatchEvent(new MouseEvent('mousedown', { button: 4 }));
     world.update();
 
-    const state = world.getMouseState();
-    expect(state.leftButton).toBe(false);
-    expect(state.middleButton).toBe(false);
-    expect(state.rightButton).toBe(false);
+    const { buttons } = world.getMouseState();
+    expect(buttons.left).toBe(false);
+    expect(buttons.middle).toBe(false);
+    expect(buttons.right).toBe(false);
   });
 
   test('returned state object is a fresh snapshot per call', () => {
@@ -103,6 +105,7 @@ describe('Mouse', () => {
     expect(a).not.toBe(b);
     expect(a.position).not.toBe(b.position);
     expect(a.screenPosition).not.toBe(b.screenPosition);
+    expect(a.buttons).not.toBe(b.buttons);
   });
 
   test('default camera maps canvas centre to world origin', () => {
@@ -154,6 +157,44 @@ describe('Mouse', () => {
     expect(position.y).toBeCloseTo(100);
   });
 
+  test('camera zoom scales the world-space mouse coordinate', () => {
+    const { world, canvas } = createTestHarness(800, 600);
+
+    world.camera.zoom = 2;
+
+    // Cursor 100px right of canvas centre, with 2x zoom, lands 50 units
+    // right of the camera's look-at in world space.
+    canvas.dispatchEvent(
+      new MouseEvent('mousemove', { clientX: 500, clientY: 300 }),
+    );
+    world.update();
+
+    expect(world.getMouseState().position.x).toBe(50);
+    expect(world.getMouseState().position.y).toBe(0);
+  });
+
+  test('camera shake does not move the reported world position', () => {
+    const { world, canvas } = createTestHarness(800, 600);
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+
+    try {
+      world.camera.shake(10, 1000);
+
+      canvas.dispatchEvent(
+        new MouseEvent('mousemove', { clientX: 400, clientY: 300 }),
+      );
+      world.update();
+
+      // Even with a shake in flight, the cursor at the canvas centre still
+      // resolves to the camera's logical look-at, i.e. world (0, 0). Clicks
+      // shouldn't drift just because the screen is shaking.
+      expect(world.getMouseState().position.x).toBe(0);
+      expect(world.getMouseState().position.y).toBe(0);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
   test('uses the latest camera each call, not a snapshot from onPreUpdate', () => {
     const { world, canvas } = createTestHarness(800, 600);
 
@@ -175,7 +216,7 @@ describe('Mouse', () => {
 
     canvas.dispatchEvent(new MouseEvent('mousedown', { button: 0 }));
     world.update();
-    expect(world.getMouseState().leftButton).toBe(true);
+    expect(world.getMouseState().buttons.left).toBe(true);
 
     world.removeComponent('mouse');
 
@@ -185,7 +226,7 @@ describe('Mouse', () => {
     // but state propagation only happens through the live registered
     // component, so getMouseState resolves the new one and reports clean.
     const newWorld = createTestHarness().world;
-    expect(newWorld.getMouseState().leftButton).toBe(false);
+    expect(newWorld.getMouseState().buttons.left).toBe(false);
   });
 
   test('world.getMouseState throws when no mouse component is registered', () => {

@@ -1,4 +1,6 @@
 import { Application, Container } from 'pixi.js';
+import { Point } from '../geometry';
+import { PointPrimitive } from '../geometry/point';
 import {
   Camera,
   World,
@@ -28,22 +30,32 @@ type SceneDeps = {
  * `Scene` is the renderer-aware half of the engine's camera system. It
  * declares a sibling dependency on the auto-attached {@link Camera} and,
  * during {@link Scene.onPostUpdate}, applies the camera's *inverse*
- * transform to the underlying container via Pixi's `pivot`:
+ * transform to the underlying container:
  *
  * - The container's pivot is set to the camera's world-space position, so
  *   that world point becomes the container's rotation/origin anchor.
  * - The container is positioned at the centre of the application's screen,
- *   so the pivoted world point lands in the middle of the canvas.
+ *   plus the camera's current {@link Camera.shakeOffset} (in screen pixels),
+ *   so the pivoted world point lands in the middle of the canvas — with
+ *   whatever shake jitter is in flight stacked on top.
  * - The container's rotation is set to the negated camera rotation, so
  *   increasing {@link Camera.rotation} spins the world clockwise beneath a
  *   stationary viewer.
+ * - The container's scale is set to the camera's {@link Camera.zoom}, so
+ *   the rendered world scales with the camera, uniform on both axes.
  *
- * With the default camera (`position = (0, 0)`, `rotation = 0`), the
- * world's origin appears at the centre of the canvas and the world's axes
- * line up with the canvas's. Moving the camera is the only supported way
- * to change framing; child graphics components continue to push their host
- * positions into local display objects without any awareness of the
- * camera.
+ * With the default camera (`position = (0, 0)`, `rotation = 0`, `zoom = 1`),
+ * the world's origin appears at the centre of the canvas and one world
+ * unit equals one screen pixel.
+ *
+ * ## Coordinate conversions
+ *
+ * {@link Scene.worldToScreen} and {@link Scene.screenToWorld} expose the
+ * forward and inverse forms of the transform above. Both use the camera's
+ * *logical* state (no shake offset) so that they are proper inverses of
+ * each other, which is what input handling and HUD-marker placement
+ * almost always want — clicking during a shake should still land on the
+ * world point the player aimed at.
  *
  * @example
  * ```ts
@@ -124,6 +136,72 @@ export class Scene implements WorldComponent<SceneDeps> {
     this._container.removeChild(child);
   }
 
+  /**
+   * Converts a point in world space to canvas-local screen pixels, using
+   * the camera's **logical** state (i.e. position, rotation, and zoom —
+   * but not shake). Useful for placing HUD overlays that need to track a
+   * world target (mission markers, damage numbers floating above an
+   * enemy, etc.).
+   *
+   * The inverse of {@link Scene.screenToWorld}: round-tripping a point
+   * through both yields the original (modulo floating-point error).
+   *
+   * @param world The point to convert, in world space.
+   * @returns A fresh {@link Point} expressing the same location in
+   * canvas-local screen pixels.
+   */
+  public worldToScreen(world: PointPrimitive): Point {
+    const camera = this.host.camera;
+    const screen = this._app.screen;
+    const result = new Point(
+      world.x - camera.position.x,
+      world.y - camera.position.y,
+    );
+
+    if (camera.rotation !== 0) {
+      result.rotate(-camera.rotation);
+    }
+
+    if (camera.zoom !== 1) {
+      result.scale(camera.zoom);
+    }
+
+    return result.add(screen.width / 2, screen.height / 2);
+  }
+
+  /**
+   * Converts a point in canvas-local screen pixels to world space, using
+   * the camera's **logical** state. This is the primitive {@link Mouse}
+   * builds on to report pointer positions in world coordinates, and
+   * what game-side click handlers should generally use — clicking during a
+   * camera shake should still resolve to the world point the player
+   * aimed at, not a phantom shifted by the jitter.
+   *
+   * The inverse of {@link Scene.worldToScreen}.
+   *
+   * @param screen The point to convert, in canvas-local screen pixels.
+   * @returns A fresh {@link Point} expressing the same location in world
+   * space.
+   */
+  public screenToWorld(screen: PointPrimitive): Point {
+    const camera = this.host.camera;
+    const view = this._app.screen;
+    const result = new Point(
+      screen.x - view.width / 2,
+      screen.y - view.height / 2,
+    );
+
+    if (camera.zoom !== 0 && camera.zoom !== 1) {
+      result.scale(1 / camera.zoom);
+    }
+
+    if (camera.rotation !== 0) {
+      result.rotate(camera.rotation);
+    }
+
+    return result.add(camera.position);
+  }
+
   public onAdded(): void {
     this._app.stage.addChild(this._container);
   }
@@ -140,17 +218,24 @@ export class Scene implements WorldComponent<SceneDeps> {
    * phase so any camera mutation made during `onUpdate` (a follow
    * controller writing `camera.position = player.position`, for example) is
    * already settled by the time the scene re-frames.
+   *
+   * The shake offset is added to the container's `position`, *not* the
+   * pivot — Pixi applies `position` after the scale/rotation chain, so
+   * the offset stays in literal screen pixels regardless of `camera.zoom`
+   * and `camera.rotation`. That's what game devs intuitively want from a
+   * "screen-shake of N pixels": N pixels on screen, not a value that grows
+   * with zoom-in.
    */
   public onPostUpdate(_update: unknown, { camera }: SceneDeps): void {
     const screen = this._app.screen;
 
-    // pivot in the container's local coords — i.e. world space — followed by
-    // moving the container so the pivot lands at the canvas centre. This
-    // is the standard 2D "look-at" idiom and keeps rotation centred on the
-    // camera's position automatically.
     this._container.pivot.set(camera.position.x, camera.position.y);
-    this._container.position.set(screen.width / 2, screen.height / 2);
+    this._container.position.set(
+      screen.width / 2 + camera.shakeOffset.x,
+      screen.height / 2 + camera.shakeOffset.y,
+    );
     this._container.rotation = -camera.rotation;
+    this._container.scale.set(camera.zoom);
   }
 
   public onDestroy(): void {

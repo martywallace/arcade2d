@@ -37,5 +37,8 @@ export class ZombieController implements WorldObjectComponent {
     }
   }
 
-  onDestroy() {}
+  onDestroy() {
+    this.host.world.camera.shake(20, 300);
+    this.host.world.createFromPrefab(ZombiePrefab);
+  }
 }

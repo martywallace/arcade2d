@@ -1,11 +1,38 @@
 import { Application } from 'pixi.js';
 import { Point } from '../geometry';
+import { Scene } from '../graphics/scene';
 import {
-  Camera,
   World,
   WorldComponent,
   WorldDependencyResolver,
 } from '../world';
+
+/**
+ * Held-state booleans for the three standard mouse buttons, exposed as a
+ * named bag on {@link MouseState} so they're a) addressable as a group
+ * (`if (state.buttons.left)`) and b) easy to extend with extra buttons
+ * (`back`, `forward`) without flattening the top-level shape further.
+ */
+export interface MouseButtons {
+  /**
+   * `true` while the primary (left) mouse button is held.
+   */
+  readonly left: boolean;
+
+  /**
+   * `true` while the secondary (right) mouse button is held. The engine
+   * does **not** suppress the browser's native context menu on right-click
+   * — applications that want to use the right button as a game input
+   * should add their own `contextmenu` listener and call
+   * `event.preventDefault()`.
+   */
+  readonly right: boolean;
+
+  /**
+   * `true` while the middle (wheel) mouse button is held.
+   */
+  readonly middle: boolean;
+}
 
 /**
  * Per-tick snapshot of mouse state exposed by {@link World.getMouseState}.
@@ -14,24 +41,25 @@ import {
  * for a frame won't see it change mid-update.
  *
  * - {@link MouseState.position} is in **world space**, with the camera's
- *   position, rotation, (and, in future, zoom) already inverted out. Use
- *   this when comparing against a {@link WorldObject}'s `position` —
- *   "where is the cursor in the game's coordinate system?"
+ *   position, rotation, and zoom already inverted out. Use this when
+ *   comparing against a {@link WorldObject}'s `position` — "where is the
+ *   cursor in the game's coordinate system?"
  * - {@link MouseState.screenPosition} is the raw canvas-local pixel
  *   position, with the canvas's top-left at `(0, 0)`. Use this for HUDs,
  *   menus, or any logic that should ignore camera framing.
- *
- * Button fields are simple "currently held" booleans. They are NOT edge-
- * triggered "just pressed" / "just released" flags; for that, components
- * should compare against last frame's state themselves.
+ * - {@link MouseState.buttons} groups the held-state booleans for the
+ *   three standard buttons. These are NOT edge-triggered "just pressed" /
+ *   "just released" flags; for that, components should compare against
+ *   last frame's state themselves.
  */
 export interface MouseState {
   /**
-   * Cursor position in world space. Reflects the camera's inverse transform:
-   * with the default camera, this matches {@link MouseState.screenPosition}
-   * shifted so the canvas centre maps to world `(0, 0)`. Moving the camera
-   * shifts the world position accordingly; rotating the camera rotates the
-   * world position around the camera's pivot.
+   * Cursor position in world space. Reflects the camera's inverse
+   * transform: with the default camera, this matches
+   * {@link MouseState.screenPosition} shifted so the canvas centre maps to
+   * world `(0, 0)`. Moving, rotating, or zooming the camera shifts the
+   * world position accordingly. Camera *shake* is excluded so a click
+   * during a shake still resolves to the logical world point.
    */
   readonly position: Point;
 
@@ -43,27 +71,14 @@ export interface MouseState {
   readonly screenPosition: Point;
 
   /**
-   * `true` while the primary (left) mouse button is held.
+   * Held state of the three standard mouse buttons. See
+   * {@link MouseButtons} for the per-button semantics.
    */
-  readonly leftButton: boolean;
-
-  /**
-   * `true` while the secondary (right) mouse button is held. The engine
-   * does **not** suppress the browser's native context menu on right-click
-   * — applications that want to use the right button as a game input
-   * should add their own `contextmenu` listener and call
-   * `event.preventDefault()`.
-   */
-  readonly rightButton: boolean;
-
-  /**
-   * `true` while the middle (wheel) mouse button is held.
-   */
-  readonly middleButton: boolean;
+  readonly buttons: MouseButtons;
 }
 
 type MouseDeps = {
-  readonly camera: Camera;
+  readonly scene: Scene;
 };
 
 /**
@@ -92,10 +107,11 @@ type MouseDeps = {
  *    sees the same screen-space position and the same button states.
  *
  * The world-space `position` field is recomputed on each `getState()` call
- * using the *current* {@link Camera} state rather than the camera's value
- * at snapshot time. This way a follow-camera that moves in `onPostUpdate`
+ * by delegating to {@link Scene.screenToWorld}, which reads the *current*
+ * camera state. This way a follow-camera that moves in `onPostUpdate`
  * still produces correct mouse-to-world coordinates for the very next
- * tick's `onUpdate` reads.
+ * tick's `onUpdate` reads, and the inverse-transform math lives in one
+ * place (`Scene`) rather than being duplicated here.
  *
  * ## Event sourcing
  *
@@ -128,9 +144,8 @@ export class Mouse implements WorldComponent<MouseDeps> {
   private _snapshotMiddle = false;
 
   // Cached at `onAdded` so `getState` doesn't have to thread deps through.
-  // The camera reference is stable for the lifetime of this component
-  // (World.camera is set once at construction and never reassigned).
-  private _camera: Camera | null = null;
+  // The scene reference is stable for the lifetime of this component.
+  private _scene: Scene | null = null;
 
   private readonly _onMouseMove = (event: MouseEvent): void => {
     // clientX/Y are page-relative; subtract the canvas's current bounding
@@ -167,12 +182,12 @@ export class Mouse implements WorldComponent<MouseDeps> {
 
   public resolveDependencies(resolver: WorldDependencyResolver): MouseDeps {
     return {
-      camera: resolver.requireSibling(Camera),
+      scene: resolver.requireSibling(Scene),
     };
   }
 
-  public onAdded({ camera }: MouseDeps): void {
-    this._camera = camera;
+  public onAdded({ scene }: MouseDeps): void {
+    this._scene = scene;
 
     const canvas = this._app.canvas;
 
@@ -218,9 +233,10 @@ export class Mouse implements WorldComponent<MouseDeps> {
 
   /**
    * Returns the current {@link MouseState} snapshot. The world-space
-   * `position` is recomputed each call using the live {@link Camera}
-   * transform, so a follow-camera that mutates `camera.position` during
-   * `onPostUpdate` is honoured by the very next tick's reads.
+   * `position` is recomputed each call via {@link Scene.screenToWorld}
+   * using the *current* {@link Camera} transform, so a follow-camera that
+   * mutates `camera.position` during `onPostUpdate` is honoured by the
+   * very next tick's reads.
    *
    * Allocates a new {@link MouseState} (and two fresh {@link Point}s) per
    * call — game code may stash the returned object for the duration of a
@@ -228,46 +244,16 @@ export class Mouse implements WorldComponent<MouseDeps> {
    */
   public getState(): MouseState {
     return {
-      position: this._computeWorldPosition(),
+      position: this._scene
+        ? this._scene.screenToWorld(this._snapshotScreenPosition)
+        : this._snapshotScreenPosition.clone(),
       screenPosition: this._snapshotScreenPosition.clone(),
-      leftButton: this._snapshotLeft,
-      rightButton: this._snapshotRight,
-      middleButton: this._snapshotMiddle,
+      buttons: {
+        left: this._snapshotLeft,
+        right: this._snapshotRight,
+        middle: this._snapshotMiddle,
+      },
     };
-  }
-
-  /**
-   * Applies the inverse of {@link Scene}'s camera transform to the
-   * snapshotted screen position. The forward transform applied to the
-   * scene container is:
-   *
-   * 1. Pivot the world at `camera.position`.
-   * 2. Move that pivot to the canvas centre.
-   * 3. Rotate by `-camera.rotation`.
-   *
-   * So the inverse, taking a canvas-local point back to world space, is:
-   *
-   * 1. Subtract the canvas centre.
-   * 2. Rotate by `+camera.rotation`.
-   * 3. Add `camera.position`.
-   *
-   * When zoom is added to the camera in the future, an extra divide-by-
-   * zoom step slots in between (2) and (3).
-   */
-  private _computeWorldPosition(): Point {
-    const camera = this._camera;
-    const result = this._snapshotScreenPosition.clone();
-
-    if (!camera) {
-      return result;
-    }
-
-    const screen = this._app.screen;
-
-    return result
-      .subtract(screen.width / 2, screen.height / 2)
-      .rotate(camera.rotation)
-      .add(camera.position);
   }
 
   private _writeButton(button: number, pressed: boolean): void {
