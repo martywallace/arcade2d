@@ -1,4 +1,4 @@
-import { WorldTimer } from './timer';
+import { WorldTimer } from './world-timer';
 
 describe('WorldTimer', () => {
   describe('constructor', () => {

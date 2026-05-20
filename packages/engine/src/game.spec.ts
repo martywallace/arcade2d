@@ -3,9 +3,11 @@
  */
 
 import { Application, Container } from 'pixi.js';
-import { Component } from './components';
-import { EngineError, ErrorCode } from './error';
-import { Game, MOUSE_COMPONENT_KEY } from './game';
+import type { Component } from './components.types';
+import { EngineError } from './error';
+import { ErrorCode } from './error.constants';
+import { Game } from './game';
+import { MOUSE_COMPONENT_KEY } from './game.constants';
 import { Scene } from './graphics';
 import { Mouse } from './input';
 import {

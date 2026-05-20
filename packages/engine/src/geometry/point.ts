@@ -1,16 +1,4 @@
-export interface PointPrimitive {
-  /**
-   * The horizontal value of the point.
-   */
-  x: number;
-
-  /**
-   * The vertical value of the point.
-   */
-  y: number;
-}
-
-export type ImmutablePointPrimitive = Readonly<PointPrimitive>;
+import type { ImmutablePointPrimitive, PointPrimitive } from './point.types';
 
 /**
  * Defines a point in 2D space. Provides functionality for common operations

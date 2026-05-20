@@ -1,6 +1,6 @@
 import { Graphics as PixiGraphics } from 'pixi.js';
 import { Circle } from '../geometry';
-import { PointPrimitive } from '../geometry/point';
+import type { PointPrimitive } from '../geometry/point.types';
 import { WorldObject } from '../world';
 import { AbstractGraphics } from './abstract-graphics';
 

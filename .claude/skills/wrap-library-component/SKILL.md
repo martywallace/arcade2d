@@ -41,7 +41,7 @@ without the wrapping ceremony.
 
 ## Project conventions you must already follow
 
-These come from `CLAUDE.md` at the repo root and apply to *every* engine
+These come from `CLAUDE.md` at the repo root and apply to _every_ engine
 change, not just this skill:
 
 - TypeScript is strict; do not relax `tsconfig.json` to compile — fix the
@@ -84,7 +84,7 @@ Copy this and adapt — every wrapping component will look structurally like
 it. The example wraps Pixi's `Sprite` for illustration; substitute the
 library type and method names for your case.
 
-```typescript
+````typescript
 import { Sprite as PixiSprite, Texture } from 'pixi.js';
 import { Component } from '../components';
 import { WorldObject } from '../world';
@@ -115,7 +115,10 @@ export class Sprite implements Component<WorldObject> {
   private readonly _sprite: PixiSprite;
   private readonly _scene: Scene;
 
-  constructor(public readonly host: WorldObject, texture: Texture) {
+  constructor(
+    public readonly host: WorldObject,
+    texture: Texture,
+  ) {
     this._sprite = new PixiSprite(texture);
     this._sprite.anchor.set(0.5, 0.5);
     this._scene = host.world.getComponentByType(Scene);
@@ -185,7 +188,7 @@ export class Sprite implements Component<WorldObject> {
     this._sprite.destroy();
   }
 }
-```
+````
 
 ## The `raw` accessor — copy the warning verbatim
 
@@ -268,7 +271,7 @@ external library's lifecycle. Get these right:
   external instance here, not in `onUpdate`. This way the visual reflects
   every behavior change made earlier in the tick regardless of which
   component made it or what phase it ran in.
-- **`onDestroy(deps)`** — detach from its container *and* release any
+- **`onDestroy(deps)`** — detach from its container _and_ release any
   library-owned resources the component allocated (textures, geometries,
   audio buffers). The component owns what it created.
 

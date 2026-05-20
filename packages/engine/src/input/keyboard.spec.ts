@@ -3,7 +3,8 @@
  */
 
 import { Application, Container } from 'pixi.js';
-import { Game, KEYBOARD_COMPONENT_KEY } from '../game';
+import { Game } from '../game';
+import { KEYBOARD_COMPONENT_KEY } from '../game.constants';
 import { Keyboard } from './keyboard';
 
 function createTestHarness(width = 800, height = 600) {
@@ -173,6 +174,5 @@ describe('Keyboard', () => {
       const state = world.getKeyboardState();
       expect(state.isDown('KeyW')).toBe(true);
     });
-
   });
 });

@@ -1,6 +1,6 @@
 import { Graphics as PixiGraphics } from 'pixi.js';
 import { Polygon } from '../geometry';
-import { PointPrimitive } from '../geometry/point';
+import type { PointPrimitive } from '../geometry/point.types';
 import { WorldObject } from '../world';
 import { AbstractGraphics } from './abstract-graphics';
 
@@ -140,7 +140,10 @@ export class PolygonGraphics extends AbstractGraphics<PixiGraphics> {
       // Pixi's `poly` API accepts `{ x, y }` records directly; close the ring
       // explicitly so behaviour matches `Polygon`'s implicit-closure contract.
       display
-        .poly(polygon.points.map((point) => ({ x: point.x, y: point.y })), true)
+        .poly(
+          polygon.points.map((point) => ({ x: point.x, y: point.y })),
+          true,
+        )
         .fill(fill);
     }
 

@@ -1,20 +1,16 @@
-export enum ErrorCode {
-  COMPONENT_NOT_FOUND = 'COMP001_COMPONENT_NOT_FOUND',
-  COMPONENT_ALREADY_EXISTS = 'COMP002_COMPONENT_ALREADY_EXISTS',
-  COMPONENT_AMBIGUOUS_TYPE = 'COMP003_COMPONENT_AMBIGUOUS_TYPE',
-  PREFAB_INVALID_NAME = 'PREFAB001_PREFAB_INVALID_NAME',
-  PREFAB_ALREADY_REGISTERED = 'PREFAB002_PREFAB_ALREADY_REGISTERED',
-  PREFAB_NOT_FOUND = 'PREFAB003_PREFAB_NOT_FOUND',
-  PREFAB_REGISTRY_NOT_ATTACHED = 'PREFAB004_PREFAB_REGISTRY_NOT_ATTACHED',
-  PREFAB_BUILD_UNAUTHORIZED = 'PREFAB005_PREFAB_BUILD_UNAUTHORIZED',
-  WORLD_COMPONENT_DEPENDENCY_MISSING = 'DEP001_WORLD_COMPONENT_DEPENDENCY_MISSING',
-  WORLD_COMPONENT_DEPENDENCY_AMBIGUOUS = 'DEP002_WORLD_COMPONENT_DEPENDENCY_AMBIGUOUS',
-  WORLD_COMPONENT_DEPENDENCY_REENTRANT = 'DEP003_WORLD_COMPONENT_DEPENDENCY_REENTRANT',
-  GAME_WORLD_ALREADY_EXISTS = 'GAME001_GAME_WORLD_ALREADY_EXISTS',
-  GAME_WORLD_NOT_FOUND = 'GAME002_GAME_WORLD_NOT_FOUND',
-  RANDOM_EMPTY_ITEMS = 'RAND001_RANDOM_EMPTY_ITEMS',
-}
+import { ErrorCode } from './error.constants';
 
+/**
+ * Engine-thrown error carrying a machine-readable {@link ErrorCode} and an
+ * optional context bag of values relevant to the failure (the offending
+ * host, key, component type, etc.). Every fault originating inside the
+ * arcade2d engine surfaces as an `EngineError` — `instanceof EngineError`
+ * is the supported way to filter engine faults from unrelated thrown
+ * values in user `try/catch` blocks.
+ *
+ * Construct via {@link throwEngineError} rather than `throw new
+ * EngineError(...)` so the throw site is uniform across the codebase.
+ */
 export class EngineError extends Error {
   constructor(
     public readonly code: ErrorCode,
@@ -26,12 +22,4 @@ export class EngineError extends Error {
     Object.setPrototypeOf(this, EngineError.prototype);
     this.name = this.constructor.name;
   }
-}
-
-export function throwEngineError(
-  code: ErrorCode,
-  message: string,
-  context?: Record<string, unknown>,
-): never {
-  throw new EngineError(code, message, context);
 }

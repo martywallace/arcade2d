@@ -1,4 +1,5 @@
-import { EngineError, ErrorCode } from '../error';
+import { EngineError } from '../error';
+import { ErrorCode } from '../error.constants';
 import { Prefab } from './prefab';
 import { PrefabRegistry } from './prefab-registry';
 
@@ -133,10 +134,7 @@ describe('PrefabRegistry', () => {
 
   describe('snapshots', () => {
     test('names returns a snapshot that does not mutate the registry', () => {
-      const registry = new PrefabRegistry([
-        makePrefab('a'),
-        makePrefab('b'),
-      ]);
+      const registry = new PrefabRegistry([makePrefab('a'), makePrefab('b')]);
 
       const names = registry.names as string[];
       names.push('c');

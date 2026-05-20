@@ -1,8 +1,9 @@
-import { Component } from '../components';
-import { EngineError, ErrorCode } from '../error';
+import type { Component } from '../components.types';
+import { EngineError } from '../error';
+import { ErrorCode } from '../error.constants';
 import { Game } from '../game';
 import { Point } from '../geometry';
-import { PREFAB_BUILD_TOKEN } from './internal';
+import { PREFAB_BUILD_TOKEN } from './prefab.constants';
 import { Prefab } from './prefab';
 import { World } from './world';
 import { WorldObject } from './world-object';
@@ -31,7 +32,8 @@ const makeComponent = (
   };
 };
 
-const createWorld = () => new World(Game.createHeadless(),{ components: () => ({}) });
+const createWorld = () =>
+  new World(Game.createHeadless(), { components: () => ({}) });
 
 describe('Prefab', () => {
   describe('construction', () => {

@@ -1,27 +1,10 @@
-import { AbstractComponentHost, Component } from '../components';
+import { AbstractComponentHost } from '../abstract-component-host';
+import type { Component } from '../components.types';
 import { Point, PointPrimitive } from '../geometry';
-import { WorldObjectComponentDependencyResolver } from './dependencies';
-import { WorldUpdate } from './update';
 import { World } from './world';
-
-export type WorldObjectMetadata = {
-  /**
-   * A globally unique identified assigned to this object. Factors in the prefab
-   * the object was created from.
-   */
-  readonly id: string;
-
-  /**
-   * A set of tags to assing to the object.
-   */
-  readonly tags: Set<string>;
-
-  /**
-   * The name of the prefab that was used to create this object. Undefined
-   * indicates the object was not created from a prefab.
-   */
-  readonly prefabName?: string;
-};
+import { WorldObjectComponentDependencyResolver } from './world-object-component-dependency-resolver';
+import type { WorldObjectMetadata } from './world-object.types';
+import { WorldUpdate } from './world-update';
 
 /**
  * Internal lifecycle states a {@link WorldObject} can be in. Encoded as a
@@ -199,10 +182,7 @@ export class WorldObject extends AbstractComponentHost<WorldObject> {
    * space.
    */
   public localToWorld(point: PointPrimitive): Point {
-    const result = new Point(
-      point.x * this.scale.x,
-      point.y * this.scale.y,
-    );
+    const result = new Point(point.x * this.scale.x, point.y * this.scale.y);
 
     if (this.rotation !== 0) {
       result.rotate(this.rotation);

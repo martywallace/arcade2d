@@ -1,6 +1,6 @@
 import { Point } from '../geometry';
-import { AbstractWorldComponent } from './dependencies';
-import { WorldUpdate } from './update';
+import { AbstractWorldComponent } from './abstract-world-component';
+import { WorldUpdate } from './world-update';
 
 /**
  * Internal state describing an in-flight camera shake. Exposed only via the

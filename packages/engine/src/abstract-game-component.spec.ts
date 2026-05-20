@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import { AbstractGameComponent } from './game-component';
+import { AbstractGameComponent } from './abstract-game-component';
 import { Game } from './game';
 
 class TrackingComponent extends AbstractGameComponent {

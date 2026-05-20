@@ -3,7 +3,8 @@
  */
 
 import { Application, Container } from 'pixi.js';
-import { Game, MOUSE_COMPONENT_KEY } from '../game';
+import { Game } from '../game';
+import { MOUSE_COMPONENT_KEY } from '../game.constants';
 import { Mouse } from './mouse';
 
 function createTestHarness(width = 800, height = 600) {
@@ -19,7 +20,13 @@ function createTestHarness(width = 800, height = 600) {
   const game = new Game(app);
   const world = game.createWorld();
 
-  return { game, world, canvas, app, mouse: game.getComponent<Mouse>(MOUSE_COMPONENT_KEY) };
+  return {
+    game,
+    world,
+    canvas,
+    app,
+    mouse: game.getComponent<Mouse>(MOUSE_COMPONENT_KEY),
+  };
 }
 
 describe('Mouse', () => {
@@ -210,5 +217,4 @@ describe('Mouse', () => {
     const fresh = createTestHarness();
     expect(fresh.game.getMouseState().buttons.left).toBe(false);
   });
-
 });

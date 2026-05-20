@@ -1,17 +1,18 @@
-import { Component } from '../components';
-import { EngineError, ErrorCode } from '../error';
+import type { Component } from '../components.types';
+import { EngineError } from '../error';
+import { ErrorCode } from '../error.constants';
 import { Game } from '../game';
-import { WorldUpdate } from './update';
-import { World } from './world';
-import { WorldObject } from './world-object';
-import {
-  AbstractWorldComponent,
-  AbstractWorldObjectComponent,
+import { AbstractWorldComponent } from './abstract-world-component';
+import { AbstractWorldObjectComponent } from './abstract-world-object-component';
+import type {
   WorldComponent,
   WorldDependencyResolver,
   WorldObjectComponent,
   WorldObjectDependencyResolver,
-} from './dependencies';
+} from './dependencies.types';
+import { World } from './world';
+import { WorldObject } from './world-object';
+import { WorldUpdate } from './world-update';
 
 // World-scoped component used as a dependency target across the suite.
 class InputSystem implements WorldComponent {
@@ -106,7 +107,7 @@ describe('dependency resolution', () => {
     test('threads the resolved deps into every hook the component implements', () => {
       let physics: PhysicsSystem | null = null;
 
-      const world = new World(Game.createHeadless(),{
+      const world = new World(Game.createHeadless(), {
         components: (w) => ({
           input: () => new InputSystem(w),
           physics: () => {
@@ -129,7 +130,7 @@ describe('dependency resolution', () => {
 
     test('throws WORLD_COMPONENT_DEPENDENCY_MISSING when a required sibling is absent', () => {
       const error = captureError(() => {
-        new World(Game.createHeadless(),{
+        new World(Game.createHeadless(), {
           // physics requires InputSystem but the world never registers one.
           components: (w) => ({
             physics: () => new PhysicsSystem(w),
@@ -144,7 +145,7 @@ describe('dependency resolution', () => {
 
     test('throws WORLD_COMPONENT_DEPENDENCY_AMBIGUOUS when a required sibling matches multiply', () => {
       const error = captureError(() => {
-        new World(Game.createHeadless(),{
+        new World(Game.createHeadless(), {
           components: (w) => ({
             input1: () => new InputSystem(w),
             input2: () => new InputSystem(w),
@@ -162,12 +163,14 @@ describe('dependency resolution', () => {
     test('does not match itself when resolving siblings of its own type', () => {
       // A component that calls requireSibling(SameType) on itself should
       // miss — sibling means "other components on the host," never self.
-      class SelfReferential implements WorldComponent<{ other: SelfReferential }> {
+      class SelfReferential implements WorldComponent<{
+        other: SelfReferential;
+      }> {
         constructor(public readonly host: World) {}
 
-        resolveDependencies(
-          resolver: WorldDependencyResolver,
-        ): { other: SelfReferential } {
+        resolveDependencies(resolver: WorldDependencyResolver): {
+          other: SelfReferential;
+        } {
           return { other: resolver.requireSibling(SelfReferential) };
         }
 
@@ -177,7 +180,7 @@ describe('dependency resolution', () => {
       }
 
       const error = captureError(() => {
-        new World(Game.createHeadless(),{
+        new World(Game.createHeadless(), {
           components: (w) => ({ self: () => new SelfReferential(w) }),
         });
       });
@@ -186,14 +189,16 @@ describe('dependency resolution', () => {
     });
 
     test('optionalSibling returns the resolved match', () => {
-      class OptionalPhysics implements WorldComponent<{ input: InputSystem | null }> {
+      class OptionalPhysics implements WorldComponent<{
+        input: InputSystem | null;
+      }> {
         public resolved: InputSystem | null = null;
 
         constructor(public readonly host: World) {}
 
-        resolveDependencies(
-          resolver: WorldDependencyResolver,
-        ): { input: InputSystem | null } {
+        resolveDependencies(resolver: WorldDependencyResolver): {
+          input: InputSystem | null;
+        } {
           const input = resolver.optionalSibling(InputSystem);
           this.resolved = input;
           return { input };
@@ -206,7 +211,7 @@ describe('dependency resolution', () => {
 
       let instance: OptionalPhysics | null = null;
 
-      new World(Game.createHeadless(),{
+      new World(Game.createHeadless(), {
         components: (w) => ({
           input: () => new InputSystem(w),
           physics: () => {
@@ -221,14 +226,16 @@ describe('dependency resolution', () => {
     });
 
     test('optionalSibling returns null when no match exists', () => {
-      class OptionalPhysics implements WorldComponent<{ input: InputSystem | null }> {
+      class OptionalPhysics implements WorldComponent<{
+        input: InputSystem | null;
+      }> {
         public resolved: InputSystem | null = 'sentinel' as never;
 
         constructor(public readonly host: World) {}
 
-        resolveDependencies(
-          resolver: WorldDependencyResolver,
-        ): { input: InputSystem | null } {
+        resolveDependencies(resolver: WorldDependencyResolver): {
+          input: InputSystem | null;
+        } {
           const input = resolver.optionalSibling(InputSystem);
           this.resolved = input;
           return { input };
@@ -241,7 +248,7 @@ describe('dependency resolution', () => {
 
       let instance: OptionalPhysics | null = null;
 
-      new World(Game.createHeadless(),{
+      new World(Game.createHeadless(), {
         components: (w) => ({
           physics: () => {
             instance = new OptionalPhysics(w);
@@ -254,14 +261,16 @@ describe('dependency resolution', () => {
     });
 
     test('optionalSibling collapses ambiguous matches to null instead of throwing', () => {
-      class OptionalPhysics implements WorldComponent<{ input: InputSystem | null }> {
+      class OptionalPhysics implements WorldComponent<{
+        input: InputSystem | null;
+      }> {
         public resolved: InputSystem | null = 'sentinel' as never;
 
         constructor(public readonly host: World) {}
 
-        resolveDependencies(
-          resolver: WorldDependencyResolver,
-        ): { input: InputSystem | null } {
+        resolveDependencies(resolver: WorldDependencyResolver): {
+          input: InputSystem | null;
+        } {
           const input = resolver.optionalSibling(InputSystem);
           this.resolved = input;
           return { input };
@@ -274,7 +283,7 @@ describe('dependency resolution', () => {
 
       let instance: OptionalPhysics | null = null;
 
-      new World(Game.createHeadless(),{
+      new World(Game.createHeadless(), {
         components: (w) => ({
           input1: () => new InputSystem(w),
           input2: () => new InputSystem(w),
@@ -294,7 +303,9 @@ describe('dependency resolution', () => {
       class HostCapturing implements WorldComponent {
         constructor(public readonly host: World) {}
 
-        resolveDependencies(resolver: WorldDependencyResolver): Record<string, never> {
+        resolveDependencies(
+          resolver: WorldDependencyResolver,
+        ): Record<string, never> {
           capturedHost = resolver.host;
           return {};
         }
@@ -304,7 +315,7 @@ describe('dependency resolution', () => {
         onDestroy(): void {}
       }
 
-      const world = new World(Game.createHeadless(),{
+      const world = new World(Game.createHeadless(), {
         components: (w) => ({
           capture: () => new HostCapturing(w),
         }),
@@ -316,7 +327,7 @@ describe('dependency resolution', () => {
 
   describe('WorldObjectComponent.resolveDependencies', () => {
     test('requireFromWorld resolves a component on the parent world', () => {
-      const world = new World(Game.createHeadless(),{
+      const world = new World(Game.createHeadless(), {
         components: (w) => ({ input: () => new InputSystem(w) }),
       });
 
@@ -329,7 +340,7 @@ describe('dependency resolution', () => {
     });
 
     test('threads the same deps reference into onDestroy', () => {
-      const world = new World(Game.createHeadless(),{
+      const world = new World(Game.createHeadless(), {
         components: (w) => ({ input: () => new InputSystem(w) }),
       });
 
@@ -344,7 +355,7 @@ describe('dependency resolution', () => {
     });
 
     test('throws WORLD_COMPONENT_DEPENDENCY_MISSING when the required world component is absent', () => {
-      const world = new World(Game.createHeadless(),{
+      const world = new World(Game.createHeadless(), {
         components: () => ({}),
       });
 
@@ -362,7 +373,7 @@ describe('dependency resolution', () => {
     });
 
     test('throws WORLD_COMPONENT_DEPENDENCY_AMBIGUOUS when the world has multiple matches', () => {
-      const world = new World(Game.createHeadless(),{
+      const world = new World(Game.createHeadless(), {
         components: (w) => ({
           inputA: () => new InputSystem(w),
           inputB: () => new InputSystem(w),
@@ -394,13 +405,14 @@ describe('dependency resolution', () => {
         onDestroy(): void {}
       }
 
-      class SharedShapeFinder
-        implements WorldObjectComponent<{ shared: SharedShape }> {
+      class SharedShapeFinder implements WorldObjectComponent<{
+        shared: SharedShape;
+      }> {
         constructor(public readonly host: WorldObject) {}
 
-        resolveDependencies(
-          resolver: WorldObjectDependencyResolver,
-        ): { shared: SharedShape } {
+        resolveDependencies(resolver: WorldObjectDependencyResolver): {
+          shared: SharedShape;
+        } {
           return { shared: resolver.requireSibling(SharedShape) };
         }
 
@@ -409,7 +421,9 @@ describe('dependency resolution', () => {
         onDestroy(): void {}
       }
 
-      const world = new World(Game.createHeadless(),{ components: () => ({}) });
+      const world = new World(Game.createHeadless(), {
+        components: () => ({}),
+      });
       const object = world.createEmpty();
 
       // No sibling exists — the resolver must not hop to the world tier
@@ -423,15 +437,16 @@ describe('dependency resolution', () => {
     });
 
     test('optionalFromWorld returns null when the world component is missing', () => {
-      class OptionalGraphics
-        implements WorldObjectComponent<{ input: InputSystem | null }> {
+      class OptionalGraphics implements WorldObjectComponent<{
+        input: InputSystem | null;
+      }> {
         public resolved: InputSystem | null = 'sentinel' as never;
 
         constructor(public readonly host: WorldObject) {}
 
-        resolveDependencies(
-          resolver: WorldObjectDependencyResolver,
-        ): { input: InputSystem | null } {
+        resolveDependencies(resolver: WorldObjectDependencyResolver): {
+          input: InputSystem | null;
+        } {
           const input = resolver.optionalFromWorld(InputSystem);
           this.resolved = input;
           return { input };
@@ -442,7 +457,9 @@ describe('dependency resolution', () => {
         onDestroy(): void {}
       }
 
-      const world = new World(Game.createHeadless(),{ components: () => ({}) });
+      const world = new World(Game.createHeadless(), {
+        components: () => ({}),
+      });
       const object = world.createEmpty();
       const graphics = new OptionalGraphics(object);
 
@@ -451,13 +468,14 @@ describe('dependency resolution', () => {
     });
 
     test('object-tier ambiguous sibling throws AMBIGUOUS', () => {
-      class TrackerObserver
-        implements WorldObjectComponent<{ tracker: Tracker }> {
+      class TrackerObserver implements WorldObjectComponent<{
+        tracker: Tracker;
+      }> {
         constructor(public readonly host: WorldObject) {}
 
-        resolveDependencies(
-          resolver: WorldObjectDependencyResolver,
-        ): { tracker: Tracker } {
+        resolveDependencies(resolver: WorldObjectDependencyResolver): {
+          tracker: Tracker;
+        } {
           return { tracker: resolver.requireSibling(Tracker) };
         }
 
@@ -466,7 +484,9 @@ describe('dependency resolution', () => {
         onDestroy(): void {}
       }
 
-      const world = new World(Game.createHeadless(),{ components: () => ({}) });
+      const world = new World(Game.createHeadless(), {
+        components: () => ({}),
+      });
       const object = world.createEmpty();
 
       object.addComponent('t1', new Tracker(object));
@@ -482,7 +502,9 @@ describe('dependency resolution', () => {
 
   describe('atomic add semantics', () => {
     test('the failing component is not committed to the host when its resolve throws', () => {
-      const world = new World(Game.createHeadless(),{ components: () => ({}) });
+      const world = new World(Game.createHeadless(), {
+        components: () => ({}),
+      });
       const object = world.createEmpty();
       const graphics = new GraphicsComponent(object);
 
@@ -496,7 +518,9 @@ describe('dependency resolution', () => {
     });
 
     test('onAdded is not called on a component whose resolve throws', () => {
-      const world = new World(Game.createHeadless(),{ components: () => ({}) });
+      const world = new World(Game.createHeadless(), {
+        components: () => ({}),
+      });
       const object = world.createEmpty();
       const graphics = new GraphicsComponent(object);
 
@@ -510,13 +534,14 @@ describe('dependency resolution', () => {
     });
 
     test('a batched add rolls back every new component when any one fails to resolve', () => {
-      class AlwaysFails
-        implements WorldObjectComponent<{ input: InputSystem }> {
+      class AlwaysFails implements WorldObjectComponent<{
+        input: InputSystem;
+      }> {
         constructor(public readonly host: WorldObject) {}
 
-        resolveDependencies(
-          resolver: WorldObjectDependencyResolver,
-        ): { input: InputSystem } {
+        resolveDependencies(resolver: WorldObjectDependencyResolver): {
+          input: InputSystem;
+        } {
           return { input: resolver.requireFromWorld(InputSystem) };
         }
 
@@ -525,7 +550,9 @@ describe('dependency resolution', () => {
         onDestroy(): void {}
       }
 
-      const world = new World(Game.createHeadless(),{ components: () => ({}) });
+      const world = new World(Game.createHeadless(), {
+        components: () => ({}),
+      });
       const object = world.createEmpty();
 
       try {
@@ -549,7 +576,9 @@ describe('dependency resolution', () => {
       class Reentrant implements WorldComponent {
         constructor(public readonly host: World) {}
 
-        resolveDependencies(resolver: WorldDependencyResolver): Record<string, never> {
+        resolveDependencies(
+          resolver: WorldDependencyResolver,
+        ): Record<string, never> {
           // Illegal: trying to mutate the host's component set mid-resolve.
           resolver.host.addComponent('sneaky', new InputSystem(resolver.host));
           return {};
@@ -561,7 +590,7 @@ describe('dependency resolution', () => {
       }
 
       const error = captureError(() => {
-        new World(Game.createHeadless(),{
+        new World(Game.createHeadless(), {
           components: (w) => ({ bad: () => new Reentrant(w) }),
         });
       });
@@ -585,7 +614,7 @@ describe('dependency resolution', () => {
         onDestroy(): void {}
       }
 
-      new World(Game.createHeadless(),{
+      new World(Game.createHeadless(), {
         components: (w) => ({ bare: () => new Bare(w) }),
       });
 
@@ -602,7 +631,7 @@ describe('dependency resolution', () => {
       let updateCalls = 0;
       let destroyCalls = 0;
 
-      const world = new World(Game.createHeadless(),{
+      const world = new World(Game.createHeadless(), {
         components: (w) => ({
           legacy: () => ({
             host: w,
@@ -633,11 +662,10 @@ describe('dependency resolution', () => {
       // lives in the engine — but we can construct one and exercise it
       // through the existing public path by using a component that
       // captures everything in flight.
-      class RecordingProbe
-        implements WorldObjectComponent<{
-          requireResult: InputSystem;
-          optionalResult: Tracker | null;
-        }> {
+      class RecordingProbe implements WorldObjectComponent<{
+        requireResult: InputSystem;
+        optionalResult: Tracker | null;
+      }> {
         public capturedResolver: WorldObjectDependencyResolver | null = null;
 
         constructor(public readonly host: WorldObject) {}
@@ -657,7 +685,7 @@ describe('dependency resolution', () => {
         onDestroy(): void {}
       }
 
-      const world = new World(Game.createHeadless(),{
+      const world = new World(Game.createHeadless(), {
         components: (w) => ({ input: () => new InputSystem(w) }),
       });
 
@@ -687,9 +715,9 @@ describe('dependency resolution', () => {
 
         constructor(public readonly host: World) {}
 
-        resolveDependencies(
-          resolver: WorldDependencyResolver,
-        ): { input: InputSystem } {
+        resolveDependencies(resolver: WorldDependencyResolver): {
+          input: InputSystem;
+        } {
           return { input: resolver.requireSibling(InputSystem) };
         }
 
@@ -703,7 +731,7 @@ describe('dependency resolution', () => {
 
       let mixer: MixerWithInput | null = null;
 
-      new World(Game.createHeadless(),{
+      new World(Game.createHeadless(), {
         components: (w) => ({
           input: () => new InputSystem(w),
           mixer: () => {
@@ -749,7 +777,9 @@ describe('AbstractWorldComponent', () => {
     const component = new Minimal(world);
 
     expect(() => component.onAdded({})).not.toThrow();
-    expect(() => component.onUpdate(new WorldUpdate(0, 0, 0), {})).not.toThrow();
+    expect(() =>
+      component.onUpdate(new WorldUpdate(0, 0, 0), {}),
+    ).not.toThrow();
     expect(() => component.onDestroy({})).not.toThrow();
   });
 
@@ -804,7 +834,9 @@ describe('AbstractWorldObjectComponent', () => {
     const component = new Minimal(object);
 
     expect(() => component.onAdded({})).not.toThrow();
-    expect(() => component.onUpdate(new WorldUpdate(0, 0, 0), {})).not.toThrow();
+    expect(() =>
+      component.onUpdate(new WorldUpdate(0, 0, 0), {}),
+    ).not.toThrow();
     expect(() => component.onDestroy({})).not.toThrow();
   });
 

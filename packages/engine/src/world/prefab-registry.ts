@@ -1,4 +1,5 @@
-import { ErrorCode, throwEngineError } from '../error';
+import { ErrorCode } from '../error.constants';
+import { throwEngineError } from '../error.support';
 import { Prefab } from './prefab';
 
 /**

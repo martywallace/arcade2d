@@ -1,5 +1,5 @@
-import { PointPrimitive } from './point';
-import { Rectangle } from './polygon';
+import type { PointPrimitive } from './point.types';
+import { Rectangle } from './rectangle';
 
 /**
  * Defines a circle as a pure shape: it is described entirely by its `radius`

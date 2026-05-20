@@ -15,7 +15,7 @@ function createFakeApp(width = 800, height = 600): Application {
 
 function createWorldWithScene(width?: number, height?: number) {
   const app = createFakeApp(width, height);
-  const world = new World(Game.createHeadless(),{
+  const world = new World(Game.createHeadless(), {
     components: (world) => ({
       scene: () => new Scene(world, app),
     }),

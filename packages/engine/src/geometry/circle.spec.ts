@@ -1,5 +1,5 @@
 import { Circle } from './circle';
-import { Rectangle } from './polygon';
+import { Rectangle } from './rectangle';
 
 describe('Circle', () => {
   test('it defaults to a zero-radius circle', () => {

@@ -17,7 +17,7 @@ function createFakeApp(): Application {
 
 function createWorldWithScene() {
   const app = createFakeApp();
-  const world = new World(Game.createHeadless(),{
+  const world = new World(Game.createHeadless(), {
     components: (world) => ({
       scene: () => new Scene(world, app),
     }),

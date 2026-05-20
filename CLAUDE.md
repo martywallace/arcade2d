@@ -119,6 +119,43 @@ message, context)` with a code from the `ErrorCode` enum in
 - **No comments at the top of files describing the file.** Use class- or
   symbol-level JSDoc instead so it shows up in tooling.
 
+## File organization
+
+These rules apply to `packages/engine/src` and any new TypeScript code in
+the repo. They exist so that any reader can guess where a symbol lives
+from its name, and vice-versa.
+
+- **One class per file.** Every `class` (including `abstract class`) gets
+  its own file. Multi-class modules are not allowed, even when one is a
+  small internal base — split it into its own file too.
+- **Filename matches the class name.** A file containing `class WorldTimer`
+  is named `world-timer.ts`. `class AbstractGameComponent` lives in
+  `abstract-game-component.ts`. Renames go in lockstep: rename the class,
+  rename the file in the same change.
+- **Snake-case (kebab) filenames.** Always `world-object.ts`, never
+  `worldObject.ts` or `WorldObject.ts`. Multi-word filenames use single
+  hyphens between words.
+- **Types in `<name>.types.ts`.** Public type aliases and interfaces that
+  ride alongside a class go in a sibling `*.types.ts` — e.g. `WorldOptions`,
+  `WorldErrorContext` etc. live in `world.types.ts`, next to `world.ts`.
+  Trivial single-use type aliases that exist only to name a function
+  parameter shape can stay inline.
+- **Constants in `<name>.constants.ts`.** Module-level `const` values and
+  `enum`s that ride alongside a class go in a sibling `*.constants.ts` —
+  e.g. `CAMERA_COMPONENT_KEY` lives in `world.constants.ts`. `ErrorCode`
+  (an enum used as a set of constant codes) lives in `error.constants.ts`.
+- **Helpers in `<name>.support.ts`.** Free-standing helper functions that
+  ride alongside a class go in a sibling `*.support.ts` — e.g.
+  `throwEngineError` lives in `error.support.ts`.
+- **Tests mirror the split.** `foo.ts` is tested by `foo.spec.ts`,
+  `foo.support.ts` by `foo.support.spec.ts`, and so on. Don't pile tests
+  for a helper into the class's spec file.
+- **Every top-level cluster has an `index.ts` barrel.** Directories like
+  `world/`, `utils/`, `geometry/`, `graphics/`, `input/` each contain an
+  `index.ts` that `export *` re-exports every file in the cluster. New
+  files in a cluster must be added to its barrel — symbols that aren't
+  re-exported are silently invisible from the package surface.
+
 ## Testing
 
 - Tests are **colocated** with the code: `foo.ts` is tested by

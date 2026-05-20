@@ -1,4 +1,4 @@
-import { WorldUpdate } from './update';
+import { WorldUpdate } from './world-update';
 
 describe('WorldUpdate', () => {
   describe('time-unit accessors', () => {

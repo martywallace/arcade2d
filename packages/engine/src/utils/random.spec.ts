@@ -1,4 +1,5 @@
-import { EngineError, ErrorCode } from '../error';
+import { EngineError } from '../error';
+import { ErrorCode } from '../error.constants';
 import { Random } from './random';
 
 describe('Random', () => {
@@ -359,10 +360,7 @@ describe('Random', () => {
 
         // Not strictly inside the inner hole.
         const insideHole =
-          p.x > x + t &&
-          p.x < x + w - t &&
-          p.y > y + t &&
-          p.y < y + h - t;
+          p.x > x + t && p.x < x + w - t && p.y > y + t && p.y < y + h - t;
 
         expect(insideHole).toBe(false);
         expect(Object.isFrozen(p)).toBe(true);

@@ -1,6 +1,7 @@
-import { AbstractComponent, Component } from './components';
+import { AbstractComponent } from './abstract-component';
+import type { Component } from './components.types';
 import type { Game } from './game';
-import type { WorldUpdate } from './world/update';
+import type { WorldUpdate } from './world/world-update';
 
 /**
  * Abstract base class for components attached to a {@link Game}.

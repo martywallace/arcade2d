@@ -1,26 +1,11 @@
-import { ErrorCode, throwEngineError } from '../error';
-import type { ImmutablePointPrimitive, PointPrimitive } from '../geometry/point';
+import { ErrorCode } from '../error.constants';
+import { throwEngineError } from '../error.support';
+import type {
+  ImmutablePointPrimitive,
+  PointPrimitive,
+} from '../geometry/point.types';
 import { Polygon } from '../geometry/polygon';
-
-/**
- * Options accepted by the {@link Random} constructor.
- */
-export type RandomOptions = {
-  /**
-   * The seed for the underlying PRNG. A `number` is masked into a 32-bit
-   * integer; a `string` is hashed deterministically into a 32-bit integer, so
-   * named seeds like `'level-3'` work as expected. Omit (or pass `undefined`)
-   * for a time-based seed.
-   */
-  readonly seed?: number | string;
-
-  /**
-   * The exact internal state to restore. Pair with the value returned by
-   * {@link Random.getState} to resume a generator at the same point it left
-   * off. When supplied, `state` overrides `seed`.
-   */
-  readonly state?: number;
-};
+import type { RandomOptions } from './random.types';
 
 const TWO_PI = Math.PI * 2;
 const UINT32 = 0x100000000;
@@ -67,7 +52,7 @@ function normaliseSeed(seed: number | string | undefined): number {
 
   // Time-based fallback. Mixed with Math.random so two `new Random()` calls in
   // the same millisecond still diverge.
-  return (((Date.now() & 0xffffffff) ^ Math.floor(Math.random() * UINT32)) >>> 0);
+  return ((Date.now() & 0xffffffff) ^ Math.floor(Math.random() * UINT32)) >>> 0;
 }
 
 /**

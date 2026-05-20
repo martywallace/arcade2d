@@ -3,7 +3,7 @@ import { Point } from '../geometry';
 import { World } from './world';
 
 function createWorld(): World {
-  return new World(Game.createHeadless(),{ components: () => ({}) });
+  return new World(Game.createHeadless(), { components: () => ({}) });
 }
 
 describe('WorldObject transforms', () => {

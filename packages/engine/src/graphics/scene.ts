@@ -1,6 +1,6 @@
 import { Application, Container } from 'pixi.js';
 import { Point } from '../geometry';
-import { PointPrimitive } from '../geometry/point';
+import type { PointPrimitive } from '../geometry/point.types';
 import {
   AbstractWorldComponent,
   Camera,
