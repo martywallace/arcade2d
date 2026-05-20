@@ -4,7 +4,7 @@ import {
   AbstractComponentHost,
 } from '../components';
 import { ErrorCode, throwEngineError } from '../error';
-import { Update } from './update';
+import { WorldUpdate } from './update';
 import { World } from './world';
 import { WorldObject } from './world-object';
 
@@ -186,7 +186,7 @@ export interface WorldObjectDependencyResolver {
  *   }
  *
  *   onAdded({ input }: PhysicsDeps): void { ... }
- *   onUpdate(update: Update, { input }: PhysicsDeps): void { ... }
+ *   onUpdate(update: WorldUpdate, { input }: PhysicsDeps): void { ... }
  *   onDestroy({ input }: PhysicsDeps): void { ... }
  * }
  * ```
@@ -542,8 +542,8 @@ export class WorldObjectComponentDependencyResolver
 }
 
 /**
- * Marker for the `Update` type re-export so consumers can import the
- * lifecycle update payload alongside the component types without dipping
- * into a separate module.
+ * Marker for the {@link WorldUpdate} type re-export so consumers can import
+ * the lifecycle update payload alongside the component types without
+ * dipping into a separate module.
  */
-export type { Update };
+export type { WorldUpdate };

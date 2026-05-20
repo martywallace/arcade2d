@@ -1,6 +1,6 @@
 import { Component } from '../components';
 import { EngineError, ErrorCode } from '../error';
-import { Update } from './update';
+import { WorldUpdate } from './update';
 import { World } from './world';
 import { WorldObject } from './world-object';
 import {
@@ -45,7 +45,7 @@ class PhysicsSystem implements WorldComponent<PhysicsDeps> {
     this.addedWith = deps;
   }
 
-  onUpdate(_update: Update, deps: PhysicsDeps): void {
+  onUpdate(_update: WorldUpdate, deps: PhysicsDeps): void {
     this.updatedWith = deps;
   }
 

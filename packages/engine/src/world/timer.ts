@@ -10,11 +10,12 @@
  *   that fires every 250ms, a spawner that drops an enemy every second).
  *
  * `WorldTimer` covers both by being a thin, mutable wrapper around a single
- * number, driven by the `delta` value threaded through each {@link Update}.
- * The unit is real-world milliseconds; pass `update.delta` to
- * {@link WorldTimer.increment} or {@link WorldTimer.decrement} from inside a
- * component's update hook and the timer advances at wall-clock speed
- * regardless of the engine's frame rate.
+ * number, driven by the delta value threaded through each
+ * {@link WorldUpdate}. The unit is real-world milliseconds; pass
+ * `update.deltaMilliseconds` to {@link WorldTimer.increment} or
+ * {@link WorldTimer.decrement} from inside a component's update hook and
+ * the timer advances at wall-clock speed regardless of the engine's frame
+ * rate.
  *
  * The mutators ({@link WorldTimer.increment}, {@link WorldTimer.decrement},
  * {@link WorldTimer.set}, {@link WorldTimer.reset}) all return `this` so that
@@ -25,8 +26,8 @@
  * // Lifetime: destroy this object once 1000ms have elapsed.
  * private readonly _lifetime = new WorldTimer(1000);
  *
- * onUpdate(update: Update) {
- *   if (this._lifetime.decrement(update.delta).isLapsed) {
+ * onUpdate(update: WorldUpdate) {
+ *   if (this._lifetime.decrement(update.deltaMilliseconds).isLapsed) {
  *     this.host.destroy();
  *   }
  * }
@@ -37,8 +38,8 @@
  * // Recurring interval: fire a bullet every 250ms.
  * private readonly _fireCooldown = new WorldTimer(250);
  *
- * onUpdate(update: Update) {
- *   if (this._fireCooldown.decrement(update.delta).isLapsed) {
+ * onUpdate(update: WorldUpdate) {
+ *   if (this._fireCooldown.decrement(update.deltaMilliseconds).isLapsed) {
  *     this._spawnBullet();
  *     this._fireCooldown.reset();
  *   }
@@ -87,7 +88,7 @@ export class WorldTimer {
 
   /**
    * `true` once the timer has counted down to zero or below. Designed for
-   * decrement-style use: drive the timer with `decrement(update.delta)` and
+   * decrement-style use: drive the timer with `decrement(update.deltaMilliseconds)` and
    * branch on `isLapsed` to fire whatever effect the timer is gating.
    *
    * For increment-style use (counting up to a threshold) compare
@@ -99,14 +100,14 @@ export class WorldTimer {
 
   /**
    * Advances the timer forward by `delta` milliseconds. Typically called
-   * with `update.delta` from inside a component's update hook.
+   * with `update.deltaMilliseconds` from inside a component's update hook.
    *
    * @param delta Milliseconds to add to the current value. Negative inputs
    * are accepted and simply move the value the other way; this is
    * equivalent to calling {@link WorldTimer.decrement}.
    *
    * @returns This timer, so calls can chain (e.g.
-   * `timer.increment(update.delta).isLapsed`).
+   * `timer.increment(update.deltaMilliseconds).isLapsed`).
    */
   public increment(delta: number): this {
     this._value += delta;
@@ -116,14 +117,14 @@ export class WorldTimer {
 
   /**
    * Advances the timer backward by `delta` milliseconds. Typically called
-   * with `update.delta` from inside a component's update hook.
+   * with `update.deltaMilliseconds` from inside a component's update hook.
    *
    * @param delta Milliseconds to subtract from the current value. Negative
    * inputs are accepted and move the value the other way; this is
    * equivalent to calling {@link WorldTimer.increment}.
    *
    * @returns This timer, so calls can chain (e.g.
-   * `timer.decrement(update.delta).isLapsed`).
+   * `timer.decrement(update.deltaMilliseconds).isLapsed`).
    */
   public decrement(delta: number): this {
     this._value -= delta;

@@ -1,5 +1,5 @@
 import { ErrorCode, throwEngineError } from './error';
-import { Update } from './world/update';
+import { WorldUpdate } from './world/update';
 
 /**
  * Sentinel "empty deps" object used for components that don't implement
@@ -135,20 +135,20 @@ export interface Component<THost, TDeps = unknown> {
    * called. Use for state preparation work that other components'
    * `onUpdate` will read.
    *
-   * @param update The `Update` instance for this tick.
+   * @param update The {@link WorldUpdate} instance for this tick.
    * @param deps The resolved dependencies for this component.
    */
-  onPreUpdate?(update: Update, deps: TDeps): void;
+  onPreUpdate?(update: WorldUpdate, deps: TDeps): void;
 
   /**
    * Lifecycle hook for the **main update** phase. Called once per world
    * tick, after every component's `onPreUpdate` and before any
    * `onPostUpdate`.
    *
-   * @param update The `Update` instance for this tick.
+   * @param update The {@link WorldUpdate} instance for this tick.
    * @param deps The resolved dependencies for this component.
    */
-  onUpdate(update: Update, deps: TDeps): void;
+  onUpdate(update: WorldUpdate, deps: TDeps): void;
 
   /**
    * Optional lifecycle hook for the **post-update** phase. Called once per
@@ -156,10 +156,10 @@ export interface Component<THost, TDeps = unknown> {
    * that has to observe the world *after* this tick's behaviour has been
    * applied — camera follow, transform sync, late-frame audit logs.
    *
-   * @param update The `Update` instance for this tick.
+   * @param update The {@link WorldUpdate} instance for this tick.
    * @param deps The resolved dependencies for this component.
    */
-  onPostUpdate?(update: Update, deps: TDeps): void;
+  onPostUpdate?(update: WorldUpdate, deps: TDeps): void;
 
   /**
    * Lifecycle hook that is called when the host object is destroyed. Should

@@ -1,4 +1,4 @@
-import type { Update, WorldObjectComponent } from '@arcade2d/engine';
+import type { WorldObjectComponent, WorldUpdate } from '@arcade2d/engine';
 import { PolygonGraphics, WorldObject, WorldTimer } from '@arcade2d/engine';
 
 /**
@@ -17,10 +17,10 @@ export class BulletController implements WorldObjectComponent {
 
   onAdded() {}
 
-  onUpdate(update: Update) {
+  onUpdate(update: WorldUpdate) {
     this.host.position.moveInDirection(
       this.host.rotation,
-      update.delta * 0.8,
+      update.deltaMilliseconds * 0.8,
     );
 
     for (const object of this.host.world.findByTag('enemy')) {
@@ -36,7 +36,7 @@ export class BulletController implements WorldObjectComponent {
       }
     }
 
-    if (this._lifetime.decrement(update.delta).isLapsed) {
+    if (this._lifetime.decrement(update.deltaMilliseconds).isLapsed) {
       this.host.destroy();
     }
   }

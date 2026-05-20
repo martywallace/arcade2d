@@ -1,7 +1,7 @@
 import { AbstractComponentHost, Component } from '../components';
 import { Point } from '../geometry';
 import { WorldObjectComponentDependencyResolver } from './dependencies';
-import { Update } from './update';
+import { WorldUpdate } from './update';
 import { World } from './world';
 
 export type WorldObjectMetadata = {
@@ -197,7 +197,7 @@ export class WorldObject extends AbstractComponentHost<WorldObject> {
    * components whose `enabled` is explicitly `false`, and components that
    * do not implement the optional hook.
    */
-  public onPreUpdate(update: Update): void {
+  public onPreUpdate(update: WorldUpdate): void {
     this._runComponentPhase('onPreUpdate', 'component-pre-update', update);
   }
 
@@ -206,7 +206,7 @@ export class WorldObject extends AbstractComponentHost<WorldObject> {
    * the {@link World} during the main update pass of each tick. Skips
    * components whose `enabled` is explicitly `false`.
    */
-  public onUpdate(update: Update): void {
+  public onUpdate(update: WorldUpdate): void {
     this._runComponentPhase('onUpdate', 'component-update', update);
   }
 
@@ -216,7 +216,7 @@ export class WorldObject extends AbstractComponentHost<WorldObject> {
    * Skips components whose `enabled` is explicitly `false`, and components
    * that do not implement the optional hook.
    */
-  public onPostUpdate(update: Update): void {
+  public onPostUpdate(update: WorldUpdate): void {
     this._runComponentPhase('onPostUpdate', 'component-post-update', update);
   }
 
@@ -234,7 +234,7 @@ export class WorldObject extends AbstractComponentHost<WorldObject> {
    * @param method The phase method to invoke.
    * @param errorPhase The error-reporting label to attach to any thrown
    * errors during this phase.
-   * @param update The `Update` instance for this tick.
+   * @param update The {@link WorldUpdate} instance for this tick.
    */
   private _runComponentPhase(
     method: 'onPreUpdate' | 'onUpdate' | 'onPostUpdate',
@@ -242,7 +242,7 @@ export class WorldObject extends AbstractComponentHost<WorldObject> {
       | 'component-pre-update'
       | 'component-update'
       | 'component-post-update',
-    update: Update,
+    update: WorldUpdate,
   ): void {
     if (!this.enabled) {
       return;

@@ -1,7 +1,7 @@
 import type {
-  Update,
   WorldObjectComponent,
   WorldObjectDependencyResolver,
+  WorldUpdate,
 } from '@arcade2d/engine';
 import { Scene, WorldObject, WorldTimer } from '@arcade2d/engine';
 import { BulletPrefab } from '../bullet/bullet.prefab';
@@ -32,17 +32,17 @@ export class PlayerController implements WorldObjectComponent<PlayerDeps> {
     console.log(`Added player controller to ${this.host.metadata.id}`);
   }
 
-  onUpdate(update: Update, { scene }: PlayerDeps) {
+  onUpdate(update: WorldUpdate, { scene }: PlayerDeps) {
     const mouse = scene.getMousePosition();
     const angle = this.host.position.angleTo(mouse);
 
     if (mouse.distanceTo(this.host.position) > 10) {
-      this.host.position.moveTowards(mouse, 0.08 * update.delta);
+      this.host.position.moveTowards(mouse, 0.08 * update.deltaMilliseconds);
     }
 
     this.host.rotation = angle;
 
-    if (this._fireCooldown.decrement(update.delta).isLapsed) {
+    if (this._fireCooldown.decrement(update.deltaMilliseconds).isLapsed) {
       const bullet = this.host.world.createFromPrefab(
         BulletPrefab,
         this.host.position,

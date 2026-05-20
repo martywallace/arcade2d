@@ -6,7 +6,7 @@ import { WorldComponentDependencyResolver } from './dependencies';
 import { PREFAB_BUILD_TOKEN } from './internal';
 import { Prefab } from './prefab';
 import { PrefabRegistry } from './prefab-registry';
-import { Update } from './update';
+import { WorldUpdate } from './update';
 import { WorldObject } from './world-object';
 
 /**
@@ -316,7 +316,27 @@ export type WorldOptions = {
  * ```
  */
 export class World extends AbstractComponentHost<World> {
-  private _lastUpdate = 0;
+  /**
+   * Timestamp of the previous {@link World.update} tick, in monotonic
+   * `performance.now()` milliseconds. `null` before the first tick so the
+   * inaugural {@link WorldUpdate} can emit a zero delta rather than a
+   * since-epoch jump.
+   */
+  private _previousTickTimestamp: number | null = null;
+
+  /**
+   * Timestamp of the world's first {@link World.update} tick, in monotonic
+   * `performance.now()` milliseconds. Captured once on the first tick and
+   * used as the anchor for `elapsedMilliseconds` thereafter.
+   */
+  private _firstTickTimestamp: number | null = null;
+
+  /**
+   * Zero-based counter incremented on every {@link World.update} call.
+   * Exposed to behavior code via {@link WorldUpdate.frameIndex}.
+   */
+  private _frameIndex = 0;
+
   private _isUpdating = false;
   private _objects: WorldObject[] = [];
   private _pendingObjects: WorldObject[] = [];
@@ -462,13 +482,36 @@ export class World extends AbstractComponentHost<World> {
     return object;
   }
 
-  public update(): Update {
-    // Capture `now` once so the timestamp threaded into Update is the same
-    // one stored as `_lastUpdate` for the next frame. Otherwise the next
-    // frame's `prev` would be later than this frame's `current`, silently
-    // dropping the time spent inside update() itself from the running clock.
-    const now = Date.now();
-    const update = new Update(this._lastUpdate, now);
+  public update(): WorldUpdate {
+    // Capture `now` once so the value threaded into WorldUpdate is the same
+    // one stored as `_previousTickTimestamp` for the next frame. Otherwise
+    // the next frame would diff against a timestamp later than this frame's
+    // `now`, silently dropping the time spent inside update() itself from
+    // the running clock.
+    //
+    // `performance.now()` is monotonic (unlike `Date.now()`, which can jump
+    // backwards under NTP sync or DST adjustments) so deltas can be trusted
+    // to be non-negative.
+    const now = performance.now();
+
+    if (this._firstTickTimestamp === null) {
+      this._firstTickTimestamp = now;
+    }
+
+    // First tick has no prior timestamp to diff against; emit a zero delta
+    // rather than a since-epoch jump that would teleport every moving
+    // entity. Subsequent ticks diff against the previous tick's `now`.
+    const deltaMilliseconds =
+      this._previousTickTimestamp === null
+        ? 0
+        : now - this._previousTickTimestamp;
+    const elapsedMilliseconds = now - this._firstTickTimestamp;
+
+    const update = new WorldUpdate(
+      deltaMilliseconds,
+      elapsedMilliseconds,
+      this._frameIndex,
+    );
 
     this._isUpdating = true;
 
@@ -565,7 +608,8 @@ export class World extends AbstractComponentHost<World> {
       this._isUpdating = false;
     }
 
-    this._lastUpdate = now;
+    this._previousTickTimestamp = now;
+    this._frameIndex += 1;
 
     return update;
   }
@@ -683,7 +727,7 @@ export class World extends AbstractComponentHost<World> {
    * @param method The phase method to invoke on each component.
    * @param errorPhase The {@link WorldErrorPhase} label attached to thrown
    * errors during this phase.
-   * @param update The `Update` instance for this tick.
+   * @param update The {@link WorldUpdate} instance for this tick.
    */
   private _runWorldComponentPhase(
     method: 'onPreUpdate' | 'onUpdate' | 'onPostUpdate',
@@ -691,7 +735,7 @@ export class World extends AbstractComponentHost<World> {
       | 'component-pre-update'
       | 'component-update'
       | 'component-post-update',
-    update: Update,
+    update: WorldUpdate,
   ): void {
     if (!this.enabled) {
       return;

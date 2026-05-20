@@ -1,4 +1,4 @@
-import type { Update, WorldObjectComponent } from '@arcade2d/engine';
+import type { WorldObjectComponent, WorldUpdate } from '@arcade2d/engine';
 import { Point, WorldObject } from '@arcade2d/engine';
 import { ZombiePrefab } from './zombie.prefab';
 
@@ -13,12 +13,15 @@ export class ZombieController implements WorldObjectComponent {
 
   onAdded() {}
 
-  onUpdate(update: Update) {
+  onUpdate(update: WorldUpdate) {
     const player = this.host.world.findOneByTag('player');
 
     if (player) {
       if (this.host.position.distanceTo(player.position) > 10) {
-        this.host.position.moveTowards(player.position, update.delta * 0.05);
+        this.host.position.moveTowards(
+          player.position,
+          update.deltaMilliseconds * 0.05,
+        );
       } else {
         // Destroy this zombie.
         this.host.destroy();

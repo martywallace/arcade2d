@@ -546,15 +546,42 @@ describe('World', () => {
   });
 
   describe('timing', () => {
-    test('a frame uses a single now value for both Update.current and the stored previous timestamp', () => {
+    test('elapsedMilliseconds across consecutive ticks equals the sum of deltas', () => {
       const world = createWorld();
 
       const first = world.update();
       const second = world.update();
+      const third = world.update();
 
-      // The second frame's `previous` should be exactly the first frame's
-      // `current`, with no drift from intra-frame Date.now() drift.
-      expect(second.previous).toBe(first.current);
+      // The no-drift invariant restated against the public surface: no
+      // wall-clock time is silently lost between ticks, so each frame's
+      // elapsed clock equals the previous elapsed plus the current delta.
+      expect(second.elapsedMilliseconds).toBe(
+        first.elapsedMilliseconds + second.deltaMilliseconds,
+      );
+      expect(third.elapsedMilliseconds).toBe(
+        second.elapsedMilliseconds + third.deltaMilliseconds,
+      );
+    });
+
+    test('the first tick emits a zero delta and a zero elapsed time', () => {
+      const world = createWorld();
+
+      const first = world.update();
+
+      // First tick has no prior timestamp to diff against; emitting a
+      // since-epoch delta would teleport every moving entity on the
+      // inaugural frame, so the engine deliberately reports 0.
+      expect(first.deltaMilliseconds).toBe(0);
+      expect(first.elapsedMilliseconds).toBe(0);
+    });
+
+    test('frameIndex increments by one on every tick, starting at zero', () => {
+      const world = createWorld();
+
+      expect(world.update().frameIndex).toBe(0);
+      expect(world.update().frameIndex).toBe(1);
+      expect(world.update().frameIndex).toBe(2);
     });
 
     test('calls onDestroy on pending objects that have not been flushed yet', () => {
