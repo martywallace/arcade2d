@@ -23,14 +23,26 @@ export type WorldObjectMetadata = {
 };
 
 /**
+ * Internal lifecycle states a {@link WorldObject} can be in. Encoded as a
+ * single state field rather than a pair of booleans so that "marked" and
+ * "cleaned" can never disagree.
+ *
+ * - `live`: in the world, eligible for `onUpdate`.
+ * - `marked`: {@link WorldObject.destroy} has been called; the world will
+ *   sweep this object at the end of the current/next tick.
+ * - `cleaned`: {@link WorldObject.onDestroy} has run; further calls are
+ *   no-ops.
+ */
+type WorldObjectLifecycle = 'live' | 'marked' | 'cleaned';
+
+/**
  * The core object that exists within a `World` - its behaviour and
  * functionality defined by its `Component`s. Every `WorldObject` has its own
  * virtual position within a world but otherwise has no engine-defined
  * characteristics - that is up to you!
  */
 export class WorldObject extends AbstractComponentHost<WorldObject> {
-  private _destroyed = false;
-  private _onDestroyCalled = false;
+  private _lifecycle: WorldObjectLifecycle = 'live';
 
   public readonly position: Point;
 
@@ -62,18 +74,41 @@ export class WorldObject extends AbstractComponentHost<WorldObject> {
    * defensively without worrying about double-cleanup of components.
    */
   public onDestroy(): void {
-    if (this._onDestroyCalled) {
+    if (this._lifecycle === 'cleaned') {
       return;
     }
 
-    this._onDestroyCalled = true;
+    this._lifecycle = 'cleaned';
     this.removeAllComponents();
   }
 
   public onUpdate(update: Update): void {
-    for (const [_, component] of this.components) {
-      component.onUpdate(update);
+    // Each component is isolated so one throwing component does not kill
+    // the rest of this object's frame, nor the wider world tick.
+    for (const [key, component] of this.components) {
+      try {
+        component.onUpdate(update);
+      } catch (error) {
+        this.world.reportError({
+          phase: 'component-update',
+          error,
+          host: this,
+          componentKey: key,
+        });
+      }
     }
+  }
+
+  protected override _handleComponentDestroyError(
+    error: unknown,
+    key: string,
+  ): void {
+    this.world.reportError({
+      phase: 'component-destroy',
+      error,
+      host: this,
+      componentKey: key,
+    });
   }
 
   /**
@@ -86,18 +121,23 @@ export class WorldObject extends AbstractComponentHost<WorldObject> {
    * during the same tick (e.g. it was destroyed by a component or by an
    * earlier object in the iteration), its `onUpdate` is skipped — destroyed
    * objects do not get one final tick.
+   *
+   * Calling `destroy` on an already-marked or already-cleaned object is a
+   * no-op.
    */
   public destroy(): void {
-    this._destroyed = true;
+    if (this._lifecycle === 'live') {
+      this._lifecycle = 'marked';
+    }
   }
 
   /**
-   * Whether this object has been marked as destroyed. If `true`, the object
-   * will be removed from the world at the end of the current (or next)
-   * {@link World.update} tick.
+   * Whether this object is no longer alive — either marked for destruction
+   * and awaiting the next sweep, or already cleaned up. Live objects return
+   * `false`; everything else returns `true`.
    */
   public get destroyed(): boolean {
-    return this._destroyed;
+    return this._lifecycle !== 'live';
   }
 
   protected getHostReference(): WorldObject {

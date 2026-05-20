@@ -5,8 +5,58 @@ import { Prefab } from './prefab';
 import { Update } from './update';
 import { WorldObject } from './world-object';
 
+/**
+ * Lifecycle phase in which a {@link WorldErrorContext} was produced.
+ *
+ * - `component-update`: a component threw during its `onUpdate`.
+ * - `component-destroy`: a component threw during its `onDestroy`.
+ */
+export type WorldErrorPhase = 'component-update' | 'component-destroy';
+
+/**
+ * Context handed to the {@link WorldOptions.onError} handler whenever a
+ * user-supplied component callback throws during the engine's update or
+ * teardown.
+ */
+export type WorldErrorContext = {
+  /**
+   * Which lifecycle phase the throw came from. See {@link WorldErrorPhase}.
+   */
+  readonly phase: WorldErrorPhase;
+
+  /**
+   * The thrown value. Untyped because user code can throw anything.
+   */
+  readonly error: unknown;
+
+  /**
+   * The host the failing component was attached to — either the {@link World}
+   * itself (for world-scoped components) or a {@link WorldObject}.
+   */
+  readonly host: World | WorldObject;
+
+  /**
+   * The key the failing component was registered under on its host.
+   */
+  readonly componentKey: string;
+};
+
 export type WorldOptions = {
   readonly components: (world: World) => Record<string, () => Component<World>>;
+
+  /**
+   * Optional error handler invoked whenever a component callback throws
+   * during `onUpdate` or `onDestroy`. If omitted, the engine logs to
+   * `console.error` and continues. Either way, the offending component
+   * does not abort the rest of the tick — other components on the same
+   * host, and all other hosts, keep running. This is the engine's
+   * resilience contract.
+   *
+   * Throwing from inside the handler itself *will* propagate out of
+   * {@link World.update} (and back through the engine's `finally`), giving
+   * callers an opt-in path to fail-fast.
+   */
+  readonly onError?: (context: WorldErrorContext) => void;
 };
 
 /**
@@ -50,11 +100,49 @@ export class World extends AbstractComponentHost<World> {
 
   private readonly _mappedObjects: Map<string, WorldObject> = new Map();
   private readonly _idGenerator = new IDGenerator();
+  private readonly _onError?: (context: WorldErrorContext) => void;
 
   constructor(options: WorldOptions) {
     super();
 
+    this._onError = options.onError;
+
     this.addComponentsFromFactories(options.components(this));
+  }
+
+  /**
+   * Routes a runtime component error through the configured handler, or to
+   * `console.error` when no handler is supplied. Called by the engine
+   * whenever a component's `onUpdate` or `onDestroy` throws. Safe to call
+   * from user code too if you want to surface your own errors through the
+   * same channel.
+   *
+   * @param context Details about the failing component and the phase it
+   * was running in.
+   */
+  public reportError(context: WorldErrorContext): void {
+    if (this._onError) {
+      this._onError(context);
+
+      return;
+    }
+
+    console.error(
+      `[arcade2d] component "${context.componentKey}" threw during ${context.phase}:`,
+      context.error,
+    );
+  }
+
+  protected override _handleComponentDestroyError(
+    error: unknown,
+    key: string,
+  ): void {
+    this.reportError({
+      phase: 'component-destroy',
+      error,
+      host: this,
+      componentKey: key,
+    });
   }
 
   /**
@@ -107,70 +195,95 @@ export class World extends AbstractComponentHost<World> {
   }
 
   public update(): Update {
+    // Capture `now` once so the timestamp threaded into Update is the same
+    // one stored as `_lastUpdate` for the next frame. Otherwise the next
+    // frame's `prev` would be later than this frame's `current`, silently
+    // dropping the time spent inside update() itself from the running clock.
+    const now = Date.now();
+    const update = new Update(this._lastUpdate, now);
+
     this._isUpdating = true;
-    const update = new Update(this._lastUpdate, Date.now());
 
-    // Phase 1: component update.
-    for (const [_, component] of this.components) {
-      component.onUpdate(update);
-    }
-
-    // Phase 2: object update. Skip anything that was destroyed earlier in the
-    // tick (either by the component phase or by another object's onUpdate) so
-    // a dying entity does not get one final tick after its death is observable
-    // to others.
-    for (const object of this._objects) {
-      if (object.destroyed) {
-        continue;
-      }
-
-      object.onUpdate(update);
-    }
-
-    // Phase 3a: sweep destroyed objects from the live set. We track a set of
-    // the objects whose onDestroy we actually ran rather than re-checking
-    // `destroyed` in the compaction pass — an onDestroy hook is allowed to
-    // mark *other* objects destroyed, and those re-entrantly-destroyed
-    // objects must be left in the live set so they receive their own
-    // onDestroy on the next tick rather than vanishing silently here.
-    const swept: WorldObject[] = [];
-
-    for (const object of this._objects) {
-      if (object.destroyed) {
-        object.onDestroy();
-        swept.push(object);
-      }
-    }
-
-    if (swept.length > 0) {
-      const sweptSet = new Set(swept);
-
-      for (const object of swept) {
-        this._mappedObjects.delete(object.metadata.id);
-      }
-
-      this._objects = this._objects.filter((object) => !sweptSet.has(object));
-    }
-
-    // Phase 3b: flush objects spawned during this tick. An object that was
-    // spawned and then destroyed within the same tick never enters the live
-    // set, but we still run onDestroy so component cleanup happens.
-    if (this._pendingObjects.length > 0) {
-      const pending = this._pendingObjects;
-      this._pendingObjects = [];
-
-      for (const object of pending) {
-        if (object.destroyed) {
-          object.onDestroy();
-          this._mappedObjects.delete(object.metadata.id);
-        } else {
-          this._objects.push(object);
+    // try/finally guarantees `_isUpdating` is reset even if a component or
+    // object hook throws. Without this, a single thrown error would wedge
+    // every future spawn into pending forever.
+    try {
+      // Phase 1: component update. Each component is isolated so one
+      // throwing component does not kill the rest of the world's frame.
+      for (const [key, component] of this.components) {
+        try {
+          component.onUpdate(update);
+        } catch (error) {
+          this.reportError({
+            phase: 'component-update',
+            error,
+            host: this,
+            componentKey: key,
+          });
         }
       }
+
+      // Phase 2: object update. Skip anything that was destroyed earlier in
+      // the tick (either by the component phase or by another object's
+      // onUpdate) so a dying entity does not get one final tick after its
+      // death is observable to others.
+      for (const object of this._objects) {
+        if (object.destroyed) {
+          continue;
+        }
+
+        object.onUpdate(update);
+      }
+
+      // Phase 3a: sweep destroyed objects from the live set. We track a set
+      // of the objects whose onDestroy we actually ran rather than
+      // re-checking `destroyed` in the compaction pass — an onDestroy hook
+      // is allowed to mark *other* objects destroyed, and those
+      // re-entrantly-destroyed objects must be left in the live set so they
+      // receive their own onDestroy on the next tick rather than vanishing
+      // silently here.
+      const swept: WorldObject[] = [];
+
+      for (const object of this._objects) {
+        if (object.destroyed) {
+          object.onDestroy();
+          swept.push(object);
+        }
+      }
+
+      if (swept.length > 0) {
+        const sweptSet = new Set(swept);
+
+        for (const object of swept) {
+          this._mappedObjects.delete(object.metadata.id);
+        }
+
+        this._objects = this._objects.filter(
+          (object) => !sweptSet.has(object),
+        );
+      }
+
+      // Phase 3b: flush objects spawned during this tick. An object that was
+      // spawned and then destroyed within the same tick never enters the
+      // live set, but we still run onDestroy so component cleanup happens.
+      if (this._pendingObjects.length > 0) {
+        const pending = this._pendingObjects;
+        this._pendingObjects = [];
+
+        for (const object of pending) {
+          if (object.destroyed) {
+            object.onDestroy();
+            this._mappedObjects.delete(object.metadata.id);
+          } else {
+            this._objects.push(object);
+          }
+        }
+      }
+    } finally {
+      this._isUpdating = false;
     }
 
-    this._lastUpdate = Date.now();
-    this._isUpdating = false;
+    this._lastUpdate = now;
 
     return update;
   }
@@ -214,18 +327,33 @@ export class World extends AbstractComponentHost<World> {
   }
 
   /**
-   * Finds all objects in the world with the given tag.
+   * Finds all objects in the world with the given tag. Includes objects that
+   * have just been spawned this tick and are awaiting promotion into the
+   * live set, matching the same-tick visibility offered by
+   * {@link World.findById}.
    *
    * @param tag The tag to find objects by.
    *
    * @returns An array of objects with the given tag.
    */
   public findByTag(tag: string): readonly WorldObject[] {
-    return this._objects.filter((object) => object.metadata.tags.has(tag));
+    const matches = this._objects.filter((object) =>
+      object.metadata.tags.has(tag),
+    );
+
+    for (const object of this._pendingObjects) {
+      if (object.metadata.tags.has(tag)) {
+        matches.push(object);
+      }
+    }
+
+    return matches;
   }
 
   /**
-   * Finds a single object in the world with the given tag.
+   * Finds a single object in the world with the given tag. Includes objects
+   * that have just been spawned this tick and are awaiting promotion into
+   * the live set.
    *
    * @param tag The tag to find an object by.
    *
@@ -233,8 +361,15 @@ export class World extends AbstractComponentHost<World> {
    * found.
    */
   public findOneByTag(tag: string): WorldObject | null {
+    const match = this._objects.find((object) => object.metadata.tags.has(tag));
+
+    if (match) {
+      return match;
+    }
+
     return (
-      this._objects.find((object) => object.metadata.tags.has(tag)) ?? null
+      this._pendingObjects.find((object) => object.metadata.tags.has(tag)) ??
+      null
     );
   }
 

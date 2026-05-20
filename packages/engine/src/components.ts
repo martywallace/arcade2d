@@ -374,12 +374,39 @@ export abstract class AbstractComponentHost<THost extends ComponentHost<THost>>
   }
 
   public removeAllComponents(): void {
-    for (const [_, component] of this.components) {
-      component.onDestroy();
+    // Snapshot first so siblings remain reachable to each other during
+    // onDestroy (the documented teardown contract), and so that a throwing
+    // onDestroy cannot leave `components` half-populated.
+    const snapshot = [...this.components];
+
+    for (const [key, component] of snapshot) {
+      try {
+        component.onDestroy();
+      } catch (error) {
+        this._handleComponentDestroyError(error, key);
+      }
     }
 
     this.components.clear();
     this._componentByTypeCache.clear();
+  }
+
+  /**
+   * Hook for subclasses to intercept errors thrown by a component's
+   * `onDestroy` during {@link AbstractComponentHost.removeAllComponents}.
+   * Default behaviour is to log and swallow — a single bad component must
+   * not prevent the rest of the host's components from being torn down.
+   * Subclasses may override to route errors through their own reporting
+   * channel.
+   *
+   * @param error The thrown error.
+   * @param key The key of the component that threw.
+   */
+  protected _handleComponentDestroyError(error: unknown, key: string): void {
+    console.error(
+      `[arcade2d] component "${key}" threw during onDestroy:`,
+      error,
+    );
   }
 
   /**
