@@ -3,7 +3,7 @@ import type {
   WorldObjectComponent,
   WorldObjectDependencyResolver,
 } from '@arcade2d/engine';
-import { SimpleGraphics, WorldObject } from '@arcade2d/engine';
+import { SimpleGraphics, WorldObject, WorldTimer } from '@arcade2d/engine';
 
 /**
  * Bullet only needs a reference to its own visual so it can sync its
@@ -16,7 +16,7 @@ type BulletDeps = {
 
 export class BulletController implements WorldObjectComponent<BulletDeps> {
   private _angle = 0;
-  private _lifetime = 1000;
+  private readonly _lifetime = new WorldTimer(1000);
 
   // Captured from the resolved deps in `onAdded` so the externally-called
   // setAngle method can reach the sibling component without doing its own
@@ -51,9 +51,7 @@ export class BulletController implements WorldObjectComponent<BulletDeps> {
       }
     }
 
-    this._lifetime -= update.delta;
-
-    if (this._lifetime < 0) {
+    if (this._lifetime.decrement(update.delta).isLapsed) {
       this.host.destroy();
     }
   }

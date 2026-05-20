@@ -3,7 +3,12 @@ import type {
   WorldObjectComponent,
   WorldObjectDependencyResolver,
 } from '@arcade2d/engine';
-import { Scene, SimpleGraphics, WorldObject } from '@arcade2d/engine';
+import {
+  Scene,
+  SimpleGraphics,
+  WorldObject,
+  WorldTimer,
+} from '@arcade2d/engine';
 import { BulletController } from '../bullet/bullet.controller.component';
 import { BulletPrefab } from '../bullet/bullet.prefab';
 
@@ -24,7 +29,7 @@ type PlayerDeps = {
 };
 
 export class PlayerController implements WorldObjectComponent<PlayerDeps> {
-  private _counter = 0;
+  private readonly _fireCooldown = new WorldTimer(250);
 
   constructor(public readonly host: WorldObject) {}
 
@@ -49,16 +54,14 @@ export class PlayerController implements WorldObjectComponent<PlayerDeps> {
 
     graphics.rotation = angle;
 
-    this._counter += update.delta;
-
-    if (this._counter > 250) {
+    if (this._fireCooldown.decrement(update.delta).isLapsed) {
       const bullet = this.host.world.createFromPrefab(
         BulletPrefab,
         this.host.position,
       );
       bullet.getComponent<BulletController>('controller').setAngle(angle);
 
-      this._counter = 0;
+      this._fireCooldown.reset();
     }
   }
 
