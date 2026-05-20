@@ -88,6 +88,26 @@ describe('CircleGraphics', () => {
     });
   });
 
+  test('syncs the host transform on add, before any tick has run', () => {
+    // Regression: previously the display sat at Pixi's default (0, 0) until
+    // the next onPostUpdate, producing a one-frame flicker at the origin
+    // when an object was spawned mid-tick or between bootstrap and the first
+    // tick. The fix syncs the transform inside onAdded.
+    const { world } = createWorldWithScene();
+    const object = world.createEmpty({ x: 250, y: 175 });
+    object.rotation = Math.PI;
+    object.scale.set(1.5, 2.5);
+
+    const graphics = new CircleGraphics(object, new Circle(5));
+    object.addComponent('graphics', graphics);
+
+    expect(graphics.raw.x).toBe(250);
+    expect(graphics.raw.y).toBe(175);
+    expect(graphics.raw.rotation).toBe(Math.PI);
+    expect(graphics.raw.scale.x).toBe(1.5);
+    expect(graphics.raw.scale.y).toBe(2.5);
+  });
+
   test('syncs the host transform to the display object during onPostUpdate', () => {
     const { world } = createWorldWithScene();
     const object = world.createEmpty();

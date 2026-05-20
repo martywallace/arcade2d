@@ -32,6 +32,13 @@ import { Scene } from './scene';
  * controller's `onUpdate` move and a physics body's `onPostUpdate` snap both
  * end up on screen the same frame.
  *
+ * An initial sync also runs in {@link AbstractGraphics.onAdded}, immediately
+ * after the display is parented to the {@link Scene}. Without this, an object
+ * spawned mid-tick (after the world's `onPostUpdate` pass) — or spawned in
+ * setup code between bootstrap and the first tick — would render at Pixi's
+ * default `(0, 0)` for one frame before the next tick's sync caught up,
+ * producing a single-frame flicker at the origin.
+ *
  * ### Lifecycle ownership
  *
  * The base parents the display object to the {@link Scene} in `onAdded` and
@@ -101,6 +108,12 @@ export abstract class AbstractGraphics<T extends Container>
 
   public onAdded(): void {
     this._scene.addChild(this._display);
+
+    // Seed the display's transform from the host immediately. Spawns that
+    // happen mid-tick (or between bootstrap and the first tick) would
+    // otherwise render once at Pixi's default (0, 0) before the next tick's
+    // onPostUpdate caught up.
+    this._syncTransform();
   }
 
   public onUpdate(): void {
@@ -110,14 +123,18 @@ export abstract class AbstractGraphics<T extends Container>
   }
 
   public onPostUpdate(): void {
-    this._display.x = this.host.position.x;
-    this._display.y = this.host.position.y;
-    this._display.rotation = this.host.rotation;
-    this._display.scale.set(this.host.scale.x, this.host.scale.y);
+    this._syncTransform();
   }
 
   public onDestroy(): void {
     this._scene.removeChild(this._display);
     this._display.destroy();
+  }
+
+  private _syncTransform(): void {
+    this._display.x = this.host.position.x;
+    this._display.y = this.host.position.y;
+    this._display.rotation = this.host.rotation;
+    this._display.scale.set(this.host.scale.x, this.host.scale.y);
   }
 }
