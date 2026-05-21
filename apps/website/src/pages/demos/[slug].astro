@@ -32,6 +32,22 @@ const embedSrc = `/embeds/${demo.slug}/index.html`;
       allowfullscreen></iframe>
   </div>
 
+  {
+    demo.controls && demo.controls.length > 0 && (
+      <section class="instructions" aria-label="Controls">
+        <h2>Controls</h2>
+        <ul>
+          {demo.controls.map((control) => (
+            <li>
+              <kbd>{control.input}</kbd>
+              <span>{control.action}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
+
   <style>
     .demo-header {
       margin-bottom: 1.25rem;
@@ -63,6 +79,46 @@ const embedSrc = `/embeds/${demo.slug}/index.html`;
       height: 100%;
       border: 0;
       display: block;
+    }
+    .instructions {
+      margin-top: 1.5rem;
+    }
+    .instructions h2 {
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin: 0 0 0.75rem;
+    }
+    .instructions ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.5rem;
+    }
+    .instructions li {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .instructions kbd {
+      display: inline-block;
+      min-width: 2.25rem;
+      text-align: center;
+      padding: 0.3rem 0.6rem;
+      border: 1px solid var(--border);
+      border-bottom-width: 3px;
+      border-radius: 6px;
+      background: #161a21;
+      color: var(--fg);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.85rem;
+      line-height: 1;
+    }
+    .instructions span {
+      color: var(--muted);
     }
   </style>
 </Layout>

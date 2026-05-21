@@ -13,6 +13,17 @@
  *      so Turbo builds it before the website.
  *   3. Append a new entry here.
  */
+/**
+ * A single control binding shown in a demo's instructions panel — a chunk of
+ * input (`WASD`, `Mouse`, `Click`) paired with what it does in the demo.
+ */
+export type DemoControl = {
+  /** The input, e.g. `WASD`, `Mouse`, `Click`. Rendered as a key cap. */
+  readonly input: string;
+  /** What the input does, e.g. `Move`, `Aim`, `Shoot`. */
+  readonly action: string;
+};
+
 export type DemoEntry = {
   /** URL slug — the demo will be reachable at `/demos/<slug>`. */
   readonly slug: string;
@@ -22,6 +33,11 @@ export type DemoEntry = {
   readonly description: string;
   /** Folder name under `demos/` in the monorepo root. */
   readonly workspaceDir: string;
+  /**
+   * Input bindings for the demo, rendered as an instructions panel beneath the
+   * embed. Omit for demos that take no input.
+   */
+  readonly controls?: readonly DemoControl[];
 };
 
 export const DEMOS: readonly DemoEntry[] = [
@@ -31,6 +47,11 @@ export const DEMOS: readonly DemoEntry[] = [
     description:
       'A top-down shooter built on arcade2d — player movement, prefab spawning, and a pile of zombies. The de-facto end-to-end exercise of the engine.',
     workspaceDir: 'td-shooter',
+    controls: [
+      { input: 'WASD', action: 'Move' },
+      { input: 'Mouse', action: 'Aim' },
+      { input: 'Click', action: 'Shoot' },
+    ],
   },
 ];
 
