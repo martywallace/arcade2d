@@ -4,6 +4,7 @@ import ApiSidebar from '../../components/api/ApiSidebar.astro';
 import { symbolCategories } from '../../lib/api/load';
 import { summaryExcerpt } from '../../lib/api/comment';
 import { kindLabel, kindTag } from '../../lib/api/kinds';
+import { toSlug } from '../../lib/api/slug';
 
 const groups = symbolCategories();
 ---
@@ -21,7 +22,7 @@ const groups = symbolCategories();
       </p>
 
       {groups.map((group) => (
-        <section>
+        <section id={toSlug(group.title)} class="category">
           <h2>{group.title}</h2>
           <ul class="symbol-grid">
             {group.symbols.map((s) => (
@@ -59,6 +60,9 @@ const groups = symbolCategories();
       color: var(--muted);
       max-width: 60ch;
       margin: 0 0 2rem;
+    }
+    .category {
+      scroll-margin-top: 1.5rem;
     }
     h2 {
       font-size: 1.3rem;

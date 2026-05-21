@@ -3,6 +3,29 @@ import { Icon } from 'astro-icon/components';
 import Layout from '../layouts/Layout.astro';
 import DemoGrid from '../components/DemoGrid.astro';
 import { DEMOS, REPO_URL } from '../demos';
+import { symbolCategories } from '../lib/api/load';
+import { toSlug } from '../lib/api/slug';
+
+// Icon + one-line blurb per documentation category. Categories themselves come
+// from the engine's folder structure (symbolCategories), so this only needs a
+// new entry when a brand-new top-level engine folder appears; unknown
+// categories fall back to a generic icon and just their symbol count.
+const CONCEPTS: Record<string, { icon: string; blurb: string }> = {
+  Core: { icon: 'lucide:blocks', blurb: 'Game lifecycle, components, and the error model.' },
+  World: { icon: 'lucide:globe', blurb: 'Worlds, objects, prefabs, and the per-frame update loop.' },
+  Graphics: { icon: 'lucide:palette', blurb: 'Rendering — the scene graph and drawable shapes.' },
+  Geometry: { icon: 'lucide:ruler', blurb: 'Points, shapes, and spatial math.' },
+  Input: { icon: 'lucide:keyboard', blurb: 'Keyboard and mouse state, sampled per tick.' },
+  Utilities: { icon: 'lucide:wrench', blurb: 'Helpers like seeded RNG and id generation.' },
+};
+
+const concepts = symbolCategories().map((c) => ({
+  title: c.title,
+  slug: toSlug(c.title),
+  count: c.symbols.length,
+  icon: CONCEPTS[c.title]?.icon ?? 'lucide:box',
+  blurb: CONCEPTS[c.title]?.blurb ?? '',
+}));
 ---
 
 <Layout
@@ -42,6 +65,31 @@ import { DEMOS, REPO_URL } from '../demos';
   <section id="demos" class="demos-section">
     <h2>Demos</h2>
     <DemoGrid demos={DEMOS} />
+  </section>
+
+  <section class="concepts-section">
+    <h2>Concepts</h2>
+    <p class="section-lede">
+      The engine surface, by area. Each links into the API reference.
+    </p>
+    <ul class="concepts">
+      {concepts.map((c) => (
+        <li>
+          <a href={`/docs#${c.slug}`}>
+            <span class="concepts__icon">
+              <Icon name={c.icon} />
+            </span>
+            <span class="concepts__body">
+              <span class="concepts__title">
+                {c.title}
+                <span class="concepts__count">{c.count}</span>
+              </span>
+              {c.blurb && <span class="concepts__blurb">{c.blurb}</span>}
+            </span>
+          </a>
+        </li>
+      ))}
+    </ul>
   </section>
 
   <style>
@@ -117,6 +165,76 @@ import { DEMOS, REPO_URL } from '../demos';
     }
     .demos-section {
       padding-bottom: 1rem;
+    }
+    .concepts-section {
+      padding: 4rem 0 2rem;
+    }
+    .section-lede {
+      color: var(--muted);
+      margin: 0 0 1.25rem;
+    }
+    .concepts {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+    .concepts a {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.85rem;
+      height: 100%;
+      padding: 1rem 1.1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--fg);
+      transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
+    }
+    .concepts a:hover {
+      border-color: var(--accent);
+      background: var(--surface);
+      text-decoration: none;
+    }
+    .concepts__icon {
+      flex: none;
+      display: grid;
+      place-items: center;
+      width: 2.4rem;
+      height: 2.4rem;
+      border-radius: 8px;
+      background: var(--accent);
+      color: var(--accent-contrast);
+    }
+    .concepts__icon :global([data-icon]) {
+      width: 1.3rem;
+      height: 1.3rem;
+    }
+    .concepts__body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+    .concepts__title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+    }
+    .concepts__count {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.02rem 0.45rem;
+    }
+    .concepts__blurb {
+      font-size: 0.9rem;
+      color: var(--muted);
     }
     .button {
       display: inline-flex;
