@@ -1,6 +1,7 @@
 ---
 import { Icon } from 'astro-icon/components';
 import { REPO_URL } from '../demos';
+import Search from '../components/Search.astro';
 import '../styles/global.css';
 
 type Props = {
@@ -34,6 +35,18 @@ const navLink = 'inline-flex items-center text-muted hover:text-fg hover:no-unde
             <img class="block h-10 w-auto" src="/logo.png" alt="arcade2d" width="180" height="110" />
           </a>
           <nav class="flex items-center gap-4">
+            <button
+              type="button"
+              data-search-open
+              aria-label="Search the API reference"
+              class="inline-flex items-center gap-2 rounded-md border border-border px-2.5 py-1 text-sm text-muted hover:border-accent hover:text-fg"
+            >
+              <Icon name="lucide:search" class="size-4" />
+              <span class="max-sm:hidden">Search</span>
+              <kbd class="rounded border border-border bg-surface px-1.5 py-0.5 font-mono text-[0.7rem] max-sm:hidden">
+                ⌘K
+              </kbd>
+            </button>
             <a class={navLink} href="/demos">Demos</a>
             <a class={navLink} href="/docs">Docs</a>
             <a
@@ -69,5 +82,6 @@ const navLink = 'inline-flex items-center text-muted hover:text-fg hover:no-unde
         </a>
       </nav>
     </footer>
+    <Search />
   </body>
 </html>

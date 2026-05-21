@@ -1,0 +1,207 @@
+---
+import { Icon } from 'astro-icon/components';
+import { symbolCategories } from '../lib/api/load';
+import { summaryExcerpt } from '../lib/api/comment';
+import { kindLabel } from '../lib/api/kinds';
+
+// Build the search index at build time from the same symbol model the docs
+// pages use. The set is small (~70 entries), so we ship the whole thing inline
+// as JSON and filter it client-side — no extra request, no search backend.
+const entries = symbolCategories().flatMap((cat) =>
+  cat.symbols.map((s) => ({
+    name: s.reflection.name,
+    slug: s.slug,
+    kind: kindLabel(s.reflection.kind),
+    category: cat.title,
+    summary: summaryExcerpt(s.reflection.comment, 110),
+  })),
+);
+---
+
+<dialog
+  id="search-dialog"
+  class="w-[min(92vw,560px)] rounded-xl border border-border bg-canvas p-0 shadow-2xl [margin:10vh_auto_auto] backdrop:bg-black/40"
+  aria-label="Search the API reference"
+>
+  <div class="flex items-center gap-2 border-b border-border px-4">
+    <Icon name="lucide:search" class="size-4 flex-none text-muted" />
+    <input
+      id="search-input"
+      type="text"
+      autocomplete="off"
+      spellcheck="false"
+      placeholder="Search the API…"
+      aria-label="Search the API reference"
+      aria-controls="search-results"
+      class="w-full bg-transparent py-3 text-[0.95rem] text-fg outline-none"
+    />
+    <kbd
+      class="flex-none rounded border border-border bg-surface px-1.5 py-0.5 font-mono text-[0.7rem] text-muted"
+      >ESC</kbd
+    >
+  </div>
+  <ul
+    id="search-results"
+    role="listbox"
+    aria-label="Search results"
+    class="m-0 max-h-[58vh] list-none overflow-y-auto p-2"
+  >
+  </ul>
+  <p id="search-empty" class="hidden px-4 py-8 text-center text-sm text-muted">
+    No matching symbols.
+  </p>
+</dialog>
+
+<script
+  type="application/json"
+  id="search-data"
+  is:inline
+  set:html={JSON.stringify(entries)}
+/>
+
+<script>
+  type Entry = {
+    name: string;
+    slug: string;
+    kind: string;
+    category: string;
+    summary: string;
+  };
+
+  const dialog = document.getElementById('search-dialog') as HTMLDialogElement | null;
+  const input = document.getElementById('search-input') as HTMLInputElement | null;
+  const list = document.getElementById('search-results') as HTMLUListElement | null;
+  const empty = document.getElementById('search-empty') as HTMLParagraphElement | null;
+  const dataEl = document.getElementById('search-data');
+
+  if (dialog && input && list && empty && dataEl) {
+    const data: Entry[] = JSON.parse(dataEl.textContent ?? '[]');
+
+    let results: Entry[] = [];
+    let active = 0;
+
+    // Lower score = better match. Exact name beats prefix beats substring beats
+    // a summary hit; among substring hits, earlier matches rank higher.
+    function score(entry: Entry, q: string): number {
+      const name = entry.name.toLowerCase();
+      if (name === q) return 0;
+      if (name.startsWith(q)) return 1;
+      const at = name.indexOf(q);
+      if (at >= 0) return 2 + at / 1000;
+      if (entry.summary.toLowerCase().includes(q)) return 50;
+      return Infinity;
+    }
+
+    function search(raw: string): Entry[] {
+      const q = raw.trim().toLowerCase();
+      if (!q) return data;
+      return data
+        .map((e) => ({ e, s: score(e, q) }))
+        .filter((r) => r.s !== Infinity)
+        .sort((a, b) => a.s - b.s || a.e.name.localeCompare(b.e.name))
+        .map((r) => r.e);
+    }
+
+    // Build a result row, highlighting the matched span of the symbol name.
+    function row(entry: Entry, q: string, index: number): HTMLLIElement {
+      const li = document.createElement('li');
+      li.setAttribute('role', 'option');
+
+      const a = document.createElement('a');
+      a.href = `/docs/${entry.slug}`;
+      a.dataset.index = String(index);
+      a.className =
+        'flex items-center gap-3 rounded-md px-3 py-2 no-underline hover:no-underline';
+
+      const code = document.createElement('code');
+      code.className = 'flex-none font-mono text-[0.9rem] text-accent';
+      const at = q ? entry.name.toLowerCase().indexOf(q) : -1;
+      if (at >= 0) {
+        code.append(entry.name.slice(0, at));
+        const mark = document.createElement('span');
+        mark.className = 'underline decoration-2 underline-offset-2';
+        mark.textContent = entry.name.slice(at, at + q.length);
+        code.append(mark, entry.name.slice(at + q.length));
+      } else {
+        code.textContent = entry.name;
+      }
+
+      const kind = document.createElement('span');
+      kind.className =
+        'flex-none rounded border border-border px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.06em] text-muted';
+      kind.textContent = entry.kind;
+
+      const cat = document.createElement('span');
+      cat.className = 'ml-auto flex-none text-xs text-muted';
+      cat.textContent = entry.category;
+
+      a.append(code, kind, cat);
+      li.append(a);
+      return li;
+    }
+
+    function paint(q: string): void {
+      list!.replaceChildren(...results.map((e, i) => row(e, q, i)));
+      empty!.classList.toggle('hidden', results.length > 0);
+      setActive(0);
+    }
+
+    function setActive(next: number): void {
+      if (results.length === 0) return;
+      active = (next + results.length) % results.length;
+      const anchors = list!.querySelectorAll<HTMLAnchorElement>('a[data-index]');
+      anchors.forEach((a, i) => {
+        const on = i === active;
+        a.classList.toggle('bg-surface', on);
+        a.setAttribute('aria-selected', String(on));
+        if (on) a.scrollIntoView({ block: 'nearest' });
+      });
+    }
+
+    function rerun(): void {
+      results = search(input!.value);
+      paint(input!.value.trim().toLowerCase());
+    }
+
+    function open(): void {
+      if (dialog!.open) return;
+      input!.value = '';
+      rerun();
+      dialog!.showModal();
+      input!.focus();
+    }
+
+    input.addEventListener('input', rerun);
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActive(active + 1);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActive(active - 1);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const target = results[active];
+        if (target) window.location.assign(`/docs/${target.slug}`);
+      }
+    });
+
+    // Click on the backdrop (the dialog element itself, outside its content)
+    // dismisses the palette; native Esc handling closes it too.
+    dialog.addEventListener('click', (e) => {
+      if (e.target === dialog) dialog.close();
+    });
+
+    // Global open: Cmd/Ctrl+K, or any [data-search-open] trigger.
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        open();
+      }
+    });
+    document.querySelectorAll('[data-search-open]').forEach((el) =>
+      el.addEventListener('click', open),
+    );
+  }
+</script>
