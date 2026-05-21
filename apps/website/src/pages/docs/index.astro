@@ -1,9 +1,8 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import ApiSidebar from '../../components/api/ApiSidebar.astro';
-import Prose from '../../components/api/Prose.astro';
 import { symbolGroups } from '../../lib/api/load';
-import { renderSummary } from '../../lib/api/comment';
+import { summaryExcerpt } from '../../lib/api/comment';
 
 const groups = symbolGroups();
 ---
@@ -29,7 +28,7 @@ const groups = symbolGroups();
                 <a href={`/docs/${s.slug}`}>
                   <code>{s.reflection.name}</code>
                   <span class="symbol-grid__summary">
-                    <Prose html={renderSummary(s.reflection.comment)} />
+                    {summaryExcerpt(s.reflection.comment)}
                   </span>
                 </a>
               </li>
@@ -86,18 +85,14 @@ const groups = symbolGroups();
       color: var(--accent);
     }
     .symbol-grid__summary {
-      display: block;
       margin-top: 0.35rem;
       font-size: 0.85rem;
       color: var(--muted);
-      /* clamp the summary to a couple lines on the card */
-      overflow: hidden;
+      /* clamp the plain-text excerpt to three lines */
       display: -webkit-box;
-      -webkit-line-clamp: 2;
+      -webkit-line-clamp: 3;
       -webkit-box-orient: vertical;
-    }
-    .symbol-grid__summary :global(p) {
-      margin: 0;
+      overflow: hidden;
     }
     @media (max-width: 820px) {
       .docs-layout {

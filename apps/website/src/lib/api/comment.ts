@@ -1,7 +1,19 @@
 import { marked } from 'marked';
+import { highlightCode } from './highlight';
 import { hrefForId, type BlockTag, type Comment, type CommentPart } from './load';
 
 marked.setOptions({ gfm: true });
+
+// Replace fenced code-block rendering with Shiki-highlighted output. marked's
+// renderer.code is synchronous; Shiki's codeToHtml is too (the async cost was
+// paid once when the highlighter loaded), so this composes cleanly.
+marked.use({
+  renderer: {
+    code({ text, lang }) {
+      return highlightCode(text, lang);
+    },
+  },
+});
 
 /**
  * Flattens TypeDoc comment parts into a Markdown string, resolving `{@link}`
@@ -53,4 +65,32 @@ export function firstBlockTag(comment: Comment | undefined, tag: string): BlockT
 /** Render a single block tag's content (e.g. one `@throws`, `@returns`). */
 export function renderBlockTag(tag: BlockTag | undefined): string {
   return tag ? renderParts(tag.content) : '';
+}
+
+/**
+ * Extracts a short plain-text excerpt (the first paragraph) from a comment's
+ * summary — used on listing cards, where rendering the full Markdown docblock
+ * (headings, diagrams, code fences) would blow out the layout. Stops at the
+ * first blank line and strips inline-code backticks.
+ */
+export function summaryExcerpt(comment: Comment | undefined, maxLen = 180): string {
+  const parts = comment?.summary;
+  if (!parts) return '';
+
+  let text = '';
+  for (const part of parts) {
+    const chunk = part.kind === 'code' ? part.text.replace(/`+/g, '') : part.text;
+    const breakAt = chunk.indexOf('\n\n');
+    if (breakAt !== -1) {
+      text += chunk.slice(0, breakAt);
+      break;
+    }
+    text += chunk;
+  }
+
+  text = text.replace(/\s+/g, ' ').trim();
+  if (text.length > maxLen) {
+    text = text.slice(0, maxLen).replace(/\s+\S*$/, '') + '…';
+  }
+  return text;
 }

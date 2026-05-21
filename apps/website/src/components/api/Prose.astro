@@ -35,19 +35,25 @@ const { html } = Astro.props;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
   .prose :global(pre) {
-    background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 0.9rem 1rem;
     overflow-x: auto;
     margin: 0 0 0.85rem;
     line-height: 1.45;
+    font-size: 0.85rem;
+  }
+  /* Shiki emits an inline background-color; override it to the theme surface
+     so highlighted blocks match inline code and signature blocks. */
+  .prose :global(pre.shiki) {
+    background: var(--surface) !important;
   }
   .prose :global(pre code) {
     background: none;
     border: 0;
     padding: 0;
-    font-size: 0.85rem;
+    font-size: inherit;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
   .prose :global(table) {
     border-collapse: collapse;
