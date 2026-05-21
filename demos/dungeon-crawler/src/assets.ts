@@ -62,7 +62,7 @@ export const COIN_FRAME_KEYS = ['coin1', 'coin2', 'coin3', 'coin4'] as const;
  * playable size on screen. Reused as the floor's tile scale so tiles and
  * characters share a pixel grid.
  */
-export const CHARACTER_SCALE = 3;
+export const CHARACTER_SCALE = 2;
 
 /**
  * Source-pixel frame of a plain floor tile within the 16x16 dungeon tileset.

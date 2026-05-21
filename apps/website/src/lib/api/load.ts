@@ -159,11 +159,20 @@ const CATEGORY_LABELS: Record<string, string> = {
   '': 'Core',
   world: 'World',
   graphics: 'Graphics',
+  assets: 'Assets',
   geometry: 'Geometry',
   input: 'Input',
   utils: 'Utilities',
 };
-const CATEGORY_ORDER = ['', 'world', 'graphics', 'geometry', 'input', 'utils'];
+const CATEGORY_ORDER = [
+  '',
+  'world',
+  'graphics',
+  'assets',
+  'geometry',
+  'input',
+  'utils',
+];
 
 /** The source subfolder a symbol lives in ('' for the package root). */
 function categoryKeyOf(ref: Reflection): string {
