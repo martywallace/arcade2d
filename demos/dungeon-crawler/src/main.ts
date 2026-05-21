@@ -1,7 +1,8 @@
 import './style.css';
 
 import { Game, Random } from '@arcade2d/engine';
-import { characters, projectiles, scenery } from './assets';
+import { characters, items, projectiles, scenery } from './assets';
+import { ScoreComponent } from './components/score.component';
 import { FloorPrefab } from './objects/floor/floor.prefab';
 import { PlayerPrefab } from './objects/player/player.prefab';
 import { ZombiePrefab } from './objects/zombie/zombie.prefab';
@@ -11,6 +12,9 @@ async function start() {
     backgroundColour: 0x000000,
     canvas: { fill: 'window' },
     debug: true,
+    components: (game) => ({
+      score: () => new ScoreComponent(game),
+    }),
   });
 
   // Eagerly preload every bundle before any object spawns, so a missing or
@@ -20,6 +24,7 @@ async function start() {
     game.assets.use(characters).load(),
     game.assets.use(scenery).load(),
     game.assets.use(projectiles).load(),
+    game.assets.use(items).load(),
   ]);
 
   const world = game.createWorld();

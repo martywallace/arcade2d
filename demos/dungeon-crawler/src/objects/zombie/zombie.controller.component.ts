@@ -1,6 +1,12 @@
 import type { WorldUpdate } from '@arcade2d/engine';
 import { AbstractWorldObjectComponent, Random } from '@arcade2d/engine';
+import { CoinPrefab } from '../coin/coin.prefab';
 import { ZombiePrefab } from './zombie.prefab';
+
+/**
+ * Chance a slain zombie drops a coin where it died.
+ */
+const COIN_DROP_CHANCE = 0.3;
 
 /**
  * Zombie has no resolved dependencies — movement mutates `host.position`,
@@ -25,13 +31,20 @@ export class ZombieController extends AbstractWorldObjectComponent {
   }
 
   public override onDestroy(): void {
+    const random = new Random();
+
+    // Drop a coin where the zombie died, some of the time.
+    if (random.boolean(COIN_DROP_CHANCE)) {
+      this.world.createFromPrefab(CoinPrefab, this.host.position);
+    }
+
     const player = this.world.findOneByTag('player');
 
     if (player) {
       // Spawn a new zombie somewhere in a ring around the player.
       this.world.createFromPrefab(
         ZombiePrefab,
-        new Random().inRing(player.position.x, player.position.y, 300, 500),
+        random.inRing(player.position.x, player.position.y, 300, 500),
       );
     }
 
