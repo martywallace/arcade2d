@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "website",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": ["workspace", "@arcade2d/website", "preview", "--port", "4329"],
+      "port": 4329
+    }
+  ]
+}
