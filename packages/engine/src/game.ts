@@ -1,9 +1,14 @@
 import { Application, ApplicationOptions, Container } from 'pixi.js';
 import { AbstractComponentHost } from './abstract-component-host';
+import { AssetLibrary } from './assets';
 import type { Component } from './components.types';
 import { ErrorCode } from './error.constants';
 import { throwEngineError } from './error.support';
-import { KEYBOARD_COMPONENT_KEY, MOUSE_COMPONENT_KEY } from './game.constants';
+import {
+  ASSET_LIBRARY_COMPONENT_KEY,
+  KEYBOARD_COMPONENT_KEY,
+  MOUSE_COMPONENT_KEY,
+} from './game.constants';
 import type { GameCanvasOptions, GameOptions } from './game.types';
 import { Scene } from './graphics';
 import { Keyboard, KeyboardState, Mouse, MouseSnapshot } from './input';
@@ -183,6 +188,7 @@ export class Game extends AbstractComponentHost<Game> {
     this.addComponentsFromFactories({
       [MOUSE_COMPONENT_KEY]: () => new Mouse(this),
       [KEYBOARD_COMPONENT_KEY]: () => new Keyboard(this),
+      [ASSET_LIBRARY_COMPONENT_KEY]: () => new AssetLibrary(this),
     });
 
     this.addComponentsFromFactories(options.components?.(this) ?? {});
@@ -218,6 +224,29 @@ export class Game extends AbstractComponentHost<Game> {
    */
   public get canvas(): HTMLCanvasElement {
     return this._application.canvas;
+  }
+
+  /**
+   * The game's {@link AssetLibrary} — the page-scoped registry for loading,
+   * caching, and retrieving textures (and, later, other resources). Assets
+   * live at the game tier because they outlive any individual {@link World};
+   * preload them here and reference them by key from world-scoped code.
+   *
+   * Requires the auto-attached {@link AssetLibrary} registered under
+   * {@link ASSET_LIBRARY_COMPONENT_KEY}. If you removed it deliberately,
+   * reading this accessor throws {@link ErrorCode.COMPONENT_NOT_FOUND}.
+   *
+   * @example
+   * ```typescript
+   * await game.assets.loadMany(
+   *   ['sprites/player.png', 'tiles/wall.png'],
+   *   { namespace: 'level-1' },
+   * );
+   * const world = game.createWorld({ ... });
+   * ```
+   */
+  public get assets(): AssetLibrary {
+    return this.getComponent<AssetLibrary>(ASSET_LIBRARY_COMPONENT_KEY);
   }
 
   /**

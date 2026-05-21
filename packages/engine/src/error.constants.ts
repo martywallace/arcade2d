@@ -5,8 +5,8 @@
  * a code is a breaking change.
  *
  * Each value is prefixed with a short domain tag (`COMP`, `PREFAB`, `DEP`,
- * `GAME`, `RAND`) followed by a zero-padded sequence number, so codes sort
- * by domain and the wire format is stable across catalog growth.
+ * `GAME`, `ASSET`, `RAND`) followed by a zero-padded sequence number, so
+ * codes sort by domain and the wire format is stable across catalog growth.
  */
 export enum ErrorCode {
   COMPONENT_NOT_FOUND = 'COMP001_COMPONENT_NOT_FOUND',
@@ -22,5 +22,9 @@ export enum ErrorCode {
   WORLD_COMPONENT_DEPENDENCY_REENTRANT = 'DEP003_WORLD_COMPONENT_DEPENDENCY_REENTRANT',
   GAME_WORLD_ALREADY_EXISTS = 'GAME001_GAME_WORLD_ALREADY_EXISTS',
   GAME_WORLD_NOT_FOUND = 'GAME002_GAME_WORLD_NOT_FOUND',
+  ASSET_NOT_FOUND = 'ASSET001_ASSET_NOT_FOUND',
+  ASSET_LOAD_FAILED = 'ASSET002_ASSET_LOAD_FAILED',
+  ASSET_TYPE_MISMATCH = 'ASSET003_ASSET_TYPE_MISMATCH',
+  ASSET_KEY_CONFLICT = 'ASSET004_ASSET_KEY_CONFLICT',
   RANDOM_EMPTY_ITEMS = 'RAND001_RANDOM_EMPTY_ITEMS',
 }
