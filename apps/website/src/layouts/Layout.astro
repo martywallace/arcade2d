@@ -5,9 +5,11 @@ import { REPO_URL } from '../demos';
 type Props = {
   title: string;
   description?: string;
+  /** Render the site header/nav. Disabled on the homepage's full-screen hero. */
+  header?: boolean;
 };
 
-const { title, description } = Astro.props;
+const { title, description, header = true } = Astro.props;
 const fullTitle = title === 'arcade2d' ? title : `${title} — arcade2d`;
 ---
 
@@ -22,17 +24,21 @@ const fullTitle = title === 'arcade2d' ? title : `${title} — arcade2d`;
     <title>{fullTitle}</title>
   </head>
   <body>
-    <header class="site-header">
-      <a class="brand" href="/" aria-label="arcade2d home">
-        <img src="/logo.png" alt="arcade2d" width="180" height="110" />
-      </a>
-      <nav>
-        <a href="/demos">Demos</a>
-        <a href={REPO_URL} target="_blank" rel="noopener" aria-label="GitHub">
-          <Icon name="lucide:github" />
-        </a>
-      </nav>
-    </header>
+    {
+      header && (
+        <header class="site-header">
+          <a class="brand" href="/" aria-label="arcade2d home">
+            <img src="/logo.png" alt="arcade2d" width="180" height="110" />
+          </a>
+          <nav>
+            <a href="/demos">Demos</a>
+            <a href={REPO_URL} target="_blank" rel="noopener" aria-label="GitHub">
+              <Icon name="lucide:github" />
+            </a>
+          </nav>
+        </header>
+      )
+    }
     <main>
       <slot />
     </main>
@@ -63,6 +69,15 @@ const fullTitle = title === 'arcade2d' ? title : `${title} — arcade2d`;
           ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
           'Helvetica Neue', Arial, sans-serif;
         line-height: 1.55;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
       }
 
       a {
