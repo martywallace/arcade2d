@@ -1,3 +1,4 @@
+import type { AssetLibrary } from '../assets';
 import type { Component } from '../components.types';
 import type { PREFAB_BUILD_TOKEN } from './prefab.constants';
 import type { World } from './world';
@@ -32,6 +33,16 @@ export type PrefabComponentContext = {
    * registered.
    */
   readonly object: WorldObject;
+
+  /**
+   * The game's {@link AssetLibrary} — a shortcut for `world.game.assets`.
+   * Exposed here because resolving textures and other resources is one of the
+   * most common things a prefab factory does, and reaching them by key
+   * (ideally through a typed bundle with {@link AssetLibrary.use}) at build
+   * time is the recommended pattern. The bundle should already be preloaded
+   * before any object is spawned; see {@link AssetLibrary} for why.
+   */
+  readonly assets: AssetLibrary;
 };
 
 /**

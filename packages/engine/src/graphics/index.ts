@@ -6,3 +6,5 @@ export * from './sprite';
 export * from './sprite.types';
 export * from './texture';
 export * from './texture.types';
+export * from './tiling-sprite';
+export * from './tiling-sprite.types';

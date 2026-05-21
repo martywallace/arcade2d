@@ -173,6 +173,31 @@ describe('Prefab', () => {
       expect(object.hasComponent('b')).toBe(true);
     });
 
+    test('exposes the game asset library on the build context', () => {
+      let received: unknown = null;
+
+      const prefab = new Prefab({
+        name: 'enemy',
+        components: {
+          only: (ctx): Component<WorldObject> => {
+            received = ctx.assets;
+
+            return {
+              host: ctx.object,
+              onAdded: () => {},
+              onUpdate: () => {},
+              onDestroy: () => {},
+            };
+          },
+        },
+      });
+      const world = createWorld();
+
+      prefab.buildObject(PREFAB_BUILD_TOKEN, world);
+
+      expect(received).toBe(world.game.assets);
+    });
+
     test('fires onAdded on every component (batched registration)', () => {
       const spy: ComponentSpy = {
         added: 0,

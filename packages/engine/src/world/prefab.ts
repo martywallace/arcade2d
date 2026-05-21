@@ -148,7 +148,11 @@ export class Prefab {
       tags: new Set(this.tags),
     });
 
-    const context: PrefabComponentContext = { world, object };
+    const context: PrefabComponentContext = {
+      world,
+      object,
+      assets: world.game.assets,
+    };
     const componentMap: ComponentMap<WorldObject> = Object.fromEntries(
       Object.entries(this._components).map(
         ([key, factory]) => [key, factory(context)] as const,

@@ -6,6 +6,7 @@ import type {
   AssetBundleLoadOptions,
 } from './asset-bundle.types';
 import type { AssetLibrary } from './asset-library';
+import type { AssetConstructor } from './asset-library.types';
 
 /**
  * An {@link AssetBundle} bound to a specific {@link AssetLibrary} — the
@@ -97,6 +98,28 @@ export class BoundAssetBundle<E extends AssetBundleEntries> {
    */
   public get(key: AssetBundleKey<E>): Asset {
     return this._library.get(key, this._bundle.namespace);
+  }
+
+  /**
+   * Fetches a declared-key asset and asserts its concrete type, returning it
+   * typed — the typed-bundle counterpart to {@link AssetLibrary.getAs}, so a
+   * prefab can write `bundle.getAs('player', ImageAsset)` with neither a
+   * stringly-typed key nor an unchecked cast.
+   *
+   * @param key A declared bundle key.
+   * @param type The expected concrete {@link Asset} subclass constructor.
+   * @returns The stored asset, typed as `T`.
+   * @throws {@link EngineError} with code
+   *   {@link ErrorCode.ASSET_NOT_FOUND} when the bundle has not been loaded.
+   * @throws {@link EngineError} with code
+   *   {@link ErrorCode.ASSET_TYPE_MISMATCH} when the stored asset is not an
+   *   instance of `type`.
+   */
+  public getAs<T extends Asset>(
+    key: AssetBundleKey<E>,
+    type: AssetConstructor<T>,
+  ): T {
+    return this._library.getAs(key, type, this._bundle.namespace);
   }
 
   /**

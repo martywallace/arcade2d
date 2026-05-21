@@ -1,23 +1,31 @@
 import './style.css';
 
 import { Game, Random } from '@arcade2d/engine';
-import { characters } from './assets';
+import { characters, scenery } from './assets';
+import { FloorPrefab } from './objects/floor/floor.prefab';
 import { PlayerPrefab } from './objects/player/player.prefab';
 import { ZombiePrefab } from './objects/zombie/zombie.prefab';
 
 async function start() {
   const game = await Game.bootstrap({
-    backgroundColour: 0x1099bb,
+    backgroundColour: 0x000000,
     canvas: { fill: 'window' },
     debug: true,
   });
 
-  // Eagerly preload the whole character bundle before any object spawns, so a
-  // missing or failed asset surfaces here at startup rather than when a
-  // particular object first appears mid-session.
-  await game.assets.use(characters).load();
+  // Eagerly preload every bundle before any object spawns, so a missing or
+  // failed asset surfaces here at startup rather than when a particular object
+  // first appears mid-session.
+  await Promise.all([
+    game.assets.use(characters).load(),
+    game.assets.use(scenery).load(),
+  ]);
 
   const world = game.createWorld();
+
+  // Floor first so it parents into the scene before the characters and renders
+  // behind them.
+  world.createFromPrefab(FloorPrefab);
 
   world.createFromPrefab(PlayerPrefab);
 

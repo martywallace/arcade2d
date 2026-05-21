@@ -9,6 +9,7 @@ import { AssetType } from './asset.constants';
 import { inferAssetType } from './asset.support';
 import { DEFAULT_ASSET_NAMESPACE } from './asset-library.constants';
 import type {
+  AssetConstructor,
   AssetLoadManyOptions,
   AssetLoadOptions,
 } from './asset-library.types';
@@ -253,6 +254,53 @@ export class AssetLibrary extends AbstractGameComponent {
           `preloaded — load it (or its bundle) before the code that needs it ` +
           `runs.`,
         { key, namespace },
+      );
+    }
+
+    return asset;
+  }
+
+  /**
+   * Retrieves an asset by key and asserts its concrete type, returning it
+   * typed — so call sites avoid an unchecked `as ImageAsset` cast.
+   *
+   * Pass the expected {@link Asset} subclass (e.g. {@link ImageAsset}) as a
+   * runtime witness; the lookup verifies the stored asset is an instance of
+   * it. This mirrors {@link ComponentHost.getComponentByType} and, unlike a
+   * bare `get<T>()` generic, is **type-safe at runtime**: a wrong type is a
+   * loud {@link ErrorCode.ASSET_TYPE_MISMATCH}, not a latent mis-cast.
+   *
+   * @param key The key the asset was stored under.
+   * @param type The expected concrete {@link Asset} subclass constructor.
+   * @param namespace The namespace to look in. Defaults to
+   * {@link DEFAULT_ASSET_NAMESPACE}.
+   * @returns The stored asset, typed as `T`.
+   * @throws {@link EngineError} with code
+   *   {@link ErrorCode.ASSET_NOT_FOUND} when no asset is stored under
+   *   `(namespace, key)`.
+   * @throws {@link EngineError} with code
+   *   {@link ErrorCode.ASSET_TYPE_MISMATCH} when the stored asset is not an
+   *   instance of `type`.
+   *
+   * @example
+   * ```ts
+   * const player = game.assets.getAs('player', ImageAsset); // typed, no cast
+   * new Texture(player);
+   * ```
+   */
+  public getAs<T extends Asset>(
+    key: string,
+    type: AssetConstructor<T>,
+    namespace: string = DEFAULT_ASSET_NAMESPACE,
+  ): T {
+    const asset = this.get(key, namespace);
+
+    if (!(asset instanceof type)) {
+      throwEngineError(
+        ErrorCode.ASSET_TYPE_MISMATCH,
+        `Asset "${key}" in namespace "${namespace}" is a "${asset.type}" ` +
+          `asset, not the expected ${type.name}.`,
+        { key, namespace, expected: type.name, actualType: asset.type },
       );
     }
 

@@ -70,6 +70,16 @@ describe('BoundAssetBundle', () => {
     expect(bundle.getNullable('zombie')).toBeNull();
   });
 
+  test('getAs() returns the typed asset for a declared key', async () => {
+    const bundle = createLibrary().use(level1);
+    await bundle.load();
+
+    const zombie = bundle.getAs('zombie', ImageAsset);
+
+    expect(zombie).toBeInstanceOf(ImageAsset);
+    expect(zombie.src).toBe('sprites/zombie.png');
+  });
+
   test('has() reflects load state for a declared key', async () => {
     const bundle = createLibrary().use(level1);
 

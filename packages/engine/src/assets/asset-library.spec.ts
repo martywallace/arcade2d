@@ -2,9 +2,15 @@ import { Assets, Texture } from 'pixi.js';
 import { EngineError } from '../error';
 import { ErrorCode } from '../error.constants';
 import { Game } from '../game';
+import { Asset } from './asset';
 import { AssetLibrary } from './asset-library';
 import { AssetType } from './asset.constants';
 import { ImageAsset } from './image-asset';
+
+/** A non-image asset used to exercise the getAs type-mismatch path. */
+class OtherAsset extends Asset {
+  public readonly type = AssetType.Image;
+}
 
 function fakeTexture(width = 16, height = 16): Texture {
   return { width, height } as unknown as Texture;
@@ -187,6 +193,45 @@ describe('AssetLibrary', () => {
 
     test('getNullable returns null for an unknown key', () => {
       expect(createLibrary().getNullable('nope')).toBeNull();
+    });
+  });
+
+  describe('getAs', () => {
+    test('returns the asset typed when the type matches', async () => {
+      const assets = createLibrary();
+      await assets.load('a.png');
+
+      const asset = assets.getAs('a.png', ImageAsset);
+
+      expect(asset).toBeInstanceOf(ImageAsset);
+    });
+
+    test('throws ASSET_TYPE_MISMATCH when the stored type differs', () => {
+      const assets = createLibrary();
+      assets.store('x', new OtherAsset('x', 'default', 'x.png'));
+
+      let thrown: EngineError | null = null;
+      try {
+        assets.getAs('x', ImageAsset);
+      } catch (error) {
+        thrown = error as EngineError;
+      }
+
+      expect(thrown).toBeInstanceOf(EngineError);
+      expect(thrown?.code).toBe(ErrorCode.ASSET_TYPE_MISMATCH);
+    });
+
+    test('propagates ASSET_NOT_FOUND for an unknown key', () => {
+      const assets = createLibrary();
+
+      let thrown: EngineError | null = null;
+      try {
+        assets.getAs('nope', ImageAsset);
+      } catch (error) {
+        thrown = error as EngineError;
+      }
+
+      expect(thrown?.code).toBe(ErrorCode.ASSET_NOT_FOUND);
     });
   });
 

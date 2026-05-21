@@ -1,4 +1,14 @@
+import type { Asset } from './asset';
 import type { AssetType } from './asset.constants';
+
+/**
+ * A constructor for a concrete {@link Asset} subclass (e.g. {@link ImageAsset}),
+ * used as a runtime type witness by {@link AssetLibrary.getAs}. Mirrors the
+ * `ComponentHostConstructor` pattern used for typed component lookups: the
+ * class value is passed purely as an `instanceof` discriminator, never
+ * invoked.
+ */
+export type AssetConstructor<T extends Asset> = new (...args: never[]) => T;
 
 /**
  * Per-load configuration for {@link AssetLibrary.load}.
