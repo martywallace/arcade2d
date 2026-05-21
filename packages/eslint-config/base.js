@@ -8,7 +8,19 @@ import tseslint from 'typescript-eslint';
  */
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'build/**', 'coverage/**', 'node_modules/**'],
+    ignores: [
+      'dist/**',
+      'build/**',
+      'coverage/**',
+      'node_modules/**',
+      // tsup writes a transient bundled config file (e.g.
+      // `tsup.config.bundled_<hash>.mjs`) into the package root while
+      // building. When `lint` and `build` run concurrently under turbo,
+      // ESLint can pick the file up in its scan and then race tsup's
+      // cleanup, producing an ENOENT. Ignoring the pattern eliminates the
+      // race without serializing the tasks.
+      '**/tsup.config.bundled_*.mjs',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
