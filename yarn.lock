@@ -80,9 +80,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@arcade2d/demo-td-shooter@workspace:*, @arcade2d/demo-td-shooter@workspace:demos/td-shooter":
+"@arcade2d/demo-dungeon-crawler@workspace:*, @arcade2d/demo-dungeon-crawler@workspace:demos/dungeon-crawler":
   version: 0.0.0-use.local
-  resolution: "@arcade2d/demo-td-shooter@workspace:demos/td-shooter"
+  resolution: "@arcade2d/demo-dungeon-crawler@workspace:demos/dungeon-crawler"
+  dependencies:
+    "@arcade2d/engine": "workspace:*"
+    typescript: "npm:^5.9.2"
+    vite: "npm:^7.1.2"
+  languageName: unknown
+  linkType: soft
+
+"@arcade2d/demo-simple-shooter@workspace:*, @arcade2d/demo-simple-shooter@workspace:demos/simple-shooter":
+  version: 0.0.0-use.local
+  resolution: "@arcade2d/demo-simple-shooter@workspace:demos/simple-shooter"
   dependencies:
     "@arcade2d/engine": "workspace:*"
     typescript: "npm:^5.9.2"
@@ -185,7 +195,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@arcade2d/website@workspace:apps/website"
   dependencies:
-    "@arcade2d/demo-td-shooter": "workspace:*"
+    "@arcade2d/demo-dungeon-crawler": "workspace:*"
+    "@arcade2d/demo-simple-shooter": "workspace:*"
     "@arcade2d/engine": "workspace:*"
     "@astrojs/check": "npm:^0.9.0"
     "@iconify-json/lucide": "npm:^1.2.0"

@@ -15,9 +15,11 @@ post on the topic). Today the repo contains:
 
 - **`packages/engine`** — the engine itself. The thing users will install.
 - **`packages/eslint-config`** and **`packages/tsconfig`** — shared dev configs.
-- **`demos/td-shooter`** — a top-down shooter that exercises the engine. The
-  demo doubles as a smoke test and as living documentation of "what idiomatic
-  arcade2d code looks like."
+- **`demos/simple-shooter`** — a top-down shooter that exercises the engine
+  using basic shapes. The demo doubles as a smoke test and as living
+  documentation of "what idiomatic arcade2d code looks like."
+- **`demos/dungeon-crawler`** — a dungeon crawler that exercises texture and
+  sprite rendering, built on the bundled tileset and character assets.
 - **`apps/devserver`** — the dev-server / editor surface, in progress.
 
 The repo is a Yarn 4 workspaces monorepo orchestrated by Turborepo
@@ -183,7 +185,8 @@ fan them out:
 | `yarn lint`                             | ESLint across every workspace              |
 | `yarn test`                             | Jest across every workspace                |
 | `yarn workspace @arcade2d/engine <cmd>` | Run `<cmd>` only in the engine             |
-| `yarn demo:td-shooter`                  | Run the td-shooter demo against the engine |
+| `yarn demo:simple-shooter`              | Run the simple-shooter demo against the engine |
+| `yarn demo:dungeon-crawler`             | Run the dungeon-crawler demo against the engine |
 
 The demos' `dev` script invokes `yarn workspace @arcade2d/root exec turbo run
 build --filter=...^...` before starting Vite, so the demo always runs against

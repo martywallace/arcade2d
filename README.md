@@ -11,7 +11,8 @@ packages/
   tsconfig/         shared TypeScript base configs (private)
   eslint-config/    shared flat ESLint configs (private)
 demos/
-  td-shooter/       example game consuming @arcade2d/engine (private)
+  simple-shooter/   example game consuming @arcade2d/engine, basic shapes (private)
+  dungeon-crawler/  example game consuming @arcade2d/engine, texture & sprite rendering (private)
 apps/
   devserver/
     backend/        NestJS API/host (private)
@@ -33,7 +34,8 @@ yarn build              # turbo build (engine -> consumers)
 yarn typecheck           # turbo typecheck
 yarn lint               # turbo lint
 yarn test               # turbo test
-yarn demo:td-shooter    # run the demo game (requires engine built once)
+yarn demo:simple-shooter   # run the simple-shooter demo (requires engine built once)
+yarn demo:dungeon-crawler  # run the dungeon-crawler demo (requires engine built once)
 yarn devserver          # run backend + frontend with hot reload
 ```
 

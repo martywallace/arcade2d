@@ -1,10 +1,10 @@
 {
-  "name": "@arcade2d/demo-td-shooter",
+  "name": "@arcade2d/demo-simple-shooter",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "yarn workspace @arcade2d/root exec turbo run build --filter=@arcade2d/demo-td-shooter^... && vite",
+    "dev": "yarn workspace @arcade2d/root exec turbo run build --filter=@arcade2d/demo-simple-shooter^... && vite",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },

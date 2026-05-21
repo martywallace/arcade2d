@@ -42,11 +42,23 @@ export type DemoEntry = {
 
 export const DEMOS: readonly DemoEntry[] = [
   {
-    slug: 'td-shooter',
-    title: 'Top-Down Shooter',
+    slug: 'simple-shooter',
+    title: 'Simple Shooter',
     description:
-      'A top-down shooter built on arcade2d — player movement, prefab spawning, and a pile of zombies. The de-facto end-to-end exercise of the engine.',
-    workspaceDir: 'td-shooter',
+      'A top-down shooter built on arcade2d — player movement, prefab spawning, and a pile of zombies, rendered with basic shapes. The de-facto end-to-end exercise of the engine.',
+    workspaceDir: 'simple-shooter',
+    controls: [
+      { input: 'WASD', action: 'Move' },
+      { input: 'Mouse', action: 'Aim' },
+      { input: 'Click', action: 'Shoot' },
+    ],
+  },
+  {
+    slug: 'dungeon-crawler',
+    title: 'Dungeon Crawler',
+    description:
+      'A dungeon crawler built on arcade2d, exercising texture and sprite rendering with a full tileset and animated characters.',
+    workspaceDir: 'dungeon-crawler',
     controls: [
       { input: 'WASD', action: 'Move' },
       { input: 'Mouse', action: 'Aim' },
@@ -64,7 +76,7 @@ export const REPO_URL = 'https://github.com/martywallace/arcade2d';
 
 /**
  * Resolves the GitHub URL of a demo's source folder, e.g.
- * `https://github.com/martywallace/arcade2d/tree/main/demos/td-shooter`.
+ * `https://github.com/martywallace/arcade2d/tree/main/demos/simple-shooter`.
  */
 export function demoSourceUrl(demo: DemoEntry): string {
   return `${REPO_URL}/tree/main/demos/${demo.workspaceDir}`;

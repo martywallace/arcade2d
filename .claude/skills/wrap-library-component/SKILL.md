@@ -320,7 +320,7 @@ are migrating one:
 5. Update tests to use the proxy surface; assert against `raw` only where
    testing the escape hatch itself.
 6. Re-run `yarn typecheck`, `yarn test`, and the relevant demo
-   (`yarn demo:td-shooter`) end to end.
+   (`yarn demo:simple-shooter`) end to end.
 
 ## After you finish
 

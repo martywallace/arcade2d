@@ -8,7 +8,8 @@
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
   "ignore": [
-    "@arcade2d/demo-td-shooter",
+    "@arcade2d/demo-simple-shooter",
+    "@arcade2d/demo-dungeon-crawler",
     "@arcade2d/devserver-backend",
     "@arcade2d/devserver-frontend"
   ]
