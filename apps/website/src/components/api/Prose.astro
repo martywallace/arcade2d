@@ -1,76 +1,10 @@
 ---
 // Renders pre-built HTML (Markdown-rendered comment text) inside a styled
 // prose container. The HTML originates from our own JSDoc, so set:html is safe.
+// The `.prose` presentation lives in src/styles/global.css since it targets
+// generated markup rather than elements we author here.
 type Props = { html: string };
 const { html } = Astro.props;
 ---
 
 {html && <div class="prose" set:html={html} />}
-
-<style>
-  .prose :global(p) {
-    margin: 0 0 0.85rem;
-  }
-  .prose :global(p:last-child) {
-    margin-bottom: 0;
-  }
-  .prose :global(h3) {
-    font-size: 1rem;
-    margin: 1.4rem 0 0.6rem;
-  }
-  .prose :global(ul),
-  .prose :global(ol) {
-    margin: 0 0 0.85rem;
-    padding-left: 1.3rem;
-  }
-  .prose :global(li) {
-    margin: 0.2rem 0;
-  }
-  .prose :global(code) {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 0.08rem 0.32rem;
-    font-size: 0.88em;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  }
-  .prose :global(pre) {
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0.9rem 1rem;
-    overflow-x: auto;
-    margin: 0 0 0.85rem;
-    line-height: 1.45;
-    font-size: 0.85rem;
-  }
-  /* Shiki emits an inline background-color; override it to the theme surface
-     so highlighted blocks match inline code and signature blocks. */
-  .prose :global(pre.shiki) {
-    background: var(--surface) !important;
-  }
-  .prose :global(pre code) {
-    background: none;
-    border: 0;
-    padding: 0;
-    font-size: inherit;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  }
-  .prose :global(table) {
-    border-collapse: collapse;
-    width: 100%;
-    margin: 0 0 0.85rem;
-    font-size: 0.92rem;
-  }
-  .prose :global(th),
-  .prose :global(td) {
-    border: 1px solid var(--border);
-    padding: 0.4rem 0.6rem;
-    text-align: left;
-  }
-  .prose :global(th) {
-    background: var(--surface);
-  }
-  .prose :global(a) {
-    color: var(--accent);
-  }
-</style>

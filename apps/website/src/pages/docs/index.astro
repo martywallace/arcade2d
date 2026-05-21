@@ -10,31 +10,34 @@ const groups = symbolCategories();
 ---
 
 <Layout title="API Reference" description="The arcade2d engine API reference.">
-  <div class="docs-layout">
+  <div class="grid grid-cols-[240px_minmax(0,1fr)] items-start gap-10 max-[820px]:grid-cols-1">
     <ApiSidebar />
 
-    <article class="docs-index">
-      <h1>API Reference</h1>
-      <p class="lede">
+    <article>
+      <h1 class="mb-2">API Reference</h1>
+      <p class="mb-8 max-w-[60ch] text-muted">
         Generated from the engine's source. Every type, method, and parameter
         below is documented in-tree; cross-references link straight to the
         symbol they mention.
       </p>
 
       {groups.map((group) => (
-        <section id={toSlug(group.title)} class="category">
-          <h2>{group.title}</h2>
-          <ul class="symbol-grid">
+        <section id={toSlug(group.title)} class="scroll-mt-6">
+          <h2 class="mt-8 mb-3 text-[1.3rem]">{group.title}</h2>
+          <ul class="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3 p-0">
             {group.symbols.map((s) => (
               <li>
-                <a href={`/docs/${s.slug}`}>
-                  <span class="symbol-grid__head">
-                    <code>{s.reflection.name}</code>
-                    <span class={`kind-tag kind-${kindTag(s.reflection.kind)}`}>
+                <a
+                  class="block h-full rounded-lg border border-border px-4 py-[0.85rem] text-fg transition-colors hover:border-accent hover:no-underline"
+                  href={`/docs/${s.slug}`}
+                >
+                  <span class="flex items-center justify-between gap-2">
+                    <code class="font-mono font-semibold text-accent">{s.reflection.name}</code>
+                    <span class={`kind-tag kind-${kindTag(s.reflection.kind)} flex-none rounded border border-border px-[0.35rem] py-[0.1rem] text-[0.62rem] font-semibold uppercase tracking-[0.06em] text-muted`}>
                       {kindLabel(s.reflection.kind)}
                     </span>
                   </span>
-                  <span class="symbol-grid__summary">
+                  <span class="mt-[0.35rem] line-clamp-3 text-[0.85rem] text-muted">
                     {summaryExcerpt(s.reflection.comment)}
                   </span>
                 </a>
@@ -45,86 +48,4 @@ const groups = symbolCategories();
       ))}
     </article>
   </div>
-
-  <style>
-    .docs-layout {
-      display: grid;
-      grid-template-columns: 240px minmax(0, 1fr);
-      gap: 2.5rem;
-      align-items: start;
-    }
-    h1 {
-      margin: 0 0 0.5rem;
-    }
-    .lede {
-      color: var(--muted);
-      max-width: 60ch;
-      margin: 0 0 2rem;
-    }
-    .category {
-      scroll-margin-top: 1.5rem;
-    }
-    h2 {
-      font-size: 1.3rem;
-      margin: 2rem 0 0.75rem;
-    }
-    .symbol-grid {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: grid;
-      gap: 0.75rem;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    }
-    .symbol-grid a {
-      display: block;
-      height: 100%;
-      padding: 0.85rem 1rem;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--fg);
-      transition: border-color 0.15s ease;
-    }
-    .symbol-grid a:hover {
-      border-color: var(--accent);
-      text-decoration: none;
-    }
-    .symbol-grid__head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem;
-    }
-    .symbol-grid code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-weight: 600;
-      color: var(--accent);
-    }
-    .kind-tag {
-      flex: none;
-      font-size: 0.62rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      font-weight: 600;
-      color: var(--muted);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 0.1rem 0.35rem;
-    }
-    .symbol-grid__summary {
-      margin-top: 0.35rem;
-      font-size: 0.85rem;
-      color: var(--muted);
-      /* clamp the plain-text excerpt to three lines */
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-    @media (max-width: 820px) {
-      .docs-layout {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
 </Layout>

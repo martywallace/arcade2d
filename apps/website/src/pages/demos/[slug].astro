@@ -18,21 +18,30 @@ const embedSrc = `/embeds/${demo.slug}/index.html`;
 ---
 
 <Layout title={demo.title} description={demo.description}>
-  <header class="demo-header">
-    <a href="/demos" class="back">
-      <Icon name="lucide:arrow-left" />
+  <header class="mb-5">
+    <a
+      href="/demos"
+      class="mb-2 inline-flex items-center gap-[0.35rem] text-[0.9rem] text-muted"
+    >
+      <Icon name="lucide:arrow-left" class="size-4" />
       All demos
     </a>
-    <h1>{demo.title}</h1>
-    <p>{demo.description}</p>
-    <a class="source" href={demoSourceUrl(demo)} target="_blank" rel="noopener">
-      <Icon name="lucide:github" />
+    <h1 class="mb-[0.35rem]">{demo.title}</h1>
+    <p class="m-0 max-w-[64ch] text-muted">{demo.description}</p>
+    <a
+      class="mt-3 inline-flex items-center gap-[0.45rem] text-[0.9rem]"
+      href={demoSourceUrl(demo)}
+      target="_blank"
+      rel="noopener"
+    >
+      <Icon name="lucide:github" class="size-[1.05rem]" />
       View source on GitHub
     </a>
   </header>
 
-  <div class="stage">
+  <div class="aspect-video w-full overflow-hidden rounded-lg border border-border bg-surface">
     <iframe
+      class="block size-full border-0"
       src={embedSrc}
       title={demo.title}
       loading="lazy"
@@ -42,108 +51,19 @@ const embedSrc = `/embeds/${demo.slug}/index.html`;
 
   {
     demo.controls && demo.controls.length > 0 && (
-      <section class="instructions" aria-label="Controls">
-        <h2>Controls</h2>
-        <ul>
+      <section class="mt-6" aria-label="Controls">
+        <h2 class="mb-3 text-base uppercase tracking-[0.06em] text-muted">Controls</h2>
+        <ul class="m-0 flex list-none flex-wrap gap-x-6 gap-y-3 p-0">
           {demo.controls.map((control) => (
-            <li>
-              <kbd>{control.input}</kbd>
-              <span>{control.action}</span>
+            <li class="flex items-center gap-[0.6rem]">
+              <kbd class="inline-block min-w-[2.25rem] rounded-md border border-b-[3px] border-border bg-surface px-[0.6rem] py-[0.3rem] text-center font-mono text-[0.85rem] leading-none text-fg">
+                {control.input}
+              </kbd>
+              <span class="text-muted">{control.action}</span>
             </li>
           ))}
         </ul>
       </section>
     )
   }
-
-  <style>
-    .demo-header {
-      margin-bottom: 1.25rem;
-    }
-    .demo-header .back {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      color: var(--muted);
-      font-size: 0.9rem;
-      margin-bottom: 0.5rem;
-    }
-    .demo-header .back [data-icon] {
-      width: 1rem;
-      height: 1rem;
-    }
-    .demo-header h1 {
-      margin: 0 0 0.35rem;
-    }
-    .demo-header p {
-      margin: 0;
-      color: var(--muted);
-      max-width: 64ch;
-    }
-    .demo-header .source {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      margin-top: 0.75rem;
-      font-size: 0.9rem;
-    }
-    .demo-header .source [data-icon] {
-      width: 1.05rem;
-      height: 1.05rem;
-    }
-    .stage {
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-      background: var(--surface);
-    }
-    .stage iframe {
-      width: 100%;
-      height: 100%;
-      border: 0;
-      display: block;
-    }
-    .instructions {
-      margin-top: 1.5rem;
-    }
-    .instructions h2 {
-      font-size: 1rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
-      margin: 0 0 0.75rem;
-    }
-    .instructions ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.75rem 1.5rem;
-    }
-    .instructions li {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-    }
-    .instructions kbd {
-      display: inline-block;
-      min-width: 2.25rem;
-      text-align: center;
-      padding: 0.3rem 0.6rem;
-      border: 1px solid var(--border);
-      border-bottom-width: 3px;
-      border-radius: 6px;
-      background: var(--surface);
-      color: var(--fg);
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 0.85rem;
-      line-height: 1;
-    }
-    .instructions span {
-      color: var(--muted);
-    }
-  </style>
 </Layout>

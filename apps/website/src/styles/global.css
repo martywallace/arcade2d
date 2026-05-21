@@ -1,0 +1,220 @@
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------------------
+   Theme tokens. Tailwind v4 derives utilities from these: --color-accent
+   becomes bg-accent / text-accent / border-accent, --font-mono becomes
+   font-mono, --animate-scroll-bounce becomes animate-scroll-bounce, etc.
+   They are also emitted as real CSS variables on :root, so the generated-HTML
+   layer below can reference them via var(--color-*).
+--------------------------------------------------------------------------- */
+@theme {
+  --color-canvas: #ffffff;
+  --color-fg: #1b1a18;
+  --color-muted: #6b6f76;
+  --color-accent: #ef5a0e;
+  --color-accent-hover: #d44e08;
+  --color-accent-contrast: #ffffff;
+  --color-surface: #f7f5f2;
+  --color-border: #e7e3dd;
+
+  /* Token colors for rendered type signatures (generated HTML). */
+  --color-ty-intrinsic: #b5651d;
+  --color-ty-literal: #297a3a;
+  --color-ty-kw: #a4329d;
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --animate-scroll-bounce: scroll-bounce 1.8s ease-in-out infinite;
+}
+
+@keyframes scroll-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(0.35rem);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Base layer — document defaults.
+--------------------------------------------------------------------------- */
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--color-canvas);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    line-height: 1.55;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
+  a {
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Component layer — presentation for generated HTML (set:html output from our
+   JSDoc renderer). These selectors target markup produced in TypeScript
+   (comment.ts / types.ts / signature.ts), so there is no element to hang
+   utility classes on; they live here instead.
+--------------------------------------------------------------------------- */
+@layer components {
+  /* Prose: Markdown-rendered comment text. */
+  .prose > :where(p) {
+    margin: 0 0 0.85rem;
+  }
+  .prose > :where(p:last-child) {
+    margin-bottom: 0;
+  }
+  .prose :where(h3) {
+    font-size: 1rem;
+    margin: 1.4rem 0 0.6rem;
+  }
+  .prose :where(ul, ol) {
+    margin: 0 0 0.85rem;
+    padding-left: 1.3rem;
+  }
+  .prose :where(li) {
+    margin: 0.2rem 0;
+  }
+  .prose :where(code) {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 0.08rem 0.32rem;
+    font-size: 0.88em;
+    font-family: var(--font-mono);
+  }
+  .prose :where(pre) {
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    overflow-x: auto;
+    margin: 0 0 0.85rem;
+    line-height: 1.45;
+    font-size: 0.85rem;
+  }
+  /* Shiki emits an inline background-color; override it to the theme surface
+     so highlighted blocks match inline code and signature blocks. */
+  .prose :where(pre.shiki) {
+    background: var(--color-surface) !important;
+  }
+  .prose :where(pre code) {
+    background: none;
+    border: 0;
+    padding: 0;
+    font-size: inherit;
+    font-family: var(--font-mono);
+  }
+  .prose :where(table) {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0 0 0.85rem;
+    font-size: 0.92rem;
+  }
+  .prose :where(th, td) {
+    border: 1px solid var(--color-border);
+    padding: 0.4rem 0.6rem;
+    text-align: left;
+  }
+  .prose :where(th) {
+    background: var(--color-surface);
+  }
+  .prose :where(a) {
+    color: var(--color-accent);
+  }
+
+  /* Signature / type code blocks. */
+  .sig {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 0.6rem 0.8rem;
+    margin: 0.4rem 0 0.8rem;
+    overflow-x: auto;
+    line-height: 1.5;
+  }
+  .sig-inline,
+  .sig-block {
+    font-family: var(--font-mono);
+  }
+  .sig-block {
+    display: block;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    margin: 0 0 1.5rem;
+    overflow-x: auto;
+    font-size: 0.95rem;
+  }
+  .param-type {
+    font-family: var(--font-mono);
+    font-size: 0.88rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 0.05rem 0.35rem;
+  }
+  .param-name {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--color-fg);
+  }
+
+  /* Token colors for rendered signatures/types (spans emitted by types.ts). */
+  .ty-name,
+  .sig-param {
+    color: var(--color-fg);
+  }
+  .sig-name {
+    color: var(--color-accent);
+    font-weight: 600;
+  }
+  .ty-intrinsic {
+    color: var(--color-ty-intrinsic);
+  }
+  .ty-literal {
+    color: var(--color-ty-literal);
+  }
+  .ty-kw {
+    color: var(--color-ty-kw);
+  }
+  .ty-punct {
+    color: var(--color-muted);
+  }
+  .ty-link {
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+  .ty-link:hover {
+    text-decoration: underline;
+  }
+}

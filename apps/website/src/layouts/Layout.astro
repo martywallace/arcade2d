@@ -1,6 +1,7 @@
 ---
 import { Icon } from 'astro-icon/components';
 import { REPO_URL } from '../demos';
+import '../styles/global.css';
 
 type Props = {
   title: string;
@@ -11,6 +12,8 @@ type Props = {
 
 const { title, description, header = true } = Astro.props;
 const fullTitle = title === 'arcade2d' ? title : `${title} — arcade2d`;
+
+const navLink = 'inline-flex items-center text-muted hover:text-fg hover:no-underline';
 ---
 
 <!doctype html>
@@ -26,142 +29,45 @@ const fullTitle = title === 'arcade2d' ? title : `${title} — arcade2d`;
   <body>
     {
       header && (
-        <header class="site-header">
-          <a class="brand" href="/" aria-label="arcade2d home">
-            <img src="/logo.png" alt="arcade2d" width="180" height="110" />
+        <header class="flex items-center justify-between border-b border-border px-6 py-4">
+          <a class="inline-flex items-center" href="/" aria-label="arcade2d home">
+            <img class="block h-10 w-auto" src="/logo.png" alt="arcade2d" width="180" height="110" />
           </a>
-          <nav>
-            <a href="/demos">Demos</a>
-            <a href="/docs">Docs</a>
-            <a href={REPO_URL} target="_blank" rel="noopener" aria-label="GitHub">
-              <Icon name="lucide:github" />
+          <nav class="flex items-center gap-4">
+            <a class={navLink} href="/demos">Demos</a>
+            <a class={navLink} href="/docs">Docs</a>
+            <a
+              class={navLink}
+              href={REPO_URL}
+              target="_blank"
+              rel="noopener"
+              aria-label="GitHub"
+            >
+              <Icon name="lucide:github" class="size-5" />
             </a>
           </nav>
         </header>
       )
     }
-    <main>
+    <main class="mx-auto max-w-[1100px] px-6 pt-8 pb-16">
       <slot />
     </main>
-    <footer class="site-footer">
+    <footer
+      class="mx-auto flex max-w-[1100px] flex-wrap items-center justify-between gap-3 border-t border-border px-6 py-6 text-sm text-muted"
+    >
       <span>&copy; {new Date().getFullYear()} arcade2d</span>
-      <nav>
-        <a href="/demos">Demos</a>
-        <a href="/docs">Docs</a>
-        <a href={REPO_URL} target="_blank" rel="noopener">GitHub</a>
+      <nav class="flex gap-5">
+        <a class="text-muted hover:text-accent hover:no-underline" href="/demos">Demos</a>
+        <a class="text-muted hover:text-accent hover:no-underline" href="/docs">Docs</a>
+        <a
+          class="text-muted hover:text-accent hover:no-underline"
+          href={REPO_URL}
+          target="_blank"
+          rel="noopener"
+        >
+          GitHub
+        </a>
       </nav>
     </footer>
-    <style is:global>
-      :root {
-        color-scheme: light;
-        --bg: #ffffff;
-        --fg: #1b1a18;
-        --muted: #6b6f76;
-        --accent: #ef5a0e;
-        --accent-hover: #d44e08;
-        --accent-contrast: #ffffff;
-        --surface: #f7f5f2;
-        --border: #e7e3dd;
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      html,
-      body {
-        margin: 0;
-        padding: 0;
-        background: var(--bg);
-        color: var(--fg);
-        font-family:
-          ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
-          'Helvetica Neue', Arial, sans-serif;
-        line-height: 1.55;
-      }
-
-      html {
-        scroll-behavior: smooth;
-      }
-      @media (prefers-reduced-motion: reduce) {
-        html {
-          scroll-behavior: auto;
-        }
-      }
-
-      a {
-        color: var(--accent);
-        text-decoration: none;
-      }
-      a:hover {
-        text-decoration: underline;
-      }
-
-      .site-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 1rem 1.5rem;
-        border-bottom: 1px solid var(--border);
-      }
-      .site-header .brand {
-        display: inline-flex;
-        align-items: center;
-      }
-      .site-header .brand img {
-        height: 40px;
-        width: auto;
-        display: block;
-      }
-      .site-header nav {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-      }
-      .site-header nav a {
-        display: inline-flex;
-        align-items: center;
-        color: var(--muted);
-      }
-      .site-header nav a:hover {
-        color: var(--fg);
-        text-decoration: none;
-      }
-      .site-header nav a [data-icon] {
-        width: 1.25rem;
-        height: 1.25rem;
-      }
-
-      main {
-        max-width: 1100px;
-        margin: 0 auto;
-        padding: 2rem 1.5rem 4rem;
-      }
-
-      .site-footer {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-        max-width: 1100px;
-        margin: 0 auto;
-        padding: 1.5rem;
-        border-top: 1px solid var(--border);
-        color: var(--muted);
-        font-size: 0.9rem;
-      }
-      .site-footer nav {
-        display: flex;
-        gap: 1.25rem;
-      }
-      .site-footer nav a {
-        color: var(--muted);
-      }
-      .site-footer nav a:hover {
-        color: var(--accent);
-        text-decoration: none;
-      }
-    </style>
   </body>
 </html>

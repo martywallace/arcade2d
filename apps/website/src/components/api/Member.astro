@@ -40,14 +40,22 @@ function paramRows(sig: Signature) {
     };
   });
 }
+
+const h4 = 'mt-4 mb-2 text-[0.78rem] uppercase tracking-[0.06em] text-muted';
 ---
 
-<div class="member" id={anchor}>
-  <div class="member__head">
+<div class="group scroll-mt-6 border-t border-border py-6" id={anchor}>
+  <div class="flex min-h-[1.2rem] items-center gap-2">
     {mods.length > 0 && (
-      <span class="member__mods">{mods.join(' ')}</span>
+      <span class="text-[0.72rem] font-semibold uppercase tracking-[0.06em] text-accent">
+        {mods.join(' ')}
+      </span>
     )}
-    <a class="member__anchor" href={`#${anchor}`} aria-label={`Link to ${member.name}`}>#</a>
+    <a
+      class="ml-auto font-bold text-border no-underline group-hover:text-muted"
+      href={`#${anchor}`}
+      aria-label={`Link to ${member.name}`}
+    >#</a>
   </div>
 
   {member.kind === Kind.Property && (
@@ -73,19 +81,23 @@ function paramRows(sig: Signature) {
     const throwsTags = blockTags(sig.comment, '@throws');
     const examples = blockTags(sig.comment, '@example');
     return (
-      <div class="member__sig">
+      <div class="mt-4">
         <code class="sig" set:html={signatureLine(member.name, sig)} />
         <Prose html={renderSummary(sig.comment)} />
 
         {rows.length > 0 && (
-          <div class="member__params">
-            <h4>Parameters</h4>
-            <ul>
+          <div>
+            <h4 class={h4}>Parameters</h4>
+            <ul class="m-0 flex list-none flex-col gap-2 p-0">
               {rows.map((r) => (
-                <li>
+                <li class="flex flex-wrap items-baseline gap-2">
                   <code class="param-name">{r.name}{r.optional ? '?' : ''}</code>
                   <code class="param-type" set:html={r.typeHtml} />
-                  {r.descHtml && <span class="param-desc"><Prose html={r.descHtml} /></span>}
+                  {r.descHtml && (
+                    <span class="grow basis-full text-[0.92rem] text-muted">
+                      <Prose html={r.descHtml} />
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -93,16 +105,16 @@ function paramRows(sig: Signature) {
         )}
 
         {member.kind !== Kind.Constructor && (
-          <div class="member__returns">
-            <h4>Returns</h4>
-            <code class="sig" set:html={renderType(sig.type)} />
+          <div>
+            <h4 class={h4}>Returns</h4>
+            <code class="sig m-0 mb-2 inline-block text-[0.88rem]" set:html={renderType(sig.type)} />
             {returns && <Prose html={renderBlockTag(returns)} />}
           </div>
         )}
 
         {throwsTags.length > 0 && (
-          <div class="member__throws">
-            <h4>Throws</h4>
+          <div>
+            <h4 class={h4}>Throws</h4>
             {throwsTags.map((t) => (
               <Prose html={renderBlockTag(t)} />
             ))}
@@ -110,8 +122,8 @@ function paramRows(sig: Signature) {
         )}
 
         {examples.length > 0 && (
-          <div class="member__examples">
-            <h4>Example</h4>
+          <div>
+            <h4 class={h4}>Example</h4>
             {examples.map((e) => (
               <Prose html={renderBlockTag(e)} />
             ))}
@@ -121,126 +133,3 @@ function paramRows(sig: Signature) {
     );
   })}
 </div>
-
-<style>
-  .member {
-    padding: 1.5rem 0;
-    border-top: 1px solid var(--border);
-    scroll-margin-top: 1.5rem;
-  }
-  .member__head {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-height: 1.2rem;
-  }
-  .member__mods {
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--accent);
-    font-weight: 600;
-  }
-  .member__anchor {
-    color: var(--border);
-    text-decoration: none;
-    margin-left: auto;
-    font-weight: 700;
-  }
-  .member:hover .member__anchor {
-    color: var(--muted);
-  }
-  .sig {
-    display: block;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.95rem;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0.6rem 0.8rem;
-    margin: 0.4rem 0 0.8rem;
-    overflow-x: auto;
-    line-height: 1.5;
-  }
-  .member__sig {
-    margin-top: 1rem;
-  }
-  h4 {
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--muted);
-    margin: 1rem 0 0.5rem;
-  }
-  .member__params ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  .member__params li {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.5rem;
-  }
-  .param-name {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-weight: 600;
-    color: var(--fg);
-  }
-  .param-type,
-  .member__returns .sig {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.88rem;
-  }
-  .param-type {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 0.05rem 0.35rem;
-  }
-  .param-desc {
-    flex: 1 1 100%;
-    color: var(--muted);
-    font-size: 0.92rem;
-  }
-  .member__returns .sig {
-    display: inline-block;
-    margin: 0 0 0.5rem;
-  }
-
-  /* Token colors for rendered signatures/types. */
-  .member :global(.ty-name),
-  .member :global(.sig-name) {
-    color: var(--fg);
-  }
-  .member :global(.sig-name) {
-    color: var(--accent);
-    font-weight: 600;
-  }
-  .member :global(.ty-intrinsic) {
-    color: #b5651d;
-  }
-  .member :global(.ty-literal) {
-    color: #297a3a;
-  }
-  .member :global(.ty-kw) {
-    color: #a4329d;
-  }
-  .member :global(.ty-punct) {
-    color: var(--muted);
-  }
-  .member :global(.ty-link) {
-    color: var(--accent);
-    text-decoration: none;
-  }
-  .member :global(.ty-link:hover) {
-    text-decoration: underline;
-  }
-  .member :global(.sig-param) {
-    color: var(--fg);
-  }
-</style>

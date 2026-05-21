@@ -26,6 +26,11 @@ const concepts = symbolCategories().map((c) => ({
   icon: CONCEPTS[c.title]?.icon ?? 'lucide:box',
   blurb: CONCEPTS[c.title]?.blurb ?? '',
 }));
+
+const button =
+  'inline-flex items-center gap-[0.45rem] rounded-md border px-[1.1rem] py-[0.55rem] text-[0.95rem] font-semibold hover:no-underline';
+const buttonPrimary = `${button} border-accent bg-accent text-accent-contrast hover:border-accent-hover hover:bg-accent-hover`;
+const buttonGhost = `${button} border-border bg-transparent text-fg hover:border-accent hover:bg-surface`;
 ---
 
 <Layout
@@ -33,242 +38,77 @@ const concepts = symbolCategories().map((c) => ({
   description="arcade2d is a TypeScript 2D game engine."
   header={false}
 >
-  <section class="hero">
-    <h1 class="hero__logo">
-      <img src="/logo.png" alt="arcade2d" width="180" height="110" />
+  {/* Full-screen, centered hero. The `- 2rem` cancels <main>'s top padding so
+      the first viewport is exactly one screen tall. */}
+  <section
+    class="relative flex min-h-[calc(100svh-2rem)] flex-col items-center justify-center text-center"
+  >
+    <h1 class="mb-6">
+      {/* The source art is only 180px wide — render at (or below) native size
+          so it stays crisp instead of upscaling and blurring. */}
+      <img class="h-auto w-[min(180px,60vw)]" src="/logo.png" alt="arcade2d" width="180" height="110" />
     </h1>
-    <p class="lede">
+    <p class="mx-auto max-w-[52ch] text-[1.2rem] text-muted">
       A TypeScript 2D game engine. Built around composable components,
       prefab-driven world objects, and the rendering pipeline you already know.
     </p>
-    <div class="hero__actions">
-      <a class="button" href="/demos">
-        <Icon name="lucide:gamepad-2" />
+    <div class="mt-8 flex flex-wrap justify-center gap-3">
+      <a class={buttonPrimary} href="/demos">
+        <Icon name="lucide:gamepad-2" class="size-[1.1rem]" />
         View demos
       </a>
-      <a class="button button--ghost" href="/docs">
-        <Icon name="lucide:book-open" />
+      <a class={buttonGhost} href="/docs">
+        <Icon name="lucide:book-open" class="size-[1.1rem]" />
         Docs
       </a>
-      <a class="button button--ghost" href={REPO_URL} target="_blank" rel="noopener">
-        <Icon name="lucide:github" />
+      <a class={buttonGhost} href={REPO_URL} target="_blank" rel="noopener">
+        <Icon name="lucide:github" class="size-[1.1rem]" />
         GitHub
       </a>
     </div>
 
-    <a class="scroll-cue" href="#demos" aria-label="Jump to demos">
+    <a
+      class="absolute bottom-6 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5 text-[0.8rem] uppercase tracking-[0.08em] text-muted hover:text-accent hover:no-underline"
+      href="#demos"
+      aria-label="Jump to demos"
+    >
       <span>See the demos</span>
-      <Icon name="lucide:chevron-down" />
+      <Icon name="lucide:chevron-down" class="size-[1.4rem] animate-scroll-bounce motion-reduce:animate-none" />
     </a>
   </section>
 
-  <section id="demos" class="demos-section">
-    <h2>Demos</h2>
+  <section id="demos" class="pb-4">
+    <h2 class="mb-4 text-[1.4rem]">Demos</h2>
     <DemoGrid demos={DEMOS} />
   </section>
 
-  <section class="concepts-section">
-    <h2>Concepts</h2>
-    <p class="section-lede">
+  <section class="pt-16 pb-8">
+    <h2 class="mb-4 text-[1.4rem]">Concepts</h2>
+    <p class="mb-5 text-muted">
       The engine surface, by area. Each links into the API reference.
     </p>
-    <ul class="concepts">
+    <ul class="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 p-0">
       {concepts.map((c) => (
         <li>
-          <a href={`/docs#${c.slug}`}>
-            <span class="concepts__icon">
-              <Icon name={c.icon} />
+          <a
+            class="flex h-full items-start gap-[0.85rem] rounded-lg border border-border px-[1.1rem] py-4 text-fg transition-colors hover:border-accent hover:bg-surface hover:no-underline"
+            href={`/docs#${c.slug}`}
+          >
+            <span class="grid size-[2.4rem] flex-none place-items-center rounded-lg bg-accent text-accent-contrast">
+              <Icon name={c.icon} class="size-[1.3rem]" />
             </span>
-            <span class="concepts__body">
-              <span class="concepts__title">
+            <span class="flex flex-col gap-[0.2rem]">
+              <span class="flex items-center gap-2 font-semibold">
                 {c.title}
-                <span class="concepts__count">{c.count}</span>
+                <span class="rounded-full border border-border px-[0.45rem] py-[0.02rem] text-[0.7rem] font-semibold text-muted">
+                  {c.count}
+                </span>
               </span>
-              {c.blurb && <span class="concepts__blurb">{c.blurb}</span>}
+              {c.blurb && <span class="text-[0.9rem] text-muted">{c.blurb}</span>}
             </span>
           </a>
         </li>
       ))}
     </ul>
   </section>
-
-  <style>
-    /* Full-screen, centered hero. The `- 2rem` cancels <main>'s top padding so
-       the first viewport is exactly one screen tall. */
-    .hero {
-      position: relative;
-      min-height: calc(100svh - 2rem);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-    }
-    .scroll-cue {
-      position: absolute;
-      bottom: 1.5rem;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.35rem;
-      color: var(--muted);
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-    .scroll-cue:hover {
-      color: var(--accent);
-      text-decoration: none;
-    }
-    .scroll-cue [data-icon] {
-      width: 1.4rem;
-      height: 1.4rem;
-      animation: scroll-bounce 1.8s ease-in-out infinite;
-    }
-    @keyframes scroll-bounce {
-      0%,
-      100% {
-        transform: translateY(0);
-      }
-      50% {
-        transform: translateY(0.35rem);
-      }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .scroll-cue [data-icon] {
-        animation: none;
-      }
-    }
-    .hero__logo {
-      margin: 0 0 1.5rem;
-    }
-    /* The source art is only 180px wide — render at (or below) native size so
-       it stays crisp instead of upscaling and blurring. */
-    .hero__logo img {
-      width: min(180px, 60vw);
-      height: auto;
-    }
-    .lede {
-      font-size: 1.2rem;
-      color: var(--muted);
-      max-width: 52ch;
-      margin: 0 auto;
-    }
-    .hero__actions {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 0.75rem;
-      margin-top: 2rem;
-    }
-    .demos-section {
-      padding-bottom: 1rem;
-    }
-    .concepts-section {
-      padding: 4rem 0 2rem;
-    }
-    .section-lede {
-      color: var(--muted);
-      margin: 0 0 1.25rem;
-    }
-    .concepts {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: grid;
-      gap: 1rem;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    }
-    .concepts a {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.85rem;
-      height: 100%;
-      padding: 1rem 1.1rem;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--fg);
-      transition:
-        border-color 0.15s ease,
-        background 0.15s ease;
-    }
-    .concepts a:hover {
-      border-color: var(--accent);
-      background: var(--surface);
-      text-decoration: none;
-    }
-    .concepts__icon {
-      flex: none;
-      display: grid;
-      place-items: center;
-      width: 2.4rem;
-      height: 2.4rem;
-      border-radius: 8px;
-      background: var(--accent);
-      color: var(--accent-contrast);
-    }
-    .concepts__icon :global([data-icon]) {
-      width: 1.3rem;
-      height: 1.3rem;
-    }
-    .concepts__body {
-      display: flex;
-      flex-direction: column;
-      gap: 0.2rem;
-    }
-    .concepts__title {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-weight: 600;
-    }
-    .concepts__count {
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: var(--muted);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 0.02rem 0.45rem;
-    }
-    .concepts__blurb {
-      font-size: 0.9rem;
-      color: var(--muted);
-    }
-    .button {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      padding: 0.55rem 1.1rem;
-      border-radius: 6px;
-      border: 1px solid var(--accent);
-      background: var(--accent);
-      color: var(--accent-contrast);
-      font-weight: 600;
-      font-size: 0.95rem;
-    }
-    .button [data-icon] {
-      width: 1.1rem;
-      height: 1.1rem;
-    }
-    .button:hover {
-      text-decoration: none;
-      background: var(--accent-hover);
-      border-color: var(--accent-hover);
-    }
-    .button--ghost {
-      background: transparent;
-      border-color: var(--border);
-      color: var(--fg);
-    }
-    .button--ghost:hover {
-      background: var(--surface);
-      border-color: var(--accent);
-    }
-    h2 {
-      font-size: 1.4rem;
-      margin: 0 0 1rem;
-    }
-  </style>
 </Layout>

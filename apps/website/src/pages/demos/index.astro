@@ -5,29 +5,12 @@ import { DEMOS } from '../../demos';
 ---
 
 <Layout title="Demos" description="Live arcade2d demos.">
-  <h1>Demos</h1>
-  <p class="lede">
-    Every demo is an independently-built Vite app under <code>demos/</code> in
+  <h1 class="mb-2">Demos</h1>
+  <p class="mb-8 max-w-[64ch] text-muted">
+    Every demo is an independently-built Vite app under
+    <code class="rounded border border-border bg-surface px-[0.35rem] py-[0.1rem] text-[0.9em]">demos/</code> in
     the monorepo. Each one is bundled and embedded here as-is.
   </p>
 
   <DemoGrid demos={DEMOS} />
-
-  <style>
-    h1 {
-      margin: 0 0 0.5rem;
-    }
-    .lede {
-      color: var(--muted);
-      max-width: 64ch;
-      margin: 0 0 2rem;
-    }
-    code {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      padding: 0.1rem 0.35rem;
-      border-radius: 4px;
-      font-size: 0.9em;
-    }
-  </style>
 </Layout>

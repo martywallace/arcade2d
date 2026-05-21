@@ -4,19 +4,27 @@ import { symbolCategories } from '../../lib/api/load';
 type Props = { activeSlug?: string };
 const { activeSlug } = Astro.props;
 const groups = symbolCategories();
+
+const linkBase =
+  'block py-[0.15rem] font-mono text-[0.82rem] hover:text-fg hover:no-underline';
 ---
 
-<nav class="api-sidebar" aria-label="API reference">
-  <a class="api-sidebar__home" href="/docs">API Reference</a>
+<nav
+  class="sticky top-6 max-h-[calc(100vh-3rem)] self-start overflow-y-auto text-[0.9rem] max-[820px]:static max-[820px]:mb-6 max-[820px]:max-h-none max-[820px]:border-b max-[820px]:border-border max-[820px]:pb-4"
+  aria-label="API reference"
+>
+  <a class="mb-4 block font-bold text-fg" href="/docs">API Reference</a>
   {groups.map((group) => (
-    <div class="api-sidebar__group">
-      <h3>{group.title}</h3>
-      <ul>
+    <div class="mb-5">
+      <h3 class="mb-[0.4rem] text-[0.72rem] uppercase tracking-[0.07em] text-muted">
+        {group.title}
+      </h3>
+      <ul class="m-0 list-none p-0">
         {group.symbols.map((s) => (
           <li>
             <a
               href={`/docs/${s.slug}`}
-              class={s.slug === activeSlug ? 'is-active' : ''}
+              class={`${linkBase} ${s.slug === activeSlug ? 'font-semibold text-accent' : 'text-muted'}`}
             >
               {s.reflection.name}
             </a>
@@ -26,59 +34,3 @@ const groups = symbolCategories();
     </div>
   ))}
 </nav>
-
-<style>
-  .api-sidebar {
-    position: sticky;
-    top: 1.5rem;
-    align-self: start;
-    max-height: calc(100vh - 3rem);
-    overflow-y: auto;
-    font-size: 0.9rem;
-  }
-  .api-sidebar__home {
-    display: block;
-    font-weight: 700;
-    color: var(--fg);
-    margin-bottom: 1rem;
-  }
-  .api-sidebar__group {
-    margin-bottom: 1.25rem;
-  }
-  .api-sidebar__group h3 {
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: var(--muted);
-    margin: 0 0 0.4rem;
-  }
-  .api-sidebar ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-  .api-sidebar li a {
-    display: block;
-    padding: 0.15rem 0;
-    color: var(--muted);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.82rem;
-  }
-  .api-sidebar li a:hover {
-    color: var(--fg);
-    text-decoration: none;
-  }
-  .api-sidebar li a.is-active {
-    color: var(--accent);
-    font-weight: 600;
-  }
-  @media (max-width: 820px) {
-    .api-sidebar {
-      position: static;
-      max-height: none;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 1rem;
-      margin-bottom: 1.5rem;
-    }
-  }
-</style>
