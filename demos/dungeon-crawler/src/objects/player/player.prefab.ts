@@ -1,4 +1,5 @@
-import { Prefab, PolygonGraphics } from '@arcade2d/engine';
+import { ImageAsset, Prefab, Sprite, Texture } from '@arcade2d/engine';
+import { CHARACTER_SCALE, characters } from '../../assets';
 import { PlayerController } from './player.controller.component';
 
 export const PlayerPrefab = new Prefab({
@@ -6,7 +7,13 @@ export const PlayerPrefab = new Prefab({
   tags: ['player'],
   components: {
     controller: ({ object }) => new PlayerController(object),
-    graphics: ({ object }) =>
-      PolygonGraphics.asRectangle(object, 50, 50, 0xffffff),
+    graphics: ({ world, object }) => {
+      // Resolve the texture at build time through the typed bundle: the key
+      // is compile-checked, and the bundle was preloaded at startup.
+      const asset = world.game.assets.use(characters).get('player');
+      object.scale.set(CHARACTER_SCALE, CHARACTER_SCALE);
+
+      return new Sprite(object, new Texture(asset as ImageAsset));
+    },
   },
 });

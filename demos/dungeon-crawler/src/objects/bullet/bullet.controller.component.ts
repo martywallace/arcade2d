@@ -1,9 +1,11 @@
 import type { WorldUpdate } from '@arcade2d/engine';
-import {
-  AbstractWorldObjectComponent,
-  PolygonGraphics,
-  WorldTimer,
-} from '@arcade2d/engine';
+import { AbstractWorldObjectComponent, WorldTimer } from '@arcade2d/engine';
+
+/**
+ * World-space radius within which a bullet counts as hitting an enemy. Sized
+ * to roughly the on-screen extent of a scaled 16x16 character sprite.
+ */
+const HIT_RADIUS = 28;
 
 /**
  * Bullet controller has nothing to resolve from the host or world: it
@@ -24,9 +26,7 @@ export class BulletController extends AbstractWorldObjectComponent {
     );
 
     for (const object of this.world.findByTag('enemy')) {
-      const body = object.getComponentByType(PolygonGraphics);
-
-      if (body.containsWorldPoint(this.host.position)) {
+      if (object.position.distanceTo(this.host.position) < HIT_RADIUS) {
         this.host.destroy();
         object.destroy();
       }

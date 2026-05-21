@@ -1,6 +1,7 @@
 import './style.css';
 
 import { Game, Random } from '@arcade2d/engine';
+import { characters } from './assets';
 import { PlayerPrefab } from './objects/player/player.prefab';
 import { ZombiePrefab } from './objects/zombie/zombie.prefab';
 
@@ -10,6 +11,11 @@ async function start() {
     canvas: { fill: 'window' },
     debug: true,
   });
+
+  // Eagerly preload the whole character bundle before any object spawns, so a
+  // missing or failed asset surfaces here at startup rather than when a
+  // particular object first appears mid-session.
+  await game.assets.use(characters).load();
 
   const world = game.createWorld();
 

@@ -6,6 +6,12 @@
       "runtimeExecutable": "yarn",
       "runtimeArgs": ["workspace", "@arcade2d/website", "preview", "--port", "4329"],
       "port": 4329
+    },
+    {
+      "name": "dungeon-crawler",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": ["workspace", "@arcade2d/demo-dungeon-crawler", "exec", "vite", "--port", "4330"],
+      "port": 4330
     }
   ]
 }
