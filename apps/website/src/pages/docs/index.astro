@@ -1,10 +1,11 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import ApiSidebar from '../../components/api/ApiSidebar.astro';
-import { symbolGroups } from '../../lib/api/load';
+import { symbolCategories } from '../../lib/api/load';
 import { summaryExcerpt } from '../../lib/api/comment';
+import { kindLabel, kindTag } from '../../lib/api/kinds';
 
-const groups = symbolGroups();
+const groups = symbolCategories();
 ---
 
 <Layout title="API Reference" description="The arcade2d engine API reference.">
@@ -26,7 +27,12 @@ const groups = symbolGroups();
             {group.symbols.map((s) => (
               <li>
                 <a href={`/docs/${s.slug}`}>
-                  <code>{s.reflection.name}</code>
+                  <span class="symbol-grid__head">
+                    <code>{s.reflection.name}</code>
+                    <span class={`kind-tag kind-${kindTag(s.reflection.kind)}`}>
+                      {kindLabel(s.reflection.kind)}
+                    </span>
+                  </span>
                   <span class="symbol-grid__summary">
                     {summaryExcerpt(s.reflection.comment)}
                   </span>
@@ -79,10 +85,27 @@ const groups = symbolGroups();
       border-color: var(--accent);
       text-decoration: none;
     }
+    .symbol-grid__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
     .symbol-grid code {
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-weight: 600;
       color: var(--accent);
+    }
+    .kind-tag {
+      flex: none;
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.1rem 0.35rem;
     }
     .symbol-grid__summary {
       margin-top: 0.35rem;

@@ -46,3 +46,22 @@ export function kindLabel(kind: number): string {
 export function kindTag(kind: number): string {
   return kindLabel(kind).toLowerCase().replace(/\s+/g, '-');
 }
+
+/**
+ * Sort weight for ordering symbols within a category — the "headline" kinds
+ * (classes, enums) come first, then interfaces, then the supporting type
+ * aliases, functions, and variables.
+ */
+export function kindRank(kind: number): number {
+  switch (kind) {
+    case Kind.Class:
+    case Kind.Enum:
+      return 0;
+    case Kind.Interface:
+      return 1;
+    case Kind.TypeAlias:
+      return 2;
+    default:
+      return 3;
+  }
+}

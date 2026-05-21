@@ -67,6 +67,17 @@ In short, every public symbol needs:
   `index.ts` that `export *`s its files, and `src/index.ts` re-exports the
   clusters. A new file that isn't added to its barrel produces **no doc page
   at all** — this is the most common "my docs are missing" cause.
+- **The reference is grouped by source folder, not by kind.** The sidebar and
+  `/docs` index group symbols into categories (Core / World / Graphics /
+  Geometry / Input / Utilities) derived from the first segment of each
+  symbol's source path — package-root files are "Core", `world/*.ts` is
+  "World", and so on. **Adding a new top-level engine folder** (e.g.
+  `audio/`) means it needs a label and a position, otherwise its symbols fall
+  to the end of the list under the raw folder name. Register it in
+  `apps/website/src/lib/api/load.ts` by adding an entry to both
+  `CATEGORY_LABELS` (folder → display name) and `CATEGORY_ORDER` (where it
+  sits in the sequence). Symbols still sort within a category by kind
+  (classes/enums first), so no per-symbol annotation is needed.
 - **`@internal` removes a symbol from the docs.** TypeDoc runs with
   `excludeInternal` + `excludePrivate`. Use `@internal` (or `private`) to keep
   implementation detail out of the reference rather than relying on it being

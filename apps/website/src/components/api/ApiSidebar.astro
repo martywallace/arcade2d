@@ -1,9 +1,9 @@
 ---
-import { symbolGroups } from '../../lib/api/load';
+import { symbolCategories } from '../../lib/api/load';
 
 type Props = { activeSlug?: string };
 const { activeSlug } = Astro.props;
-const groups = symbolGroups();
+const groups = symbolCategories();
 ---
 
 <nav class="api-sidebar" aria-label="API reference">

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { Kind } from './kinds';
+import { Kind, kindRank } from './kinds';
 import { memberAnchor, toSlug } from './slug';
 
 /**
@@ -151,19 +151,54 @@ export function allSymbols(): DocSymbol[] {
   return [...symbolsBySlug.values()];
 }
 
-/** Top-level symbols grouped by kind, in the project's group order. */
-export function symbolGroups(): { title: string; symbols: DocSymbol[] }[] {
-  const groups = project.groups ?? [];
-  return groups
-    .map((g) => ({
-      title: g.title,
-      symbols: g.children
-        .map((id) => byId.get(id))
-        .filter((r): r is Reflection => Boolean(r))
-        .map((r) => symbolsBySlug.get(toSlug(r.name)))
-        .filter((s): s is DocSymbol => Boolean(s)),
-    }))
-    .filter((g) => g.symbols.length > 0);
+// Maps an engine source subfolder to a human-readable category. Symbols in
+// the package root (no subfolder) are the "Core" surface. The order here is
+// the order categories appear in the sidebar and on the index — roughly
+// "learn this first" to "supporting machinery".
+const CATEGORY_LABELS: Record<string, string> = {
+  '': 'Core',
+  world: 'World',
+  graphics: 'Graphics',
+  geometry: 'Geometry',
+  input: 'Input',
+  utils: 'Utilities',
+};
+const CATEGORY_ORDER = ['', 'world', 'graphics', 'geometry', 'input', 'utils'];
+
+/** The source subfolder a symbol lives in ('' for the package root). */
+function categoryKeyOf(ref: Reflection): string {
+  const file = ref.sources?.[0]?.fileName ?? '';
+  const slash = file.indexOf('/');
+  return slash === -1 ? '' : file.slice(0, slash);
+}
+
+/**
+ * Top-level symbols grouped by their source folder (Core / World / Graphics /
+ * …), mirroring the engine's directory layout. Within a category, headline
+ * kinds (classes, enums) sort first, then interfaces, type aliases, and the
+ * rest, each alphabetically.
+ */
+export function symbolCategories(): { title: string; symbols: DocSymbol[] }[] {
+  const buckets = new Map<string, DocSymbol[]>();
+  for (const symbol of symbolsBySlug.values()) {
+    const key = categoryKeyOf(symbol.reflection);
+    const bucket = buckets.get(key) ?? [];
+    bucket.push(symbol);
+    buckets.set(key, bucket);
+  }
+
+  const orderedKeys = [
+    ...CATEGORY_ORDER.filter((k) => buckets.has(k)),
+    ...[...buckets.keys()].filter((k) => !CATEGORY_ORDER.includes(k)),
+  ];
+
+  return orderedKeys.map((key) => ({
+    title: CATEGORY_LABELS[key] ?? key,
+    symbols: (buckets.get(key) ?? []).sort((a, b) => {
+      const rank = kindRank(a.reflection.kind) - kindRank(b.reflection.kind);
+      return rank !== 0 ? rank : a.reflection.name.localeCompare(b.reflection.name);
+    }),
+  }));
 }
 
 export function getSymbol(slug: string): DocSymbol | undefined {
