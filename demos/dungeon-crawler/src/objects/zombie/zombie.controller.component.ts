@@ -3,9 +3,9 @@ import { AbstractWorldObjectComponent, Random } from '@arcade2d/engine';
 import { ZombiePrefab } from './zombie.prefab';
 
 /**
- * Zombie has no resolved dependencies — facing is written into
- * `host.rotation` and movement mutates `host.position`, both of which the
- * sibling graphics component reads back in its own `onPostUpdate`. No
+ * Zombie has no resolved dependencies — movement mutates `host.position`,
+ * which the sibling graphics component reads back in its own `onPostUpdate`.
+ * The sprite does not rotate; the zombie simply walks toward the player. No
  * cross-component references are needed at all.
  */
 export class ZombieController extends AbstractWorldObjectComponent {
@@ -21,8 +21,6 @@ export class ZombieController extends AbstractWorldObjectComponent {
       } else {
         this.host.destroy();
       }
-
-      this.host.rotation = this.host.position.angleTo(player.position);
     }
   }
 

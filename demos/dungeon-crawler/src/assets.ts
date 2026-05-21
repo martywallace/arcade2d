@@ -1,7 +1,8 @@
 import { defineAssetBundle } from '@arcade2d/engine';
-import zombieUrl from '../assets/Character_animation/monsters_idle/skeleton1/v1/skeleton_v1_1.png';
+import zombieUrl from '../assets/Character_animation/monsters_idle/skeleton1/v2/skeleton_v2_1.png';
 import playerUrl from '../assets/Character_animation/priests_idle/priest1/v1/priest1_v1_1.png';
 import tilesetUrl from '../assets/character and tileset/Dungeon_Tileset.png';
+import arrowUrl from '../assets/items and trap_animation/arrow/Just_arrow.png';
 
 /**
  * The character art the game renders. Declaring it as a typed bundle gives
@@ -24,6 +25,14 @@ export const characters = defineAssetBundle('characters', {
  */
 export const scenery = defineAssetBundle('scenery', {
   tileset: tilesetUrl,
+});
+
+/**
+ * Projectile art — the player's arrow. Its own bundle so weapon/projectile
+ * assets can grow independently of the characters and scenery.
+ */
+export const projectiles = defineAssetBundle('projectiles', {
+  arrow: arrowUrl,
 });
 
 /**

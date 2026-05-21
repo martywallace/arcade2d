@@ -1,7 +1,7 @@
 import './style.css';
 
 import { Game, Random } from '@arcade2d/engine';
-import { characters, scenery } from './assets';
+import { characters, projectiles, scenery } from './assets';
 import { FloorPrefab } from './objects/floor/floor.prefab';
 import { PlayerPrefab } from './objects/player/player.prefab';
 import { ZombiePrefab } from './objects/zombie/zombie.prefab';
@@ -19,6 +19,7 @@ async function start() {
   await Promise.all([
     game.assets.use(characters).load(),
     game.assets.use(scenery).load(),
+    game.assets.use(projectiles).load(),
   ]);
 
   const world = game.createWorld();
