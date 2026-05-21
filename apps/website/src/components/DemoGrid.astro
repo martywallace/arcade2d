@@ -1,0 +1,89 @@
+---
+import { Icon } from 'astro-icon/components';
+import { demoSourceUrl, type DemoEntry } from '../demos';
+
+type Props = {
+  demos: readonly DemoEntry[];
+};
+
+const { demos } = Astro.props;
+---
+
+<ul class="demos">
+  {
+    demos.map((demo) => (
+      <li class="demo-card">
+        <a class="demo-card__main" href={`/demos/${demo.slug}`}>
+          <h3>{demo.title}</h3>
+          <p>{demo.description}</p>
+        </a>
+        <a
+          class="demo-card__source"
+          href={demoSourceUrl(demo)}
+          target="_blank"
+          rel="noopener"
+        >
+          <Icon name="lucide:github" />
+          View source
+        </a>
+      </li>
+    ))
+  }
+</ul>
+
+<style>
+  .demos {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+  .demo-card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.15s ease;
+  }
+  .demo-card:hover {
+    border-color: var(--accent);
+  }
+  .demo-card__main {
+    display: block;
+    flex: 1;
+    padding: 1rem 1.1rem;
+    color: var(--fg);
+  }
+  .demo-card__main:hover {
+    text-decoration: none;
+  }
+  .demo-card__main h3 {
+    margin: 0 0 0.35rem;
+    font-size: 1.05rem;
+  }
+  .demo-card__main p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  .demo-card__source {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.6rem 1.1rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .demo-card__source:hover {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .demo-card__source [data-icon] {
+    width: 1rem;
+    height: 1rem;
+  }
+</style>

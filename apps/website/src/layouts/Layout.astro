@@ -1,4 +1,7 @@
 ---
+import { Icon } from 'astro-icon/components';
+import { REPO_URL } from '../demos';
+
 type Props = {
   title: string;
   description?: string;
@@ -22,6 +25,9 @@ const fullTitle = title === 'arcade2d' ? title : `${title} — arcade2d`;
       <a class="brand" href="/">arcade2d</a>
       <nav>
         <a href="/demos">Demos</a>
+        <a href={REPO_URL} target="_blank" rel="noopener" aria-label="GitHub">
+          <Icon name="lucide:github" />
+        </a>
       </nav>
     </header>
     <main>
@@ -73,13 +79,23 @@ const fullTitle = title === 'arcade2d' ? title : `${title} — arcade2d`;
         font-size: 1.1rem;
         color: var(--fg);
       }
+      .site-header nav {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
       .site-header nav a {
+        display: inline-flex;
+        align-items: center;
         color: var(--muted);
-        margin-left: 1rem;
       }
       .site-header nav a:hover {
         color: var(--fg);
         text-decoration: none;
+      }
+      .site-header nav a [data-icon] {
+        width: 1.25rem;
+        height: 1.25rem;
       }
 
       main {

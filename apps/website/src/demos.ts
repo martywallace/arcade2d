@@ -58,3 +58,14 @@ export const DEMOS: readonly DemoEntry[] = [
 export function findDemo(slug: string): DemoEntry | undefined {
   return DEMOS.find((d) => d.slug === slug);
 }
+
+/** Canonical URL of the project's GitHub repository. */
+export const REPO_URL = 'https://github.com/martywallace/arcade2d';
+
+/**
+ * Resolves the GitHub URL of a demo's source folder, e.g.
+ * `https://github.com/martywallace/arcade2d/tree/main/demos/td-shooter`.
+ */
+export function demoSourceUrl(demo: DemoEntry): string {
+  return `${REPO_URL}/tree/main/demos/${demo.workspaceDir}`;
+}

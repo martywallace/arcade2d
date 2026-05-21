@@ -1,6 +1,7 @@
 ---
+import { Icon } from 'astro-icon/components';
 import Layout from '../../layouts/Layout.astro';
-import { DEMOS, findDemo } from '../../demos';
+import { DEMOS, findDemo, demoSourceUrl } from '../../demos';
 
 export function getStaticPaths() {
   return DEMOS.map((demo) => ({ params: { slug: demo.slug } }));
@@ -18,9 +19,16 @@ const embedSrc = `/embeds/${demo.slug}/index.html`;
 
 <Layout title={demo.title} description={demo.description}>
   <header class="demo-header">
-    <a href="/demos" class="back">&larr; All demos</a>
+    <a href="/demos" class="back">
+      <Icon name="lucide:arrow-left" />
+      All demos
+    </a>
     <h1>{demo.title}</h1>
     <p>{demo.description}</p>
+    <a class="source" href={demoSourceUrl(demo)} target="_blank" rel="noopener">
+      <Icon name="lucide:github" />
+      View source on GitHub
+    </a>
   </header>
 
   <div class="stage">
@@ -53,10 +61,16 @@ const embedSrc = `/embeds/${demo.slug}/index.html`;
       margin-bottom: 1.25rem;
     }
     .demo-header .back {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
       color: var(--muted);
       font-size: 0.9rem;
       margin-bottom: 0.5rem;
+    }
+    .demo-header .back [data-icon] {
+      width: 1rem;
+      height: 1rem;
     }
     .demo-header h1 {
       margin: 0 0 0.35rem;
@@ -65,6 +79,17 @@ const embedSrc = `/embeds/${demo.slug}/index.html`;
       margin: 0;
       color: var(--muted);
       max-width: 64ch;
+    }
+    .demo-header .source {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+    }
+    .demo-header .source [data-icon] {
+      width: 1.05rem;
+      height: 1.05rem;
     }
     .stage {
       width: 100%;
