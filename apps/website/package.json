@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "yarn workspace @arcade2d/root exec turbo run build --filter=@arcade2d/website^... && node scripts/sync-demos.mjs && astro dev",
-    "build": "node scripts/sync-demos.mjs && astro build",
+    "dev": "yarn workspace @arcade2d/root exec turbo run build --filter=@arcade2d/website^... && node scripts/sync-demos.mjs && yarn docs:api && astro dev",
+    "build": "node scripts/sync-demos.mjs && yarn docs:api && astro build",
+    "docs:api": "typedoc",
     "preview": "astro preview",
     "typecheck": "astro check",
     "lint": "astro check",
@@ -17,8 +18,11 @@
   },
   "devDependencies": {
     "@arcade2d/demo-td-shooter": "workspace:*",
+    "@arcade2d/engine": "workspace:*",
     "@astrojs/check": "^0.9.0",
     "@iconify-json/lucide": "^1.2.0",
+    "marked": "^14.1.0",
+    "typedoc": "^0.27.0",
     "typescript": "^5.9.2",
     "wrangler": "^3.90.0"
   }

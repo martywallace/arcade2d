@@ -2,5 +2,8 @@ dist/
 .astro/
 node_modules/
 
+# Generated API model from TypeDoc (rebuilt each build).
+.typedoc/
+
 # Demo bundles are synced in from demos/*/dist at build time.
 public/embeds/

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["../../packages/engine/src/index.ts"],
+  "tsconfig": "../../packages/engine/tsconfig.json",
+  "json": ".typedoc/api.json",
+  "pretty": false,
+  "excludeInternal": true,
+  "excludePrivate": true,
+  "excludeExternals": true,
+  "categorizeByGroup": true,
+  "sourceLinkTemplate": "https://github.com/martywallace/arcade2d/blob/main/{path}#L{line}",
+  "gitRevision": "main"
+}
