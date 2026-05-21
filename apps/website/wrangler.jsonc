@@ -1,0 +1,20 @@
+/**
+ * Cloudflare Workers config for the arcade2d marketing/docs site.
+ *
+ * The site is static — there is no Worker script (no `main` entry). The
+ * `assets` block tells Wrangler to upload the Astro build output as static
+ * assets, which Cloudflare serves directly from its edge.
+ *
+ * Deploy locally with: `yarn workspace @arcade2d/website deploy`
+ * In CI (Workers Builds), the dashboard runs `npx wrangler deploy` from
+ * this directory after the build step finishes.
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "arcade2d",
+  "compatibility_date": "2025-05-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  }
+}

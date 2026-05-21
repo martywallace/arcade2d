@@ -8,7 +8,8 @@
     "build": "node scripts/sync-demos.mjs && astro build",
     "preview": "astro preview",
     "typecheck": "astro check",
-    "lint": "astro check"
+    "lint": "astro check",
+    "deploy": "yarn build && wrangler deploy"
   },
   "dependencies": {
     "astro": "^5.0.0"
@@ -16,6 +17,7 @@
   "devDependencies": {
     "@arcade2d/demo-td-shooter": "workspace:*",
     "@astrojs/check": "^0.9.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "wrangler": "^3.90.0"
   }
 }
