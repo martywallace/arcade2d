@@ -7,6 +7,7 @@ import { Game } from '../game';
 import { Asset } from './asset';
 import { AssetLibrary } from './asset-library';
 import { AssetType } from './asset.constants';
+import { FontAsset } from './font-asset';
 import { ImageAsset } from './image-asset';
 
 /** A non-image asset used to exercise the getAs type-mismatch path. */
@@ -426,6 +427,93 @@ describe('AssetLibrary', () => {
       expect(unloadSpy).toHaveBeenCalledWith(['hero.png']);
       expect(game.assets.has('theme.ogg', 'level-1')).toBe(false);
       expect(game.assets.has('hero.png', 'level-1')).toBe(false);
+    });
+  });
+
+  describe('font loads', () => {
+    const fakeFace = (family = 'Press Start 2P'): FontFace =>
+      ({ family }) as unknown as FontFace;
+
+    test('produces a FontAsset wrapping the loaded FontFace', async () => {
+      const face = fakeFace();
+      mockLoad(() => Promise.resolve(face as unknown as Texture));
+
+      const assets = createLibrary();
+      const asset = await assets.load('fonts/press-start-2p.ttf', {
+        key: 'pixel',
+      });
+
+      expect(asset).toBeInstanceOf(FontAsset);
+      expect(asset.type).toBe(AssetType.Font);
+      expect((asset as FontAsset).raw).toBe(face);
+      expect((asset as FontAsset).family).toBe('Press Start 2P');
+    });
+
+    test('takes the family from the first face when the loader returns an array', async () => {
+      const faces = [fakeFace('Inter'), fakeFace('Inter')];
+      mockLoad(() => Promise.resolve(faces as unknown as Texture));
+
+      const assets = createLibrary();
+      const asset = await assets.load('fonts/inter.woff2', { key: 'body' });
+
+      expect((asset as FontAsset).family).toBe('Inter');
+      expect((asset as FontAsset).raw).toBe(faces);
+    });
+
+    test('throws ASSET_LOAD_FAILED when the loader rejects', async () => {
+      const cause = new Error('404');
+      mockLoad(() => Promise.reject(cause));
+
+      const assets = createLibrary();
+      const error = await captureError(
+        assets.load('fonts/missing.woff2', { key: 'missing' }),
+      );
+
+      expect(error.code).toBe(ErrorCode.ASSET_LOAD_FAILED);
+      expect(error.context?.cause).toBe(cause);
+    });
+
+    test('unload frees the FontFace via PIXI Assets.unload', async () => {
+      mockLoad(() => Promise.resolve(fakeFace() as unknown as Texture));
+      const assets = createLibrary();
+      await assets.load('fonts/press-start-2p.ttf', { key: 'pixel' });
+
+      await assets.unload('pixel');
+
+      expect(unloadSpy).toHaveBeenCalledWith('fonts/press-start-2p.ttf');
+      expect(assets.getNullable('pixel')).toBeNull();
+    });
+
+    test('throws ASSET_LOAD_FAILED when the loader returns no FontFaces', async () => {
+      mockLoad(() => Promise.resolve([] as unknown as Texture));
+
+      const assets = createLibrary();
+      const error = await captureError(
+        assets.load('fonts/empty.woff2', { key: 'empty' }),
+      );
+
+      expect(error.code).toBe(ErrorCode.ASSET_LOAD_FAILED);
+    });
+
+    test('unloadNamespace batches font sources alongside image sources', async () => {
+      mockLoad((url) =>
+        url.endsWith('.ttf')
+          ? Promise.resolve(fakeFace() as unknown as Texture)
+          : Promise.resolve(fakeTexture()),
+      );
+      const assets = createLibrary();
+      await assets.load('hero.png', { namespace: 'level-1' });
+      await assets.load('fonts/press-start-2p.ttf', {
+        key: 'pixel',
+        namespace: 'level-1',
+      });
+
+      await assets.unloadNamespace('level-1');
+
+      expect(unloadSpy).toHaveBeenCalledWith([
+        'hero.png',
+        'fonts/press-start-2p.ttf',
+      ]);
     });
   });
 });

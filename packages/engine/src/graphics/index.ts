@@ -6,6 +6,8 @@ export * from './polygon-graphics';
 export * from './scene';
 export * from './sprite';
 export * from './sprite.types';
+export * from './text';
+export * from './text.types';
 export * from './texture';
 export * from './texture.types';
 export * from './tiling-sprite';

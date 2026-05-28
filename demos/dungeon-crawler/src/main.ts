@@ -1,9 +1,10 @@
 import './style.css';
 
 import { Game, Random } from '@arcade2d/engine';
-import { characters, items, projectiles, scenery } from './assets';
+import { characters, items, projectiles, scenery, ui } from './assets';
 import { ScoreComponent } from './components/score.component';
 import { FloorPrefab } from './objects/floor/floor.prefab';
+import { ScoreDisplayPrefab } from './objects/hud/score-display.prefab';
 import { PlayerPrefab } from './objects/player/player.prefab';
 import { ZombiePrefab } from './objects/zombie/zombie.prefab';
 
@@ -25,6 +26,7 @@ async function start() {
     game.assets.use(scenery).load(),
     game.assets.use(projectiles).load(),
     game.assets.use(items).load(),
+    game.assets.use(ui).load(),
   ]);
 
   const world = game.createWorld();
@@ -38,6 +40,9 @@ async function start() {
   for (let i = 0; i < 10; i++) {
     world.createFromPrefab(ZombiePrefab, new Random().inRing(0, 0, 500, 700));
   }
+
+  // HUD spawned last so it parents above the gameplay in the scene graph.
+  world.createFromPrefab(ScoreDisplayPrefab);
 }
 
 start();

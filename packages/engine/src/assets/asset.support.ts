@@ -39,6 +39,19 @@ const AUDIO_EXTENSIONS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * File extensions the engine recognises as fonts, mapped to
+ * {@link AssetType.Font}. Lower-cased and without the leading dot. These are
+ * the four formats the browser `FontFace` API and PIXI's web-font loader
+ * accept — TrueType, OpenType, and the WOFF/WOFF2 web-optimised wrappers.
+ */
+const FONT_EXTENSIONS: ReadonlySet<string> = new Set([
+  'ttf',
+  'otf',
+  'woff',
+  'woff2',
+]);
+
+/**
  * Infers the {@link AssetType} of a resource from its path — either the MIME
  * type of a `data:` URL or, for ordinary paths, the file extension.
  *
@@ -112,6 +125,10 @@ export function inferAssetType(path: string): AssetType | null {
     return AssetType.Audio;
   }
 
+  if (FONT_EXTENSIONS.has(extension)) {
+    return AssetType.Font;
+  }
+
   return null;
 }
 
@@ -132,6 +149,10 @@ function inferFromDataUrl(url: string): AssetType | null {
 
   if (mime.startsWith('audio/')) {
     return AssetType.Audio;
+  }
+
+  if (mime.startsWith('font/') || mime === 'application/font-woff') {
+    return AssetType.Font;
   }
 
   return null;

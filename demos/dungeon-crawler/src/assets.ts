@@ -2,6 +2,7 @@ import { defineAssetBundle } from '@arcade2d/engine';
 import zombieUrl from '../assets/Character_animation/monsters_idle/skeleton1/v2/skeleton_v2_1.png';
 import playerUrl from '../assets/Character_animation/priests_idle/priest1/v1/priest1_v1_1.png';
 import tilesetUrl from '../assets/character and tileset/Dungeon_Tileset.png';
+import pressStart2PUrl from '../assets/fonts/press-start-2p.ttf';
 import arrowUrl from '../assets/items and trap_animation/arrow/Just_arrow.png';
 import coin1Url from '../assets/items and trap_animation/coin/coin_1.png';
 import coin2Url from '../assets/items and trap_animation/coin/coin_2.png';
@@ -49,6 +50,14 @@ export const items = defineAssetBundle('items', {
   coin2: coin2Url,
   coin3: coin3Url,
   coin4: coin4Url,
+});
+
+/**
+ * UI art and fonts — kept in its own bundle so HUD/menu resources can be
+ * loaded and unloaded independently of the gameplay assets.
+ */
+export const ui = defineAssetBundle('ui', {
+  pressStart2P: pressStart2PUrl,
 });
 
 /**

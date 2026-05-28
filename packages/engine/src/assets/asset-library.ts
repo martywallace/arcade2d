@@ -16,6 +16,7 @@ import type {
   AssetLoadOptions,
 } from './asset-library.types';
 import { BoundAssetBundle } from './bound-asset-bundle';
+import { FontAsset } from './font-asset';
 import { ImageAsset } from './image-asset';
 
 /**
@@ -422,9 +423,10 @@ export class AssetLibrary extends AbstractGameComponent {
 
     // Audio assets are decoded buffers held in JS memory — there's no
     // renderer-side cache to invalidate, so they only need to be dropped
-    // from the library. Image assets do go through the PIXI loader and
-    // need its `unload` call to free the GPU texture.
-    if (asset.type === AssetType.Image) {
+    // from the library. Image and font assets do go through the PIXI loader
+    // and need its `unload` call to free the GPU texture or unregister the
+    // `FontFace` from `document.fonts`.
+    if (asset.type === AssetType.Image || asset.type === AssetType.Font) {
       await Assets.unload(asset.src);
     }
   }
@@ -452,13 +454,16 @@ export class AssetLibrary extends AbstractGameComponent {
       return;
     }
 
-    const imageSources = [...bucket.values()]
-      .filter((asset) => asset.type === AssetType.Image)
+    const loaderSources = [...bucket.values()]
+      .filter(
+        (asset) =>
+          asset.type === AssetType.Image || asset.type === AssetType.Font,
+      )
       .map((asset) => asset.src);
     this._namespaces.delete(namespace);
 
-    if (imageSources.length > 0) {
-      await Assets.unload(imageSources);
+    if (loaderSources.length > 0) {
+      await Assets.unload(loaderSources);
     }
   }
 
@@ -557,6 +562,23 @@ export class AssetLibrary extends AbstractGameComponent {
           namespace,
         );
       }
+      case AssetType.Font: {
+        const faces = await this._loadFont(path, key, namespace);
+        const first = Array.isArray(faces) ? faces[0] : faces;
+        if (!first) {
+          return throwEngineError(
+            ErrorCode.ASSET_LOAD_FAILED,
+            `Loaded font "${path}" (key "${key}", namespace "${namespace}") ` +
+              `but the loader returned no FontFaces.`,
+            { path, key, namespace },
+          );
+        }
+        return this.store(
+          key,
+          new FontAsset(key, namespace, path, faces, first.family),
+          namespace,
+        );
+      }
     }
   }
 
@@ -576,6 +598,31 @@ export class AssetLibrary extends AbstractGameComponent {
       return throwEngineError(
         ErrorCode.ASSET_LOAD_FAILED,
         `Failed to load image "${path}" (key "${key}", namespace ` +
+          `"${namespace}"). See the \`cause\` in context for the underlying ` +
+          `loader error.`,
+        { path, key, namespace, cause },
+      );
+    }
+  }
+
+  /**
+   * Calls the underlying loader for a font, translating any loader rejection
+   * into an {@link EngineError} so callers see the engine's error contract
+   * rather than a raw PIXI failure. PIXI's web-font loader returns either a
+   * single `FontFace` (one weight) or an array of them (multiple weights);
+   * either shape is propagated through to {@link FontAsset}.
+   */
+  private async _loadFont(
+    path: string,
+    key: string,
+    namespace: string,
+  ): Promise<FontFace | FontFace[]> {
+    try {
+      return await Assets.load<FontFace | FontFace[]>(path);
+    } catch (cause) {
+      return throwEngineError(
+        ErrorCode.ASSET_LOAD_FAILED,
+        `Failed to load font "${path}" (key "${key}", namespace ` +
           `"${namespace}"). See the \`cause\` in context for the underlying ` +
           `loader error.`,
         { path, key, namespace, cause },

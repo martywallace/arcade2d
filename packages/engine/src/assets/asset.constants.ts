@@ -27,4 +27,12 @@ export enum AssetType {
    * {@link Music}).
    */
   Audio = 'audio',
+
+  /**
+   * A font file — TTF, OTF, WOFF, or WOFF2 — loaded into a browser
+   * `FontFace` and registered on `document.fonts` so canvas-tier text can
+   * draw with it. Wrapped by {@link FontAsset} and consumed by
+   * {@link Text}.
+   */
+  Font = 'font',
 }

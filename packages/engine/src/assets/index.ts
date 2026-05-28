@@ -8,4 +8,5 @@ export * from './asset-library';
 export * from './asset-library.constants';
 export * from './asset-library.types';
 export * from './bound-asset-bundle';
+export * from './font-asset';
 export * from './image-asset';
