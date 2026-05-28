@@ -1,4 +1,6 @@
 import { Assets, Texture } from 'pixi.js';
+import { AudioAsset } from '../audio/audio-asset';
+import { AudioEngine } from '../audio/audio-engine';
 import { EngineError } from '../error';
 import { ErrorCode } from '../error.constants';
 import { Game } from '../game';
@@ -333,6 +335,97 @@ describe('AssetLibrary', () => {
       assets.onDestroy();
 
       expect(assets.getNullable('a.png')).toBeNull();
+    });
+  });
+
+  describe('audio loads', () => {
+    const fakeBuffer = (): AudioBuffer =>
+      ({
+        duration: 2,
+        numberOfChannels: 2,
+        sampleRate: 44_100,
+      }) as unknown as AudioBuffer;
+
+    test('produces an AudioAsset wrapping the decoded buffer', async () => {
+      const buffer = fakeBuffer();
+      const game = Game.createHeadless();
+      jest
+        .spyOn(AudioEngine.prototype, 'loadAudioBuffer')
+        .mockResolvedValue(buffer);
+
+      const asset = await game.assets.load('theme.ogg');
+
+      expect(asset).toBeInstanceOf(AudioAsset);
+      expect(asset.type).toBe(AssetType.Audio);
+      expect((asset as AudioAsset).raw).toBe(buffer);
+      expect(asset.src).toBe('theme.ogg');
+    });
+
+    test('honours an explicit Audio type for an extensionless path', async () => {
+      jest
+        .spyOn(AudioEngine.prototype, 'loadAudioBuffer')
+        .mockResolvedValue(fakeBuffer());
+
+      const game = Game.createHeadless();
+      const asset = await game.assets.load('https://cdn.test/theme', {
+        key: 'theme',
+        type: AssetType.Audio,
+      });
+
+      expect(asset).toBeInstanceOf(AudioAsset);
+    });
+
+    test('propagates AUDIO_UNAVAILABLE when the engine is headless', async () => {
+      const game = Game.createHeadless();
+
+      const error = await captureError(game.assets.load('theme.ogg'));
+
+      expect(error).toBeInstanceOf(EngineError);
+      expect(error.code).toBe(ErrorCode.AUDIO_UNAVAILABLE);
+    });
+
+    test('wraps non-EngineError failures as ASSET_LOAD_FAILED', async () => {
+      const cause = new Error('decode failure');
+      jest
+        .spyOn(AudioEngine.prototype, 'loadAudioBuffer')
+        .mockRejectedValue(cause);
+
+      const game = Game.createHeadless();
+      const error = await captureError(game.assets.load('theme.ogg'));
+
+      expect(error.code).toBe(ErrorCode.ASSET_LOAD_FAILED);
+      expect(error.context?.cause).toBe(cause);
+    });
+
+    test('unload does not call PIXI Assets.unload for audio', async () => {
+      jest
+        .spyOn(AudioEngine.prototype, 'loadAudioBuffer')
+        .mockResolvedValue(fakeBuffer());
+
+      const game = Game.createHeadless();
+      await game.assets.load('theme.ogg');
+      const calls = unloadSpy.mock.calls.length;
+
+      await game.assets.unload('theme.ogg');
+
+      expect(unloadSpy.mock.calls.length).toBe(calls);
+      expect(game.assets.getNullable('theme.ogg')).toBeNull();
+    });
+
+    test('unloadNamespace skips audio sources but still frees images', async () => {
+      jest
+        .spyOn(AudioEngine.prototype, 'loadAudioBuffer')
+        .mockResolvedValue(fakeBuffer());
+
+      const game = Game.createHeadless();
+      await game.assets.load('theme.ogg', { namespace: 'level-1' });
+      await game.assets.load('hero.png', { namespace: 'level-1' });
+
+      await game.assets.unloadNamespace('level-1');
+
+      expect(unloadSpy).toHaveBeenCalledWith(['hero.png']);
+      expect(game.assets.has('theme.ogg', 'level-1')).toBe(false);
+      expect(game.assets.has('hero.png', 'level-1')).toBe(false);
     });
   });
 });

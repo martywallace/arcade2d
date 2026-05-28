@@ -1,5 +1,7 @@
 import { Assets, Texture } from 'pixi.js';
 import { AbstractGameComponent } from '../abstract-game-component';
+import { AudioAsset } from '../audio/audio-asset';
+import { EngineError } from '../error';
 import { ErrorCode } from '../error.constants';
 import { throwEngineError } from '../error.support';
 import { Asset } from './asset';
@@ -418,7 +420,13 @@ export class AssetLibrary extends AbstractGameComponent {
       this._namespaces.delete(namespace);
     }
 
-    await Assets.unload(asset.src);
+    // Audio assets are decoded buffers held in JS memory — there's no
+    // renderer-side cache to invalidate, so they only need to be dropped
+    // from the library. Image assets do go through the PIXI loader and
+    // need its `unload` call to free the GPU texture.
+    if (asset.type === AssetType.Image) {
+      await Assets.unload(asset.src);
+    }
   }
 
   /**
@@ -444,10 +452,14 @@ export class AssetLibrary extends AbstractGameComponent {
       return;
     }
 
-    const sources = [...bucket.values()].map((asset) => asset.src);
+    const imageSources = [...bucket.values()]
+      .filter((asset) => asset.type === AssetType.Image)
+      .map((asset) => asset.src);
     this._namespaces.delete(namespace);
 
-    await Assets.unload(sources);
+    if (imageSources.length > 0) {
+      await Assets.unload(imageSources);
+    }
   }
 
   /**
@@ -537,6 +549,14 @@ export class AssetLibrary extends AbstractGameComponent {
           namespace,
         );
       }
+      case AssetType.Audio: {
+        const buffer = await this._loadAudioBuffer(path, key, namespace);
+        return this.store(
+          key,
+          new AudioAsset(key, namespace, path, buffer),
+          namespace,
+        );
+      }
     }
   }
 
@@ -556,6 +576,34 @@ export class AssetLibrary extends AbstractGameComponent {
       return throwEngineError(
         ErrorCode.ASSET_LOAD_FAILED,
         `Failed to load image "${path}" (key "${key}", namespace ` +
+          `"${namespace}"). See the \`cause\` in context for the underlying ` +
+          `loader error.`,
+        { path, key, namespace, cause },
+      );
+    }
+  }
+
+  /**
+   * Calls the game's {@link AudioEngine} to fetch and decode an audio clip,
+   * translating any failure into an {@link EngineError} so callers see the
+   * engine's error contract rather than a raw `fetch` / `decodeAudioData`
+   * failure. An {@link ErrorCode.AUDIO_UNAVAILABLE} thrown by the engine in
+   * headless mode is propagated unchanged.
+   */
+  private async _loadAudioBuffer(
+    path: string,
+    key: string,
+    namespace: string,
+  ): Promise<AudioBuffer> {
+    try {
+      return await this.host.audio.loadAudioBuffer(path);
+    } catch (cause) {
+      if (cause instanceof EngineError) {
+        throw cause;
+      }
+      return throwEngineError(
+        ErrorCode.ASSET_LOAD_FAILED,
+        `Failed to load audio "${path}" (key "${key}", namespace ` +
           `"${namespace}"). See the \`cause\` in context for the underlying ` +
           `loader error.`,
         { path, key, namespace, cause },

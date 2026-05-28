@@ -9,8 +9,8 @@
  * URL has no usable extension — a CDN path, a query-string-suffixed URL, an
  * extensionless route. See {@link AssetLoadOptions.type}.
  *
- * Audio and other resource kinds are planned but not yet implemented; this
- * iteration supports images only.
+ * Branch on the type to recover the concrete subclass and its payload
+ * accessor (see the class-level docs on {@link Asset} for the pattern).
  */
 export enum AssetType {
   /**
@@ -19,4 +19,12 @@ export enum AssetType {
    * sprite-rendering components.
    */
   Image = 'image',
+
+  /**
+   * An audio clip — MP3, OGG, WAV, M4A, AAC, FLAC, WebM, or Opus — decoded
+   * into a `Web Audio` `AudioBuffer`. Wrapped by {@link AudioAsset} and
+   * consumed by audio-playing components ({@link AudioSource},
+   * {@link Music}).
+   */
+  Audio = 'audio',
 }

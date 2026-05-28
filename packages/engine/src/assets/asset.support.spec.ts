@@ -32,7 +32,28 @@ describe('inferAssetType', () => {
   });
 
   test('returns null for an unrecognised extension', () => {
-    expect(inferAssetType('track.ogg')).toBeNull();
+    expect(inferAssetType('config.json')).toBeNull();
+  });
+
+  test.each([
+    'theme.mp3',
+    'track.ogg',
+    'voice.oga',
+    'effect.wav',
+    'voice.m4a',
+    'beat.aac',
+    'lossless.flac',
+    'open.webm',
+    'open.weba',
+    'codec.opus',
+  ])('infers Audio from the extension of "%s"', (path) => {
+    expect(inferAssetType(path)).toBe(AssetType.Audio);
+  });
+
+  test('infers Audio from a data URL with an audio MIME type', () => {
+    expect(inferAssetType('data:audio/ogg;base64,T2dnUw')).toBe(
+      AssetType.Audio,
+    );
   });
 
   test('does not treat a dot in a directory as an extension', () => {
@@ -66,8 +87,8 @@ describe('inferAssetType', () => {
       expect(inferAssetType('data:image/png')).toBe(AssetType.Image);
     });
 
-    test('returns null for a non-image data URL', () => {
-      expect(inferAssetType('data:audio/ogg;base64,T2dnUw')).toBeNull();
+    test('returns null for an unsupported data URL MIME', () => {
+      expect(inferAssetType('data:video/mp4;base64,AAAA')).toBeNull();
     });
 
     test('returns null for a data URL with an empty media type', () => {

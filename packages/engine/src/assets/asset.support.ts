@@ -18,6 +18,27 @@ const IMAGE_EXTENSIONS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * File extensions the engine recognises as audio clips, mapped to
+ * {@link AssetType.Audio}. Lower-cased and without the leading dot. Covers
+ * the formats the browser's `decodeAudioData` accepts in mainstream engines:
+ * MP3, Ogg Vorbis, WAV, M4A/AAC, FLAC, and the WebM/Opus pair. Browser
+ * support varies per format — pick a format your target browsers all decode,
+ * or ship a fallback path that loads a different one.
+ */
+const AUDIO_EXTENSIONS: ReadonlySet<string> = new Set([
+  'mp3',
+  'ogg',
+  'oga',
+  'wav',
+  'm4a',
+  'aac',
+  'flac',
+  'webm',
+  'weba',
+  'opus',
+]);
+
+/**
  * Infers the {@link AssetType} of a resource from its path — either the MIME
  * type of a `data:` URL or, for ordinary paths, the file extension.
  *
@@ -56,7 +77,7 @@ const IMAGE_EXTENSIONS: ReadonlySet<string> = new Set([
  * inferAssetType('tiles.webp?v=3');             // AssetType.Image
  * inferAssetType('data:image/png;base64,iVB…'); // AssetType.Image
  * inferAssetType('https://cdn.test/hero');      // null — no extension
- * inferAssetType('track.ogg');                  // null — not yet supported
+ * inferAssetType('music/theme.ogg');            // AssetType.Audio
  * ```
  */
 export function inferAssetType(path: string): AssetType | null {
@@ -87,6 +108,10 @@ export function inferAssetType(path: string): AssetType | null {
     return AssetType.Image;
   }
 
+  if (AUDIO_EXTENSIONS.has(extension)) {
+    return AssetType.Audio;
+  }
+
   return null;
 }
 
@@ -96,8 +121,18 @@ export function inferAssetType(path: string): AssetType | null {
 function inferFromDataUrl(url: string): AssetType | null {
   const headerEnd = url.search(/[;,]/);
   const mime = (
-    headerEnd === -1 ? url.slice('data:'.length) : url.slice('data:'.length, headerEnd)
+    headerEnd === -1
+      ? url.slice('data:'.length)
+      : url.slice('data:'.length, headerEnd)
   ).toLowerCase();
 
-  return mime.startsWith('image/') ? AssetType.Image : null;
+  if (mime.startsWith('image/')) {
+    return AssetType.Image;
+  }
+
+  if (mime.startsWith('audio/')) {
+    return AssetType.Audio;
+  }
+
+  return null;
 }

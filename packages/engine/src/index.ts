@@ -2,6 +2,7 @@ export * from './abstract-component';
 export * from './abstract-component-host';
 export * from './abstract-game-component';
 export * from './assets';
+export * from './audio';
 export * from './components.types';
 export * from './error';
 export * from './error.constants';

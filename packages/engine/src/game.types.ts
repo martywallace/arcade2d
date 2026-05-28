@@ -1,3 +1,4 @@
+import type { AudioEngineOptions } from './audio/audio-engine.types';
 import type { ComponentFactoryMap } from './components.types';
 import type { Game } from './game';
 
@@ -50,6 +51,13 @@ export type GameOptions = {
    * has no other runtime effects. Defaults to `false`.
    */
   readonly debug?: boolean;
+
+  /**
+   * Configuration threaded into the auto-attached {@link AudioEngine}.
+   * Pass `{ disabled: true }` to force the engine into headless mode in
+   * tests, or initial bus levels to start at non-default volumes.
+   */
+  readonly audio?: AudioEngineOptions;
 
   /**
    * Factory map of game-scoped components to register on the {@link Game}

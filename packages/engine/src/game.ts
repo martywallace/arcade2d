@@ -1,6 +1,7 @@
 import { Application, ApplicationOptions, Container } from 'pixi.js';
 import { AbstractComponentHost } from './abstract-component-host';
 import { AssetLibrary } from './assets';
+import { AUDIO_ENGINE_COMPONENT_KEY, AudioEngine } from './audio';
 import type { Component } from './components.types';
 import { ErrorCode } from './error.constants';
 import { throwEngineError } from './error.support';
@@ -184,10 +185,13 @@ export class Game extends AbstractComponentHost<Game> {
     super();
 
     // Engine's own auto-attached components run first so the user's
-    // components see them as resolvable siblings.
+    // components see them as resolvable siblings. AudioEngine comes before
+    // AssetLibrary so audio-asset loads can reach a decoded context through
+    // game.audio without any registration-order gymnastics.
     this.addComponentsFromFactories({
       [MOUSE_COMPONENT_KEY]: () => new Mouse(this),
       [KEYBOARD_COMPONENT_KEY]: () => new Keyboard(this),
+      [AUDIO_ENGINE_COMPONENT_KEY]: () => new AudioEngine(this, options.audio),
       [ASSET_LIBRARY_COMPONENT_KEY]: () => new AssetLibrary(this),
     });
 
@@ -247,6 +251,30 @@ export class Game extends AbstractComponentHost<Game> {
    */
   public get assets(): AssetLibrary {
     return this.getComponent<AssetLibrary>(ASSET_LIBRARY_COMPONENT_KEY);
+  }
+
+  /**
+   * The game's {@link AudioEngine} — the page-scoped owner of the Web Audio
+   * context, the master and per-category gain buses, and the seam used by
+   * {@link AssetLibrary} to decode {@link AudioAsset}s and by audio
+   * components ({@link AudioSource}, {@link Music}) to construct voices.
+   *
+   * Lives at the game tier because audio outlives any individual
+   * {@link World}: a music track survives a world transition, and the
+   * pause-menu volume sliders mutate a single set of buses.
+   *
+   * Requires the auto-attached {@link AudioEngine} registered under
+   * {@link AUDIO_ENGINE_COMPONENT_KEY}. If you removed it deliberately,
+   * reading this accessor throws {@link ErrorCode.COMPONENT_NOT_FOUND}.
+   *
+   * @example
+   * ```typescript
+   * game.audio.masterVolume = 0.5;
+   * await game.audio.resume(); // unlock on first user gesture
+   * ```
+   */
+  public get audio(): AudioEngine {
+    return this.getComponent<AudioEngine>(AUDIO_ENGINE_COMPONENT_KEY);
   }
 
   /**
