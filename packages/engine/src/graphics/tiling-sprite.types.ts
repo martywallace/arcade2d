@@ -1,11 +1,14 @@
 import type { PointPrimitive } from '../geometry';
+import type { TexturedGraphicsOptions } from './abstract-textured-graphics.types';
 
 /**
- * Construction-time configuration for a {@link TilingSprite}. `width` and
- * `height` are required — they define the region the texture tiles across —
- * and everything else takes the documented default.
+ * Construction-time configuration for a {@link TilingSprite}. Extends the
+ * shared {@link TexturedGraphicsOptions} (`anchor`, `tint`, `alpha`,
+ * `visible`) with the region and tiling controls. `width` and `height` are
+ * required — they define the region the texture tiles across — and everything
+ * else takes the documented default.
  */
-export type TilingSpriteOptions = {
+export interface TilingSpriteOptions extends TexturedGraphicsOptions {
   /**
    * Width of the tiled region in world units (before the host's scale). The
    * texture repeats horizontally to fill it.
@@ -33,28 +36,4 @@ export type TilingSpriteOptions = {
    * to `{ x: 0, y: 0 }`.
    */
   readonly tileOffset?: PointPrimitive;
-
-  /**
-   * The anchor point — the spot on the region that sits on the host
-   * {@link WorldObject}'s position — as a fraction (`0`–`1`) per axis. Pass a
-   * number for both axes or a {@link PointPrimitive}. Defaults to `0.5`
-   * (centred), matching {@link Sprite}.
-   */
-  readonly anchor?: number | PointPrimitive;
-
-  /**
-   * Multiplicative tint as a 24-bit RGB integer; `0xffffff` is untinted.
-   * Defaults to `0xffffff`.
-   */
-  readonly tint?: number;
-
-  /**
-   * Opacity from `0` (transparent) to `1` (opaque). Defaults to `1`.
-   */
-  readonly alpha?: number;
-
-  /**
-   * Whether the tiling sprite is drawn. Defaults to `true`.
-   */
-  readonly visible?: boolean;
-};
+}

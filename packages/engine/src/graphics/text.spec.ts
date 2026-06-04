@@ -171,19 +171,21 @@ describe('Text', () => {
   });
 
   describe('mutable properties', () => {
-    test('fontSize, fill, align, alpha, and visible round-trip through the accessors', () => {
+    test('fontSize, fill, align, tint, alpha, and visible round-trip through the accessors', () => {
       const { world } = createWorldWithScene();
       const text = new Text(world.createEmpty(), 'x');
 
       text.fontSize = 32;
       text.fill = '#abcdef';
       text.align = 'right';
+      text.tint = 0xff8800;
       text.alpha = 0.25;
       text.visible = false;
 
       expect(text.fontSize).toBe(32);
       expect(text.fill).toBe('#abcdef');
       expect(text.align).toBe('right');
+      expect(text.tint).toBe(0xff8800);
       expect(text.alpha).toBe(0.25);
       expect(text.visible).toBe(false);
     });

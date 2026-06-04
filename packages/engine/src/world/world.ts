@@ -12,7 +12,11 @@ import { PREFAB_BUILD_TOKEN } from './prefab.constants';
 import { Prefab } from './prefab';
 import { PrefabRegistry } from './prefab-registry';
 import { WorldComponentDependencyResolver } from './world-component-dependency-resolver';
-import { CAMERA_COMPONENT_KEY, SCENE_COMPONENT_KEY } from './world.constants';
+import {
+  CAMERA_COMPONENT_KEY,
+  ORIGIN,
+  SCENE_COMPONENT_KEY,
+} from './world.constants';
 import type {
   FindByTagOptions,
   WorldErrorContext,
@@ -20,8 +24,6 @@ import type {
 } from './world.types';
 import { WorldUpdate } from './world-update';
 import { WorldObject } from './world-object';
-
-const ORIGIN: PointPrimitive = Object.freeze({ x: 0, y: 0 });
 
 /**
  * Internal structural type used by {@link World.getMouseState} to look up
@@ -445,9 +447,14 @@ export class World extends AbstractComponentHost<World> {
   /**
    * Routes a runtime component error through the configured handler, or to
    * `console.error` when no handler is supplied. Called by the engine
-   * whenever a component's `onUpdate` or `onDestroy` throws. Safe to call
-   * from user code too if you want to surface your own errors through the
-   * same channel.
+   * whenever a component lifecycle hook — `onPreUpdate`, `onUpdate`,
+   * `onPostUpdate`, or `onDestroy` — throws; the failing hook is isolated so
+   * the rest of the tick still runs. Safe to call from user code too if you
+   * want to surface your own errors through the same channel.
+   *
+   * Note that a handler which itself throws propagates out of this call (and
+   * out of the tick) — that is the intended fail-fast escape hatch, not a
+   * bug.
    *
    * @param context Details about the failing component and the phase it
    * was running in.
@@ -551,7 +558,21 @@ export class World extends AbstractComponentHost<World> {
   }
 
   protected add(object: WorldObject): WorldObject {
-    this._mappedObjects.set(object.metadata.id, object);
+    const { id } = object.metadata;
+
+    // Ids must be unique within the world so findById is unambiguous. Today
+    // the generators can't collide, but making the invariant explicit (rather
+    // than silently overwriting the map entry) guards the upcoming save/load
+    // path, where ids are reconstructed from serialized state.
+    if (this._mappedObjects.has(id)) {
+      throwEngineError(
+        ErrorCode.WORLD_OBJECT_ID_CONFLICT,
+        `A world object with id "${id}" already exists in this world.`,
+        { id },
+      );
+    }
+
+    this._mappedObjects.set(id, object);
 
     // Outside of an update tick (e.g. setup before the loop starts), objects
     // join the live set immediately so the very first tick iterates them.
@@ -565,6 +586,45 @@ export class World extends AbstractComponentHost<World> {
     return object;
   }
 
+  /**
+   * Advances the world by one tick and returns the {@link WorldUpdate} that
+   * describes it. This is the engine's heartbeat: {@link Game} calls it once
+   * per rendered frame, but it is deliberately driver-agnostic — call it from
+   * a fixed-step accumulator, a test harness, or a headless simulation just
+   * the same.
+   *
+   * ## What one tick does
+   *
+   * Each call runs every enabled component and live object through the
+   * three-phase schedule, world-tier components before object-tier within
+   * each phase:
+   *
+   * 1. **pre-update** — sample input, advance timers, prepare state.
+   * 2. **update** — the main per-frame work: behaviour, movement, physics.
+   * 3. **post-update** — react to the settled frame: cameras follow, graphics
+   *    sync their transforms.
+   *
+   * Then deferred structural changes are applied: objects spawned during the
+   * tick (held in a pending queue so iteration order stays stable) are
+   * admitted, and objects destroyed during the tick are swept.
+   *
+   * ## Timing
+   *
+   * The returned {@link WorldUpdate} carries the delta since the previous
+   * tick and the elapsed time since the first, both from a monotonic clock.
+   * The very first tick reports a zero delta rather than a since-epoch jump,
+   * so nothing teleports on frame one.
+   *
+   * ## Error isolation
+   *
+   * A throw from any single component hook does not abort the tick: it is
+   * caught and routed to {@link World.reportError} (and on to
+   * {@link WorldOptions.onError}), and the remaining components and objects
+   * still run. See the class-level docblock for the full contract.
+   *
+   * @returns The {@link WorldUpdate} for this tick — the same value handed to
+   * every component's lifecycle hooks during the call.
+   */
   public update(): WorldUpdate {
     // Capture `now` once so the value threaded into WorldUpdate is the same
     // one stored as `_previousTickTimestamp` for the next frame. Otherwise
@@ -605,11 +665,7 @@ export class World extends AbstractComponentHost<World> {
       // Phase 1: pre-update. World components first, then objects. Objects
       // marked destroyed mid-phase are skipped for the remaining phases
       // this tick.
-      this._runWorldComponentPhase(
-        'onPreUpdate',
-        'component-pre-update',
-        update,
-      );
+      this._runComponentPhase('onPreUpdate', 'component-pre-update', update);
       for (const object of this._objects) {
         if (object.destroyed) {
           continue;
@@ -620,7 +676,7 @@ export class World extends AbstractComponentHost<World> {
 
       // Phase 2: main update. Same ordering rule: world components, then
       // live objects.
-      this._runWorldComponentPhase('onUpdate', 'component-update', update);
+      this._runComponentPhase('onUpdate', 'component-update', update);
       for (const object of this._objects) {
         if (object.destroyed) {
           continue;
@@ -632,11 +688,7 @@ export class World extends AbstractComponentHost<World> {
       // Phase 3: post-update. World components, then live objects. The
       // place to read state that all preceding components have already
       // settled — camera follow, transform sync, etc.
-      this._runWorldComponentPhase(
-        'onPostUpdate',
-        'component-post-update',
-        update,
-      );
+      this._runComponentPhase('onPostUpdate', 'component-post-update', update);
       for (const object of this._objects) {
         if (object.destroyed) {
           continue;
@@ -818,59 +870,25 @@ export class World extends AbstractComponentHost<World> {
   }
 
   /**
-   * Iterates this world's own components and invokes the named phase
-   * method on each, isolating throws so a single bad component does not
-   * abort the tick. Disabled components and components that do not
-   * implement the optional hook are skipped at a single property read.
-   * The resolved dependencies cached during `addComponents` are threaded
-   * into every invocation as the trailing `deps` argument.
-   *
-   * A host-level {@link AbstractComponentHost.enabled} of `false` short-
-   * circuits this phase before any world component is touched. Note this
-   * gates only the world's own components — the object iteration in
-   * `update()` continues to run. Stop world objects from ticking by not
-   * calling `update()` at all.
-   *
-   * @param method The phase method to invoke on each component.
-   * @param errorPhase The {@link WorldErrorPhase} label attached to thrown
-   * errors during this phase.
-   * @param update The {@link WorldUpdate} instance for this tick.
+   * Routes an update-phase throw from one of this world's own components to
+   * {@link World.reportError} — the world *is* the error-reporting channel,
+   * so it reports against itself. The shared per-component dispatch loop in
+   * {@link AbstractComponentHost} calls this; the symmetric
+   * {@link World._handleComponentDestroyError} handles the `onDestroy` phase.
    */
-  private _runWorldComponentPhase(
-    method: 'onPreUpdate' | 'onUpdate' | 'onPostUpdate',
+  protected override _reportPhaseError(
+    error: unknown,
+    key: string,
     errorPhase:
       | 'component-pre-update'
       | 'component-update'
       | 'component-post-update',
-    update: WorldUpdate,
   ): void {
-    if (!this.enabled) {
-      return;
-    }
-
-    for (const [key, component] of this.components) {
-      if (component.enabled === false) {
-        continue;
-      }
-
-      const hook = component[method];
-
-      if (!hook) {
-        continue;
-      }
-
-      const deps = this._getDepsFor(component);
-
-      try {
-        hook.call(component, update, deps);
-      } catch (error) {
-        this.reportError({
-          phase: errorPhase,
-          error,
-          host: this,
-          componentKey: key,
-        });
-      }
-    }
+    this.reportError({
+      phase: errorPhase,
+      error,
+      host: this,
+      componentKey: key,
+    });
   }
 }

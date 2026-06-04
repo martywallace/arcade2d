@@ -85,7 +85,8 @@ export type WorldOptions = {
 
   /**
    * Optional error handler invoked whenever a component callback throws
-   * during `onUpdate` or `onDestroy`. If omitted, the engine logs to
+   * during any lifecycle hook — `onPreUpdate`, `onUpdate`, `onPostUpdate`,
+   * or `onDestroy`. If omitted, the engine logs to
    * `console.error` and continues. Either way, the offending component
    * does not abort the rest of the tick — other components on the same
    * host, and all other hosts, keep running. This is the engine's

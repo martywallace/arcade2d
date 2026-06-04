@@ -1,6 +1,8 @@
+import { shapesIntersect } from './intersection.support';
 import type { ImmutablePointPrimitive, PointPrimitive } from './point.types';
 import type { PolygonBounds } from './polygon.types';
 import type { Rectangle } from './rectangle';
+import type { Shape } from './shape.types';
 
 /**
  * Defines a polygon as a pure shape: an ordered ring of vertices in the
@@ -20,7 +22,7 @@ import type { Rectangle } from './rectangle';
  */
 export class Polygon<
   TPointTuple extends readonly PointPrimitive[] = readonly PointPrimitive[],
-> {
+> implements Shape {
   constructor(public readonly points: TPointTuple) {}
 
   /**
@@ -35,12 +37,32 @@ export class Polygon<
       };
     }
 
-    const xs = this.points.map((point) => point.x);
-    const ys = this.points.map((point) => point.y);
+    // Single pass, no intermediate arrays or argument spreading: `Math.min`
+    // via spread would both allocate and risk a call-stack overflow on a
+    // polygon with very many vertices.
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (const point of this.points) {
+      if (point.x < minX) {
+        minX = point.x;
+      }
+      if (point.y < minY) {
+        minY = point.y;
+      }
+      if (point.x > maxX) {
+        maxX = point.x;
+      }
+      if (point.y > maxY) {
+        maxY = point.y;
+      }
+    }
 
     return {
-      min: Object.freeze({ x: Math.min(...xs), y: Math.min(...ys) }),
-      max: Object.freeze({ x: Math.max(...xs), y: Math.max(...ys) }),
+      min: Object.freeze({ x: minX, y: minY }),
+      max: Object.freeze({ x: maxX, y: maxY }),
     };
   }
 
@@ -199,5 +221,36 @@ export class Polygon<
     }
 
     return inside;
+  }
+
+  /**
+   * Determines whether this polygon overlaps any other {@link Shape} — a
+   * {@link Circle}, a {@link Rectangle}, or another polygon — using a
+   * separating-axis test (or the analytic circle test for a circle). Shapes
+   * that touch count as intersecting.
+   *
+   * Assumes both shapes are **convex**; results for a concave polygon are
+   * undefined, matching the rest of this class's measurement contract.
+   *
+   * @param other The shape to test against.
+   * @param offset The position of `other`'s local origin relative to this
+   * polygon's local origin.
+   */
+  public intersects(other: Shape, offset: PointPrimitive): boolean {
+    return shapesIntersect(this, other, offset);
+  }
+
+  /**
+   * Returns an independent copy of this polygon with its own vertex array.
+   */
+  public clone(): Polygon<TPointTuple> {
+    return new Polygon([...this.points] as unknown as TPointTuple);
+  }
+
+  /**
+   * Returns a string representation of this polygon (its vertex count).
+   */
+  public toString(): string {
+    return `Polygon(${this.points.length} points)`;
   }
 }

@@ -2,7 +2,6 @@ import { Application, ApplicationOptions, Container } from 'pixi.js';
 import { AbstractComponentHost } from './abstract-component-host';
 import { AssetLibrary } from './assets';
 import { AUDIO_ENGINE_COMPONENT_KEY, AudioEngine } from './audio';
-import type { Component } from './components.types';
 import { ErrorCode } from './error.constants';
 import { throwEngineError } from './error.support';
 import {
@@ -14,21 +13,16 @@ import type { GameCanvasOptions, GameOptions } from './game.types';
 import { Scene } from './graphics';
 import { Keyboard, KeyboardState, Mouse, MouseSnapshot } from './input';
 import { SCENE_COMPONENT_KEY, World, WorldOptions } from './world';
+import type { WorldUpdate } from './world/world-update';
 
 const DEFAULT_BACKGROUND_COLOUR = 0x000000;
 const DEFAULT_CANVAS: GameCanvasOptions = { width: 800, height: 600 };
 
-/**
- * Lifecycle phase in which a {@link Game} component callback was running
- * when it threw. Mirrors `WorldErrorPhase` for the game tier.
- *
- * @internal
- */
-type GameErrorPhase =
-  | 'component-pre-update'
-  | 'component-update'
-  | 'component-post-update'
-  | 'component-destroy';
+// Game components don't receive a WorldUpdate — that payload is a world-tier
+// concept. Until a dedicated GameUpdate lands, the shared component-phase
+// runner in AbstractComponentHost is fed this placeholder; the engine's only
+// game components (the input samplers) ignore the argument entirely.
+const NO_GAME_UPDATE = undefined as unknown as WorldUpdate;
 
 /**
  * Root container for an arcade2d application. A `Game` owns the renderer
@@ -71,7 +65,7 @@ type GameErrorPhase =
  * ## Worlds
  *
  * Only one world is active at a time. {@link Game.createWorld} constructs
- * it (auto-attaching a {@link Scene} and {@link import('./world').Camera}),
+ * it (auto-attaching a {@link Scene} and {@link Camera}),
  * and {@link Game.destroyWorld} tears it down. Switching between
  * "menu" and "gameplay" worlds is the canonical use of this pair —
  * destroy, then create the next one. Attempting to create a second world
@@ -449,9 +443,17 @@ export class Game extends AbstractComponentHost<Game> {
    * stepping) can drive a single tick on demand.
    */
   public update(): void {
-    this._runComponentPhase('onPreUpdate', 'component-pre-update');
-    this._runComponentPhase('onUpdate', 'component-update');
-    this._runComponentPhase('onPostUpdate', 'component-post-update');
+    this._runComponentPhase(
+      'onPreUpdate',
+      'component-pre-update',
+      NO_GAME_UPDATE,
+    );
+    this._runComponentPhase('onUpdate', 'component-update', NO_GAME_UPDATE);
+    this._runComponentPhase(
+      'onPostUpdate',
+      'component-post-update',
+      NO_GAME_UPDATE,
+    );
 
     if (this._activeWorld) {
       this._activeWorld.update();
@@ -483,50 +485,25 @@ export class Game extends AbstractComponentHost<Game> {
   }
 
   /**
-   * Iterates this game's own components and invokes the named phase
-   * method on each, isolating throws so a single bad component does not
-   * abort the tick. Mirrors the world-tier phase runner.
+   * Routes an update-phase throw from one of this game's components to
+   * `console.error`. The game tier has no `onError` channel yet (unlike
+   * {@link World.reportError}) — when one lands, this is the single seam to
+   * point at it. Called by the shared per-component dispatch loop in
+   * {@link AbstractComponentHost}; the symmetric
+   * {@link Game._handleComponentDestroyError} handles the `onDestroy` phase.
    */
-  private _runComponentPhase(
-    method: 'onPreUpdate' | 'onUpdate' | 'onPostUpdate',
-    errorPhase: GameErrorPhase,
+  protected override _reportPhaseError(
+    error: unknown,
+    key: string,
+    errorPhase:
+      | 'component-pre-update'
+      | 'component-update'
+      | 'component-post-update',
   ): void {
-    if (!this.enabled) {
-      return;
-    }
-
-    for (const [key, component] of this.components) {
-      if (component.enabled === false) {
-        continue;
-      }
-
-      const hook = (component as Component<Game>)[method];
-
-      if (!hook) {
-        continue;
-      }
-
-      const deps = this._getDepsFor(component);
-
-      try {
-        // Game components don't receive a WorldUpdate — that payload is a
-        // world-tier concept. The cast here matches the structural
-        // Component<THost> interface which types the first hook arg as
-        // WorldUpdate; long-term we will introduce a GameUpdate payload
-        // (frame index, delta) but for now the engine's only game
-        // component (Mouse) ignores the argument entirely.
-        (hook as (update: unknown, deps: unknown) => void).call(
-          component,
-          undefined,
-          deps,
-        );
-      } catch (error) {
-        console.error(
-          `[arcade2d] game component "${key}" threw during ${errorPhase}:`,
-          error,
-        );
-      }
-    }
+    console.error(
+      `[arcade2d] game component "${key}" threw during ${errorPhase}:`,
+      error,
+    );
   }
 }
 

@@ -1,4 +1,5 @@
 import RAPIER from '@dimforge/rapier2d-compat';
+import { ErrorCode } from '../error.constants';
 import { Game } from '../game';
 import { Point } from '../geometry';
 import { World, WorldUpdate } from '../world';
@@ -137,5 +138,49 @@ describe('PhysicsWorld', () => {
     physics.onDestroy();
 
     expect(free).toHaveBeenCalledTimes(1);
+  });
+
+  describe('after the world is freed', () => {
+    test('onDestroy is idempotent and only frees once', () => {
+      const { physics } = createPhysicsWorld();
+      const free = jest.spyOn(physics.raw, 'free');
+
+      physics.onDestroy();
+      physics.onDestroy();
+
+      expect(free).toHaveBeenCalledTimes(1);
+    });
+
+    test('removeBody is a no-op rather than touching freed memory', () => {
+      const { physics } = createPhysicsWorld();
+      const desc = RAPIER.RigidBodyDesc.dynamic();
+      const body = physics.createBody(desc);
+
+      physics.onDestroy();
+
+      // A straggler removal after teardown must not reach the freed world.
+      expect(() => physics.removeBody(body)).not.toThrow();
+    });
+
+    test('createBody throws PHYSICS_BODY_NOT_ATTACHED', () => {
+      const { physics } = createPhysicsWorld();
+      physics.onDestroy();
+
+      expect(() => physics.createBody(RAPIER.RigidBodyDesc.dynamic())).toThrow(
+        expect.objectContaining({
+          code: ErrorCode.PHYSICS_BODY_NOT_ATTACHED,
+        }),
+      );
+    });
+
+    test('onPreUpdate does not step a freed world', () => {
+      const { physics } = createPhysicsWorld();
+      physics.onDestroy();
+      const step = jest.spyOn(physics.raw, 'step');
+
+      physics.onPreUpdate(tick(1));
+
+      expect(step).not.toHaveBeenCalled();
+    });
   });
 });

@@ -120,6 +120,44 @@ describe('PolygonGraphics', () => {
     });
   });
 
+  describe('fill and visibility', () => {
+    test('exposes the constructed fill and recolours via setFill', () => {
+      const { world } = createWorldWithScene();
+      const object = world.createEmpty();
+      const triangle = new Polygon([
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 5, y: 10 },
+      ]);
+      const graphics = new PolygonGraphics(object, triangle, 0xff0000);
+
+      expect(graphics.fill).toBe(0xff0000);
+
+      graphics.setFill(0x0000ff);
+
+      expect(graphics.fill).toBe(0x0000ff);
+      expect(graphics.raw.context.instructions.length).toBeGreaterThan(0);
+    });
+
+    test('applies the alpha and visibility options', () => {
+      const { world } = createWorldWithScene();
+      const object = world.createEmpty();
+      const graphics = new PolygonGraphics(
+        object,
+        new Polygon([
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 5, y: 10 },
+        ]),
+        0xffffff,
+        { alpha: 0.25, visible: false },
+      );
+
+      expect(graphics.alpha).toBeCloseTo(0.25);
+      expect(graphics.visible).toBe(false);
+    });
+  });
+
   describe('containsWorldPoint', () => {
     test('respects the host position', () => {
       const { world } = createWorldWithScene();

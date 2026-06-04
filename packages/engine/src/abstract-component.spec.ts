@@ -10,6 +10,10 @@ class TestHost extends AbstractComponentHost<TestHost> {
   protected _createDependencyResolver(): unknown {
     return {};
   }
+
+  protected _reportPhaseError(error: unknown, key: string): void {
+    console.error(`component "${key}" threw:`, error);
+  }
 }
 
 describe('AbstractComponent', () => {

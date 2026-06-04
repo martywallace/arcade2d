@@ -1,5 +1,7 @@
+import { shapesIntersect } from './intersection.support';
 import type { PointPrimitive } from './point.types';
-import { Rectangle } from './rectangle';
+import type { Rectangle } from './rectangle';
+import type { Shape } from './shape.types';
 
 /**
  * Defines a circle as a pure shape: it is described entirely by its `radius`
@@ -12,10 +14,17 @@ import { Rectangle } from './rectangle';
  * into that space (and supply the relative offset between two shapes) before
  * calling.
  *
- * A negative `radius` is treated as having no area for containment and
- * intersection purposes.
+ * A negative `radius` is clamped to zero for containment and intersection
+ * queries, so a degenerate circle reports no overlaps beyond its own center
+ * point rather than producing inverted-radius nonsense.
+ *
+ * `Circle` implements {@link Shape}: alongside the circle-idiomatic
+ * {@link Circle.diameter}, {@link Circle.circumference}, and
+ * {@link Circle.area} getters it exposes the uniform {@link Shape.getArea},
+ * {@link Shape.getPerimeter}, and {@link Shape.intersects} surface that lets
+ * collision code treat any shape the same way.
  */
-export class Circle {
+export class Circle implements Shape {
   /**
    * @param radius The radius of the circle. Expected to be non-negative.
    */
@@ -43,6 +52,23 @@ export class Circle {
   }
 
   /**
+   * The {@link Shape} contract's area accessor — equivalent to the
+   * {@link Circle.area} getter, in method form so a circle reads the same as
+   * any other shape.
+   */
+  public getArea(): number {
+    return this.area;
+  }
+
+  /**
+   * The {@link Shape} contract's perimeter accessor — equivalent to the
+   * {@link Circle.circumference} getter.
+   */
+  public getPerimeter(): number {
+    return this.circumference;
+  }
+
+  /**
    * Determines whether a point lies inside this circle. The point is expressed
    * in the circle's local space (relative to its center). A point exactly on
    * the edge is treated as contained.
@@ -50,7 +76,9 @@ export class Circle {
    * @param point The point to test, relative to the circle's center.
    */
   public containsPoint(point: PointPrimitive): boolean {
-    return point.x ** 2 + point.y ** 2 <= this.radius ** 2;
+    const radius = Math.max(0, this.radius);
+
+    return point.x ** 2 + point.y ** 2 <= radius ** 2;
   }
 
   /**
@@ -62,9 +90,24 @@ export class Circle {
    * center.
    */
   public intersectsCircle(other: Circle, offset: PointPrimitive): boolean {
-    const combined = this.radius + other.radius;
+    const combined = Math.max(0, this.radius) + Math.max(0, other.radius);
 
     return offset.x ** 2 + offset.y ** 2 <= combined ** 2;
+  }
+
+  /**
+   * Determines whether this circle overlaps any other {@link Shape} — another
+   * circle, a {@link Rectangle}, or a {@link Polygon}. Shapes that touch count
+   * as intersecting. For the circle-vs-circle case prefer the typed
+   * {@link Circle.intersectsCircle}; this method is the polymorphic entry
+   * point used when the other shape's type isn't known statically.
+   *
+   * @param other The shape to test against.
+   * @param offset The position of `other`'s local origin relative to this
+   * circle's center.
+   */
+  public intersects(other: Shape, offset: PointPrimitive): boolean {
+    return shapesIntersect(this, other, offset);
   }
 
   /**
@@ -72,7 +115,15 @@ export class Circle {
    * (`diameter` × `diameter`), centered on the circle's origin.
    */
   public getBoundingBox(): Rectangle {
-    return new Rectangle(this.diameter, this.diameter);
+    // Late-bound `require` to break the circle -> rectangle -> polygon module
+    // init cycle (Rectangle extends Polygon, which imports the shared
+    // intersection helper that imports Circle). Mirrors Polygon.getBoundingBox.
+    /* eslint-disable @typescript-eslint/no-require-imports */
+    const rectangleModule =
+      require('./rectangle') as typeof import('./rectangle');
+    /* eslint-enable @typescript-eslint/no-require-imports */
+
+    return new rectangleModule.Rectangle(this.diameter, this.diameter);
   }
 
   /**

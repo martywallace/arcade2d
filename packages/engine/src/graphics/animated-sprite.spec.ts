@@ -64,6 +64,39 @@ describe('AnimatedSprite', () => {
     );
   });
 
+  test.each([0, -5, NaN, Infinity])(
+    'throws ANIMATED_SPRITE_INVALID_FPS when constructed with fps %p',
+    (fps) => {
+      const { world } = createWorldWithScene();
+
+      expect(
+        () => new AnimatedSprite(world.createEmpty(), frames(2), { fps }),
+      ).toThrow(
+        expect.objectContaining({
+          code: ErrorCode.ANIMATED_SPRITE_INVALID_FPS,
+        }),
+      );
+    },
+  );
+
+  test('throws ANIMATED_SPRITE_INVALID_FPS when the fps setter is given a bad value', () => {
+    const { world } = createWorldWithScene();
+    const sprite = new AnimatedSprite(world.createEmpty(), frames(2), {
+      fps: 10,
+    });
+
+    expect(() => {
+      sprite.fps = 0;
+    }).toThrow(
+      expect.objectContaining({
+        code: ErrorCode.ANIMATED_SPRITE_INVALID_FPS,
+      }),
+    );
+
+    // The bad assignment was rejected, so the prior rate is intact.
+    expect(sprite.fps).toBeCloseTo(10);
+  });
+
   test('wraps a Pixi Sprite drawing the first frame initially', () => {
     const { world } = createWorldWithScene();
     const fs = frames(4);

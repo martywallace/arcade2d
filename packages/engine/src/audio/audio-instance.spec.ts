@@ -214,6 +214,20 @@ describe('AudioInstance', () => {
       expect(inst.stopped).toBe(true);
     });
 
+    test('destroy releases registered ended-listeners', () => {
+      const inst = engine.createInstance(fakeBuffer(), AudioCategory.Sfx);
+      const listeners = (inst as unknown as { _endedListeners: Set<unknown> })
+        ._endedListeners;
+      inst.onEnded(jest.fn());
+      expect(listeners.size).toBe(1);
+
+      inst.destroy();
+
+      // The subscriber closures are dropped so a destroyed-but-referenced
+      // instance (e.g. one held by Music) doesn't retain them.
+      expect(listeners.size).toBe(0);
+    });
+
     test('a listener throwing does not abort the sweep', () => {
       const inst = engine.createInstance(fakeBuffer(), AudioCategory.Sfx);
       const good = jest.fn();

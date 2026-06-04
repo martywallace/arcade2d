@@ -63,6 +63,34 @@ describe('World', () => {
     });
   });
 
+  describe('object id uniqueness', () => {
+    test('adding an object whose id is already taken throws WORLD_OBJECT_ID_CONFLICT', () => {
+      const world = createWorld();
+      const existing = world.createEmpty();
+
+      // Forge a second object reusing the first object's id and add it via
+      // the protected seam the spawn helpers use.
+      const clash = new WorldObject(world, new Point(0, 0), {
+        id: existing.metadata.id,
+        tags: new Set(),
+      });
+      const add = (world as unknown as { add(o: WorldObject): WorldObject })
+        .add;
+
+      let caught: unknown;
+      try {
+        add.call(world, clash);
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(caught).toBeInstanceOf(EngineError);
+      expect((caught as EngineError).code).toBe(
+        ErrorCode.WORLD_OBJECT_ID_CONFLICT,
+      );
+    });
+  });
+
   describe('deferred destroy', () => {
     test('an object destroyed during its own update is removed at the end of the tick', () => {
       const world = createWorld();

@@ -171,8 +171,8 @@ export class Random {
   /**
    * Returns a uniformly distributed integer in the range `[min, max]`, both
    * ends inclusive — the conventional "roll a d6" semantics. Non-integer
-   * bounds are floored toward zero; if `min` is greater than `max` the
-   * arguments are swapped.
+   * bounds are floored (via `Math.floor`, i.e. toward negative infinity);
+   * if `min` is greater than `max` the arguments are swapped.
    *
    * @param min The lower bound (inclusive).
    * @param max The upper bound (inclusive).

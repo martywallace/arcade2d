@@ -5,7 +5,7 @@ import type { KeyboardState } from './keyboard.types';
  * Game-scoped input sampler that tracks the set of physical keys currently
  * held on the keyboard.
  *
- * Like {@link Keyboard}'s sibling {@link import('./mouse').Mouse}, this
+ * Like its sibling {@link Mouse}, this
  * component lives at the {@link Game} tier rather than on a `World`:
  * keyboard events are page-global, fire whether a world is mounted or not,
  * and the same physical keyboard is shared across world swaps (menu →
@@ -30,7 +30,7 @@ import type { KeyboardState } from './keyboard.types';
  * ## Snapshot semantics
  *
  * The component follows the canonical "input sampler" pattern, identical
- * to {@link import('./mouse').Mouse}:
+ * to {@link Mouse}:
  *
  * 1. DOM events update a private *pending* set as they arrive — this is
  *    asynchronous and can happen at any time relative to the engine's

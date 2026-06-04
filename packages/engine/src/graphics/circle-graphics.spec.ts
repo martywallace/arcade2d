@@ -65,6 +65,42 @@ describe('CircleGraphics', () => {
     expect(scene.raw.children).not.toContain(graphics.raw);
   });
 
+  describe('fill', () => {
+    test('exposes the constructed fill and recolours via setFill', () => {
+      const { world } = createWorldWithScene();
+      const object = world.createEmpty();
+      const graphics = new CircleGraphics(object, new Circle(5), 0xff0000);
+
+      expect(graphics.fill).toBe(0xff0000);
+
+      graphics.setFill(0x00ff00);
+
+      expect(graphics.fill).toBe(0x00ff00);
+      // Recolouring re-issues the fill, so the graphic still draws something.
+      expect(graphics.raw.context.instructions.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('alpha and visibility', () => {
+    test('applies the options and exposes accessors', () => {
+      const { world } = createWorldWithScene();
+      const object = world.createEmpty();
+      const graphics = new CircleGraphics(object, new Circle(5), 0xffffff, {
+        alpha: 0.4,
+        visible: false,
+      });
+
+      expect(graphics.alpha).toBeCloseTo(0.4);
+      expect(graphics.visible).toBe(false);
+
+      graphics.alpha = 1;
+      graphics.visible = true;
+
+      expect(graphics.raw.alpha).toBe(1);
+      expect(graphics.raw.visible).toBe(true);
+    });
+  });
+
   describe('containsWorldPoint', () => {
     test('respects the host position and radius', () => {
       const { world } = createWorldWithScene();

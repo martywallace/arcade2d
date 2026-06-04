@@ -1,9 +1,8 @@
 import { Sprite as PixiSprite } from 'pixi.js';
 import { ErrorCode } from '../error.constants';
 import { throwEngineError } from '../error.support';
-import { Point } from '../geometry';
 import type { WorldObject, WorldUpdate } from '../world';
-import { AbstractGraphics } from './abstract-graphics';
+import { AbstractTexturedGraphics } from './abstract-textured-graphics';
 import type { AnimatedSpriteOptions } from './animated-sprite.types';
 import { Texture } from './texture';
 
@@ -76,7 +75,7 @@ import { Texture } from './texture';
  * @see {@link Texture.grid} for producing the frame array.
  * @see {@link AbstractGraphics} for the inherited lifecycle and transform sync.
  */
-export class AnimatedSprite extends AbstractGraphics<PixiSprite> {
+export class AnimatedSprite extends AbstractTexturedGraphics<PixiSprite> {
   private readonly _frames: readonly Texture[];
   private readonly _onComplete?: () => void;
 
@@ -101,6 +100,9 @@ export class AnimatedSprite extends AbstractGraphics<PixiSprite> {
    * {@link ErrorCode.ANIMATED_SPRITE_EMPTY_FRAMES} when `frames` is empty —
    * an animation with no frames has nothing to draw and is always a
    * programming error.
+   * @throws An {@link EngineError} with code
+   * {@link ErrorCode.ANIMATED_SPRITE_INVALID_FPS} when
+   * {@link AnimatedSpriteOptions.fps} is not a positive, finite number.
    */
   constructor(
     host: WorldObject,
@@ -115,23 +117,12 @@ export class AnimatedSprite extends AbstractGraphics<PixiSprite> {
     }
 
     // Length-checked above; safe under noUncheckedIndexedAccess.
-    const display = new PixiSprite(frames[0]!.raw);
-
-    const anchor = options.anchor ?? 0.5;
-    if (typeof anchor === 'number') {
-      display.anchor.set(anchor, anchor);
-    } else {
-      display.anchor.set(anchor.x, anchor.y);
-    }
-
-    display.tint = options.tint ?? 0xffffff;
-    display.alpha = options.alpha ?? 1;
-    display.visible = options.visible ?? true;
-
-    super(host, display);
+    super(host, new PixiSprite(frames[0]!.raw), options);
 
     this._frames = frames;
-    this._frameDurationMs = 1000 / (options.fps ?? 12);
+    this._frameDurationMs = AnimatedSprite._frameDurationFromFps(
+      options.fps ?? 12,
+    );
     this._loop = options.loop ?? true;
     this._playing = options.autoplay ?? true;
     this._onComplete = options.onComplete;
@@ -199,13 +190,37 @@ export class AnimatedSprite extends AbstractGraphics<PixiSprite> {
    * Playback rate in frames per second. Setting it changes the per-frame
    * duration immediately; the current frame's already-banked time is kept, so
    * a rate change takes effect from the next frame boundary.
+   *
+   * @throws An {@link EngineError} with code
+   * {@link ErrorCode.ANIMATED_SPRITE_INVALID_FPS} when assigned a value that
+   * is not a positive, finite number.
    */
   public get fps(): number {
     return 1000 / this._frameDurationMs;
   }
 
   public set fps(value: number) {
-    this._frameDurationMs = 1000 / value;
+    this._frameDurationMs = AnimatedSprite._frameDurationFromFps(value);
+  }
+
+  /**
+   * Converts a frames-per-second rate into a per-frame duration in
+   * milliseconds, rejecting rates that would make playback misbehave. A
+   * zero/negative rate yields a non-positive duration (the drain loop in
+   * `onUpdate` would never terminate), and a non-finite rate yields `NaN` or
+   * `Infinity` (the playhead would never advance) — both are programming
+   * errors, so we fail loudly rather than silently freeze the animation.
+   */
+  private static _frameDurationFromFps(fps: number): number {
+    if (!Number.isFinite(fps) || fps <= 0) {
+      throwEngineError(
+        ErrorCode.ANIMATED_SPRITE_INVALID_FPS,
+        `AnimatedSprite fps must be a positive, finite number (got ${fps}).`,
+        { fps },
+      );
+    }
+
+    return 1000 / fps;
   }
 
   /**
@@ -255,61 +270,6 @@ export class AnimatedSprite extends AbstractGraphics<PixiSprite> {
     this._elapsed = 0;
     this._setIndex(clamped);
     return this;
-  }
-
-  /**
-   * The anchor point as a fresh {@link Point} of per-axis fractions (`0`–`1`).
-   * Returned by value; mutating the result does not affect the sprite — use
-   * {@link AnimatedSprite.setAnchor}.
-   */
-  public get anchor(): Point {
-    return new Point(this.raw.anchor.x, this.raw.anchor.y);
-  }
-
-  /**
-   * Sets the anchor point — the spot on each frame that sits on the host's
-   * position — as a fraction of the frame's size.
-   *
-   * @param x The horizontal anchor fraction (`0` left, `1` right).
-   * @param y The vertical anchor fraction (`0` top, `1` bottom). Defaults to
-   * `x`, so `setAnchor(0.5)` centres on both axes.
-   */
-  public setAnchor(x: number, y: number = x): void {
-    this.raw.anchor.set(x, y);
-  }
-
-  /**
-   * Multiplicative tint as a 24-bit RGB integer; `0xffffff` is untinted.
-   */
-  public get tint(): number {
-    return this.raw.tint as number;
-  }
-
-  public set tint(value: number) {
-    this.raw.tint = value;
-  }
-
-  /**
-   * Opacity from `0` (transparent) to `1` (opaque).
-   */
-  public get alpha(): number {
-    return this.raw.alpha;
-  }
-
-  public set alpha(value: number) {
-    this.raw.alpha = value;
-  }
-
-  /**
-   * Whether the sprite is drawn. A hidden sprite still advances and stays
-   * transform-synced; it is just skipped by the renderer.
-   */
-  public get visible(): boolean {
-    return this.raw.visible;
-  }
-
-  public set visible(value: boolean) {
-    this.raw.visible = value;
   }
 
   // Steps the playhead one frame forward, wrapping or completing at the end.

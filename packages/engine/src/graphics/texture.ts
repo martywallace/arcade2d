@@ -23,9 +23,18 @@ import type { TextureFrame, TextureGridOptions } from './texture.types';
  * A `Texture`'s pixels are owned by its {@link ImageAsset}, which in turn is
  * owned by the {@link AssetLibrary}. Unloading the asset (e.g. via
  * {@link AssetLibrary.unloadNamespace}) frees the underlying GPU source and
- * invalidates every `Texture` derived from it. A `Texture` therefore does not
- * need — and does not provide — its own `destroy`; manage lifetime at the
- * asset/namespace level.
+ * invalidates every `Texture` derived from it — so the common path is to
+ * manage lifetime at the asset/namespace level and never think about
+ * individual textures.
+ *
+ * The one nuance: a **whole-image** texture aliases the asset's own GPU
+ * texture and allocates nothing, but a **sub-region** texture (a
+ * {@link TextureFrame}, including every frame {@link Texture.grid} produces)
+ * allocates a thin renderer-side wrapper over the shared source. Those
+ * wrappers are released when the asset unloads, but if you churn through many
+ * of them — rebuilding animation strips in tooling, say — you can drop them
+ * eagerly with {@link Texture.destroy} instead of waiting on the asset
+ * lifecycle.
  *
  * @example
  * ```ts
@@ -111,6 +120,7 @@ export class Texture {
   }
 
   private readonly _texture: PixiTexture;
+  private _destroyed = false;
 
   /**
    * @param asset The image this texture views.
@@ -167,5 +177,31 @@ export class Texture {
    */
   public get height(): number {
     return this._texture.height;
+  }
+
+  /**
+   * Releases the renderer-side wrapper a sub-region texture allocated.
+   *
+   * This is a **no-op for a whole-image texture**: that texture aliases its
+   * {@link ImageAsset}'s own GPU texture and owns nothing, so freeing it here
+   * would pull the shared source out from under the asset and every sibling
+   * texture. For a sub-region texture (one built with a {@link TextureFrame},
+   * including each frame from {@link Texture.grid}) it disposes the wrapper
+   * while leaving the asset's shared source intact.
+   *
+   * Optional and idempotent — unloading the backing {@link ImageAsset} frees
+   * the source regardless. Reach for it only to drop frame wrappers eagerly
+   * (e.g. churning animation strips in tooling) rather than waiting on the
+   * asset lifecycle. The texture must not be used after it is destroyed.
+   */
+  public destroy(): void {
+    if (this.frame === null || this._destroyed) {
+      return;
+    }
+
+    this._destroyed = true;
+    // `false`: drop only this wrapper, never the shared TextureSource that
+    // the ImageAsset owns and other frame textures still sample.
+    this._texture.destroy(false);
   }
 }

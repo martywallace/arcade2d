@@ -276,57 +276,26 @@ export class WorldObject extends AbstractComponentHost<WorldObject> {
   }
 
   /**
-   * Iterates this object's components and invokes the named phase method
-   * on each. Each component is isolated in its own try/catch so one
-   * throwing component does not kill the rest of this object's frame, nor
-   * the wider world tick. Disabled components and components that do not
-   * implement the optional hook are skipped at a single property read.
-   *
-   * A host-level {@link AbstractComponentHost.enabled} of `false` short-
-   * circuits the whole phase before any component is touched, so disabling
-   * an object is a single-check gate rather than per-component bookkeeping.
-   *
-   * @param method The phase method to invoke.
-   * @param errorPhase The error-reporting label to attach to any thrown
-   * errors during this phase.
-   * @param update The {@link WorldUpdate} instance for this tick.
+   * Routes an update-phase throw from one of this object's components to the
+   * parent {@link World}'s error channel — a {@link WorldObject} has no
+   * reporter of its own, so it delegates. The shared per-component dispatch
+   * loop in {@link AbstractComponentHost} calls this; the symmetric
+   * {@link WorldObject._handleComponentDestroyError} handles `onDestroy`.
    */
-  private _runComponentPhase(
-    method: 'onPreUpdate' | 'onUpdate' | 'onPostUpdate',
+  protected override _reportPhaseError(
+    error: unknown,
+    key: string,
     errorPhase:
       | 'component-pre-update'
       | 'component-update'
       | 'component-post-update',
-    update: WorldUpdate,
   ): void {
-    if (!this.enabled) {
-      return;
-    }
-
-    for (const [key, component] of this.components) {
-      if (component.enabled === false) {
-        continue;
-      }
-
-      const hook = component[method];
-
-      if (!hook) {
-        continue;
-      }
-
-      const deps = this._getDepsFor(component);
-
-      try {
-        hook.call(component, update, deps);
-      } catch (error) {
-        this.world.reportError({
-          phase: errorPhase,
-          error,
-          host: this,
-          componentKey: key,
-        });
-      }
-    }
+    this.world.reportError({
+      phase: errorPhase,
+      error,
+      host: this,
+      componentKey: key,
+    });
   }
 
   protected override _handleComponentDestroyError(

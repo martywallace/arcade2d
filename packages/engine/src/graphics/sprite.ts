@@ -1,7 +1,6 @@
 import { Sprite as PixiSprite } from 'pixi.js';
-import { Point } from '../geometry';
 import { WorldObject } from '../world';
-import { AbstractGraphics } from './abstract-graphics';
+import { AbstractTexturedGraphics } from './abstract-textured-graphics';
 import type { SpriteOptions } from './sprite.types';
 import { Texture } from './texture';
 
@@ -44,9 +43,10 @@ import { Texture } from './texture';
  * ```
  *
  * @see {@link Texture} for the drawable the sprite renders.
- * @see {@link AbstractGraphics} for the inherited lifecycle and transform sync.
+ * @see {@link AbstractTexturedGraphics} for the inherited anchor/tint and the
+ * lifecycle/transform sync.
  */
-export class Sprite extends AbstractGraphics<PixiSprite> {
+export class Sprite extends AbstractTexturedGraphics<PixiSprite> {
   private _texture: Texture;
 
   /**
@@ -62,20 +62,7 @@ export class Sprite extends AbstractGraphics<PixiSprite> {
     texture: Texture,
     options: SpriteOptions = {},
   ) {
-    const display = new PixiSprite(texture.raw);
-
-    const anchor = options.anchor ?? 0.5;
-    if (typeof anchor === 'number') {
-      display.anchor.set(anchor, anchor);
-    } else {
-      display.anchor.set(anchor.x, anchor.y);
-    }
-
-    display.tint = options.tint ?? 0xffffff;
-    display.alpha = options.alpha ?? 1;
-    display.visible = options.visible ?? true;
-
-    super(host, display);
+    super(host, new PixiSprite(texture.raw), options);
 
     this._texture = texture;
   }
@@ -98,63 +85,5 @@ export class Sprite extends AbstractGraphics<PixiSprite> {
   public setTexture(texture: Texture): void {
     this._texture = texture;
     this.raw.texture = texture.raw;
-  }
-
-  /**
-   * The anchor point as a fresh {@link Point} of per-axis fractions (`0`–`1`).
-   * See {@link SpriteOptions.anchor} for the meaning. Returned by value;
-   * mutating the result does not affect the sprite — use
-   * {@link Sprite.setAnchor}.
-   */
-  public get anchor(): Point {
-    return new Point(this.raw.anchor.x, this.raw.anchor.y);
-  }
-
-  /**
-   * Sets the anchor point — the spot on the texture that sits on the host's
-   * position — as a fraction of the texture's size.
-   *
-   * @param x The horizontal anchor fraction (`0` left, `1` right).
-   * @param y The vertical anchor fraction (`0` top, `1` bottom). Defaults to
-   * `x`, so `setAnchor(0.5)` centres on both axes.
-   */
-  public setAnchor(x: number, y: number = x): void {
-    this.raw.anchor.set(x, y);
-  }
-
-  /**
-   * Multiplicative tint as a 24-bit RGB integer; `0xffffff` is untinted. See
-   * {@link SpriteOptions.tint}.
-   */
-  public get tint(): number {
-    return this.raw.tint as number;
-  }
-
-  public set tint(value: number) {
-    this.raw.tint = value;
-  }
-
-  /**
-   * Opacity from `0` (transparent) to `1` (opaque). See
-   * {@link SpriteOptions.alpha}.
-   */
-  public get alpha(): number {
-    return this.raw.alpha;
-  }
-
-  public set alpha(value: number) {
-    this.raw.alpha = value;
-  }
-
-  /**
-   * Whether the sprite is drawn. A hidden sprite still ticks and stays
-   * transform-synced; it is just skipped by the renderer.
-   */
-  public get visible(): boolean {
-    return this.raw.visible;
-  }
-
-  public set visible(value: boolean) {
-    this.raw.visible = value;
   }
 }

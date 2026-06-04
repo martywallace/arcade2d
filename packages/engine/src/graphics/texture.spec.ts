@@ -105,4 +105,40 @@ describe('Texture', () => {
       expect(overCapped).toHaveLength(2);
     });
   });
+
+  describe('destroy', () => {
+    test('disposes a framed sub-texture wrapper without the shared source', () => {
+      const asset = imageAsset();
+      const texture = new Texture(asset, { x: 0, y: 0, width: 8, height: 8 });
+      const destroy = jest.spyOn(texture.raw, 'destroy');
+
+      texture.destroy();
+
+      // `false` => drop the wrapper only, never the asset-owned source.
+      expect(destroy).toHaveBeenCalledWith(false);
+    });
+
+    test('is idempotent for a framed texture', () => {
+      const asset = imageAsset();
+      const texture = new Texture(asset, { x: 0, y: 0, width: 8, height: 8 });
+      const destroy = jest.spyOn(texture.raw, 'destroy');
+
+      texture.destroy();
+      texture.destroy();
+
+      expect(destroy).toHaveBeenCalledTimes(1);
+    });
+
+    test('is a no-op for a whole-image texture (it would free the asset source)', () => {
+      const asset = imageAsset();
+      const texture = new Texture(asset);
+      const destroy = jest.spyOn(asset.raw, 'destroy');
+
+      texture.destroy();
+
+      expect(destroy).not.toHaveBeenCalled();
+      // The whole-image texture still aliases the live asset texture.
+      expect(texture.raw).toBe(asset.raw);
+    });
+  });
 });

@@ -3,6 +3,7 @@ import { Polygon } from '../geometry';
 import type { PointPrimitive } from '../geometry/point.types';
 import { WorldObject } from '../world';
 import { AbstractGraphics } from './abstract-graphics';
+import type { ShapeGraphicsOptions } from './shape-graphics.types';
 
 /**
  * Renders a filled {@link Polygon} attached to a {@link WorldObject}. The
@@ -123,31 +124,60 @@ export class PolygonGraphics extends AbstractGraphics<PixiGraphics> {
     );
   }
 
+  private _fill: number;
+
   /**
    * @param host The world object the polygon is attached to.
    * @param polygon The polygon shape to draw. Stored as-is for inspection.
    * Polygons with fewer than three vertices produce no draw output.
    * @param fill The fill color, as a 24-bit RGB integer. Defaults to white.
+   * Change it later with {@link PolygonGraphics.setFill}.
+   * @param options Optional {@link ShapeGraphicsOptions} (alpha, visibility).
    */
   constructor(
     host: WorldObject,
     public readonly polygon: Polygon,
     fill: number = 0xffffff,
+    options: ShapeGraphicsOptions = {},
   ) {
-    const display = new PixiGraphics();
+    super(host, new PixiGraphics(), options);
 
-    if (polygon.points.length >= 3) {
+    this._fill = fill;
+    this._redraw();
+  }
+
+  /**
+   * The current fill colour, as a 24-bit RGB integer.
+   */
+  public get fill(): number {
+    return this._fill;
+  }
+
+  /**
+   * Recolours the polygon, re-issuing the fill into the underlying renderer
+   * graphic — without rebuilding the component.
+   *
+   * @param fill The new fill colour, as a 24-bit RGB integer.
+   */
+  public setFill(fill: number): void {
+    this._fill = fill;
+    this._redraw();
+  }
+
+  // Clears and re-fills the renderer graphic from the current polygon + fill.
+  private _redraw(): void {
+    this.raw.clear();
+
+    if (this.polygon.points.length >= 3) {
       // Pixi's `poly` API accepts `{ x, y }` records directly; close the ring
       // explicitly so behaviour matches `Polygon`'s implicit-closure contract.
-      display
+      this.raw
         .poly(
-          polygon.points.map((point) => ({ x: point.x, y: point.y })),
+          this.polygon.points.map((point) => ({ x: point.x, y: point.y })),
           true,
         )
-        .fill(fill);
+        .fill(this._fill);
     }
-
-    super(host, display);
   }
 
   /**

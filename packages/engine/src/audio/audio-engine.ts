@@ -146,8 +146,9 @@ export class AudioEngine extends AbstractGameComponent {
   /**
    * Master volume from `0` to `1`. The single knob at the bottom of the
    * audio graph; every category bus and every instance routes through it.
-   * Setting this in headless mode silently retains the value but has no
-   * audible effect.
+   *
+   * In headless mode there is no audio graph to hold the value, so the setter
+   * is a no-op and the getter reads back `0`.
    */
   public get masterVolume(): number {
     return this._masterGain?.gain.value ?? 0;
@@ -263,8 +264,13 @@ export class AudioEngine extends AbstractGameComponent {
    * @throws {@link EngineError} with code
    *   {@link ErrorCode.AUDIO_UNAVAILABLE} when the engine is in headless
    *   mode.
-   * @throws Any error `fetch` or `decodeAudioData` produces. Callers that
-   *   want the engine-error wrapping go through {@link AssetLibrary.load}.
+   * @throws {@link EngineError} with code
+   *   {@link ErrorCode.AUDIO_LOAD_FAILED} when the `fetch` resolves with a
+   *   non-OK HTTP status.
+   * @throws Any error `fetch` or `decodeAudioData` produces directly (a
+   *   network failure, an undecodable buffer). Callers that want every
+   *   failure wrapped in an {@link EngineError} go through
+   *   {@link AssetLibrary.load}.
    */
   public async loadAudioBuffer(path: string): Promise<AudioBuffer> {
     const ctx = this._context;
@@ -279,8 +285,11 @@ export class AudioEngine extends AbstractGameComponent {
 
     const response = await fetch(path);
     if (!response.ok) {
-      throw new Error(
-        `Failed to fetch audio "${path}": HTTP ${response.status} ${response.statusText}`,
+      throwEngineError(
+        ErrorCode.AUDIO_LOAD_FAILED,
+        `Failed to fetch audio "${path}": HTTP ${response.status} ` +
+          `${response.statusText}.`,
+        { path, status: response.status, statusText: response.statusText },
       );
     }
     const bytes = await response.arrayBuffer();

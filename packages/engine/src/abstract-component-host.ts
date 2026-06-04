@@ -9,6 +9,34 @@ import type {
   ComponentHostConstructor,
   ComponentMap,
 } from './components.types';
+import type { WorldUpdate } from './world/world-update';
+
+/**
+ * The three per-frame update phases a host drives its components through, as
+ * the error-reporting labels attached when a component throws mid-phase. The
+ * `onDestroy` phase is reported separately via
+ * {@link AbstractComponentHost._handleComponentDestroyError}.
+ *
+ * @internal
+ */
+type ComponentUpdatePhase =
+  | 'component-pre-update'
+  | 'component-update'
+  | 'component-post-update';
+
+/**
+ * Host-agnostic seam letting the dependency resolvers iterate a host's
+ * `(key, component)` entries without reaching into its protected `components`
+ * map (or casting the host through `unknown`). Deliberately erases the host's
+ * component type to `object` — resolvers only need to `instanceof`-test and
+ * identity-compare each component — so any host tier satisfies it regardless
+ * of its `THost`.
+ *
+ * @internal
+ */
+export interface ComponentEntrySource {
+  _componentEntries(): IterableIterator<[string, object]>;
+}
 
 /**
  * Sentinel "empty deps" object used for components that don't implement
@@ -430,4 +458,80 @@ export abstract class AbstractComponentHost<
   public _getDepsFor(component: Component<THost>): unknown {
     return this._depsByComponent.get(component) ?? EMPTY_DEPS;
   }
+
+  /**
+   * Exposes this host's `(key, component)` entries to the dependency
+   * resolvers (see {@link ComponentEntrySource}) so they can walk the
+   * components without breaking the encapsulation of the protected
+   * `components` map.
+   *
+   * @internal
+   */
+  public _componentEntries(): IterableIterator<[string, Component<THost>]> {
+    return this.components.entries();
+  }
+
+  /**
+   * Drives every enabled component through one update phase, isolating each
+   * invocation so a single throwing component can't abort the rest of the
+   * host's components (or the wider tick). The host-level
+   * {@link AbstractComponentHost.enabled} gate short-circuits the whole phase
+   * before any component is touched; a per-component `enabled === false`
+   * skips that one; a component that doesn't implement the optional hook is
+   * skipped at a single property read. The cached dependencies are threaded
+   * in as the trailing argument.
+   *
+   * Failures are routed to {@link AbstractComponentHost._reportPhaseError},
+   * which each host kind implements to reach its error-reporting channel.
+   *
+   * @param method The phase hook to invoke on each component.
+   * @param errorPhase The label attached to any error this phase produces.
+   * @param update The {@link WorldUpdate} for this tick.
+   */
+  protected _runComponentPhase(
+    method: 'onPreUpdate' | 'onUpdate' | 'onPostUpdate',
+    errorPhase: ComponentUpdatePhase,
+    update: WorldUpdate,
+  ): void {
+    if (!this.enabled) {
+      return;
+    }
+
+    for (const [key, component] of this.components) {
+      if (component.enabled === false) {
+        continue;
+      }
+
+      const hook = component[method];
+
+      if (!hook) {
+        continue;
+      }
+
+      const deps = this._getDepsFor(component);
+
+      try {
+        hook.call(component, update, deps);
+      } catch (error) {
+        this._reportPhaseError(error, key, errorPhase);
+      }
+    }
+  }
+
+  /**
+   * Routes an error thrown by a component's update hook to this host's
+   * error-reporting channel. A {@link World} reports against itself; a
+   * {@link WorldObject} delegates to its parent world. Mirrors the
+   * {@link AbstractComponentHost._handleComponentDestroyError} seam for the
+   * `onDestroy` phase.
+   *
+   * @param error The thrown error.
+   * @param key The key of the component that threw.
+   * @param errorPhase The phase the throw came from.
+   */
+  protected abstract _reportPhaseError(
+    error: unknown,
+    key: string,
+    errorPhase: ComponentUpdatePhase,
+  ): void;
 }

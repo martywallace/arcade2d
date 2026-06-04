@@ -1,4 +1,7 @@
-import { AbstractComponentHost } from '../abstract-component-host';
+import {
+  AbstractComponentHost,
+  ComponentEntrySource,
+} from '../abstract-component-host';
 import type { Component } from '../components.types';
 import { ErrorCode } from '../error.constants';
 import { throwEngineError } from '../error.support';
@@ -37,16 +40,14 @@ export abstract class AbstractDependencyResolver<
    * never what users want.
    */
   protected _findSiblingMatches<T>(
-    host: AbstractComponentHost<never>,
+    host: ComponentEntrySource,
     type: DependencyComponentConstructor<T>,
     excludeSelf: boolean,
   ): { keys: string[]; instances: T[] } {
     const keys: string[] = [];
     const instances: T[] = [];
 
-    for (const [key, component] of (
-      host as unknown as { components: Map<string, unknown> }
-    ).components) {
+    for (const [key, component] of host._componentEntries()) {
       if (excludeSelf && component === this._requester) {
         continue;
       }
@@ -66,7 +67,7 @@ export abstract class AbstractDependencyResolver<
    */
   protected _resolveRequired<T>(
     scope: 'sibling' | 'world',
-    lookupHost: AbstractComponentHost<never>,
+    lookupHost: ComponentEntrySource,
     type: DependencyComponentConstructor<T>,
   ): T {
     const excludeSelf = scope === 'sibling';
@@ -136,7 +137,7 @@ export abstract class AbstractDependencyResolver<
    */
   protected _resolveOptional<T>(
     scope: 'sibling' | 'world',
-    lookupHost: AbstractComponentHost<never>,
+    lookupHost: ComponentEntrySource,
     type: DependencyComponentConstructor<T>,
   ): T | null {
     const excludeSelf = scope === 'sibling';

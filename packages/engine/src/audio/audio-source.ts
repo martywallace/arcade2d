@@ -154,6 +154,12 @@ export class AudioSource extends AbstractWorldObjectComponent {
    * `onDestroy` can shut it down in bulk, and unregistered automatically
    * when the underlying source ends.
    *
+   * **Looping voices never end on their own**, so a voice started with
+   * `{ loop: true }` stays registered (and counted in
+   * {@link AudioSource.activeVoiceCount}) until you {@link AudioSource.stop}
+   * the source or the host {@link WorldObject} is destroyed. Hold the
+   * returned {@link AudioInstance} if you need to stop one specific loop.
+   *
    * @param options Optional {@link AudioSourcePlayOptions} overriding the
    * source's defaults for this one voice only.
    * @returns The spawned {@link AudioInstance}. Most callers ignore the

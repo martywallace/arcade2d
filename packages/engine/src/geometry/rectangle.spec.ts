@@ -87,4 +87,22 @@ describe('Rectangle', () => {
       );
     });
   });
+
+  describe('clone', () => {
+    test('it produces an equal but distinct rectangle', () => {
+      const rect = new Rectangle(30, 40);
+      const clone = rect.clone();
+
+      expect(clone).not.toBe(rect);
+      expect(clone).toBeInstanceOf(Rectangle);
+      expect(clone.width).toBe(30);
+      expect(clone.height).toBe(40);
+    });
+  });
+
+  describe('toString', () => {
+    test('it reports the dimensions', () => {
+      expect(new Rectangle(30, 40).toString()).toBe('Rectangle(30.00 x 40.00)');
+    });
+  });
 });

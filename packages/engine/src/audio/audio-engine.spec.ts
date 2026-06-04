@@ -173,8 +173,14 @@ describe('AudioEngine', () => {
       } as unknown as Response);
       try {
         const engine = Game.createHeadless().audio;
-        await expect(engine.loadAudioBuffer('missing.ogg')).rejects.toThrow(
-          /404/,
+        await expect(engine.loadAudioBuffer('missing.ogg')).rejects.toEqual(
+          expect.objectContaining({
+            code: ErrorCode.AUDIO_LOAD_FAILED,
+            context: expect.objectContaining({
+              path: 'missing.ogg',
+              status: 404,
+            }),
+          }),
         );
       } finally {
         fetchSpy.mockRestore();

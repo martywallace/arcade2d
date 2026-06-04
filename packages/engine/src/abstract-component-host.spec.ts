@@ -15,6 +15,12 @@ class TestHost extends AbstractComponentHost<TestHost> {
     // dependency resolution. Returning an opaque sentinel is sufficient.
     return {};
   }
+
+  protected _reportPhaseError(error: unknown, key: string): void {
+    // Phase-error routing is exercised through the World/Game subclasses; a
+    // bare host just surfaces it so a throwing test component is visible.
+    console.error(`component "${key}" threw:`, error);
+  }
 }
 
 const makeComponent = <T extends TestHost>(

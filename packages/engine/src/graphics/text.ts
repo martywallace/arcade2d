@@ -1,8 +1,7 @@
 import { Text as PixiText } from 'pixi.js';
 import { FontAsset } from '../assets/font-asset';
-import { Point } from '../geometry';
 import { WorldObject } from '../world';
-import { AbstractGraphics } from './abstract-graphics';
+import { AbstractTexturedGraphics } from './abstract-textured-graphics';
 import type { TextAlign, TextOptions } from './text.types';
 
 /**
@@ -64,13 +63,13 @@ import type { TextAlign, TextOptions } from './text.types';
  * @see {@link FontAsset} for the font handle this component renders against.
  * @see {@link AbstractGraphics} for the inherited lifecycle and transform sync.
  */
-export class Text extends AbstractGraphics<PixiText> {
+export class Text extends AbstractTexturedGraphics<PixiText> {
   /**
    * @param host The {@link WorldObject} this text is attached to. Its
    * transform drives the text's position, rotation, and scale each frame.
    * @param text The initial string to render. Use `\n` for line breaks.
    * @param options Optional {@link TextOptions} (font family, size, fill,
-   * anchor, alignment, opacity, visibility).
+   * anchor, alignment, tint, opacity, visibility).
    */
   constructor(host: WorldObject, text: string, options: TextOptions = {}) {
     const fontFamily =
@@ -88,17 +87,9 @@ export class Text extends AbstractGraphics<PixiText> {
       },
     });
 
-    const anchor = options.anchor ?? 0.5;
-    if (typeof anchor === 'number') {
-      display.anchor.set(anchor, anchor);
-    } else {
-      display.anchor.set(anchor.x, anchor.y);
-    }
-
-    display.alpha = options.alpha ?? 1;
-    display.visible = options.visible ?? true;
-
-    super(host, display);
+    // anchor/tint/alpha/visible are applied by AbstractTexturedGraphics. Note
+    // `fill` is the glyph colour; `tint` multiplies on top of it.
+    super(host, display, options);
   }
 
   /**
@@ -180,52 +171,6 @@ export class Text extends AbstractGraphics<PixiText> {
 
   public set align(value: TextAlign) {
     this.raw.style.align = value;
-  }
-
-  /**
-   * Opacity from `0` (transparent) to `1` (opaque). See
-   * {@link TextOptions.alpha}.
-   */
-  public get alpha(): number {
-    return this.raw.alpha;
-  }
-
-  public set alpha(value: number) {
-    this.raw.alpha = value;
-  }
-
-  /**
-   * Whether the text is drawn. A hidden text still ticks and stays
-   * transform-synced; it is just skipped by the renderer.
-   */
-  public get visible(): boolean {
-    return this.raw.visible;
-  }
-
-  public set visible(value: boolean) {
-    this.raw.visible = value;
-  }
-
-  /**
-   * The anchor point as a fresh {@link Point} of per-axis fractions
-   * (`0`–`1`). See {@link TextOptions.anchor} for the meaning. Returned by
-   * value; mutating the result does not affect the text — use
-   * {@link Text.setAnchor}.
-   */
-  public get anchor(): Point {
-    return new Point(this.raw.anchor.x, this.raw.anchor.y);
-  }
-
-  /**
-   * Sets the anchor point — the spot on the rendered text that sits on the
-   * host's position — as a fraction of the bounding box.
-   *
-   * @param x The horizontal anchor fraction (`0` left, `1` right).
-   * @param y The vertical anchor fraction (`0` top, `1` bottom). Defaults
-   * to `x`, so `setAnchor(0.5)` centres on both axes.
-   */
-  public setAnchor(x: number, y: number = x): void {
-    this.raw.anchor.set(x, y);
   }
 
   /**

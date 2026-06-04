@@ -6,6 +6,7 @@ import {
   Camera,
   World,
   WorldDependencyResolver,
+  WorldUpdate,
 } from '../world';
 
 type SceneDeps = {
@@ -219,7 +220,7 @@ export class Scene extends AbstractWorldComponent<SceneDeps> {
    * "screen-shake of N pixels": N pixels on screen, not a value that grows
    * with zoom-in.
    */
-  public onPostUpdate(_update: unknown, { camera }: SceneDeps): void {
+  public onPostUpdate(_update: WorldUpdate, { camera }: SceneDeps): void {
     const screen = this._app.screen;
 
     this._container.pivot.set(camera.position.x, camera.position.y);

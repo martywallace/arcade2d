@@ -1,4 +1,3 @@
-import type { AbstractComponentHost } from '../abstract-component-host';
 import type { Component } from '../components.types';
 import { AbstractDependencyResolver } from './abstract-dependency-resolver';
 import type {
@@ -25,20 +24,12 @@ export class WorldComponentDependencyResolver
   public requireSibling<T extends Component<World>>(
     type: DependencyComponentConstructor<T>,
   ): T {
-    return this._resolveRequired(
-      'sibling',
-      this._host as unknown as AbstractComponentHost<never>,
-      type,
-    );
+    return this._resolveRequired('sibling', this._host, type);
   }
 
   public optionalSibling<T extends Component<World>>(
     type: DependencyComponentConstructor<T>,
   ): T | null {
-    return this._resolveOptional(
-      'sibling',
-      this._host as unknown as AbstractComponentHost<never>,
-      type,
-    );
+    return this._resolveOptional('sibling', this._host, type);
   }
 }

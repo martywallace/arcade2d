@@ -286,13 +286,12 @@ describe('Prefab', () => {
       const a = prefab.buildObject(PREFAB_BUILD_TOKEN, world);
       const b = prefab.buildObject(PREFAB_BUILD_TOKEN, world);
 
+      // Each spawned object gets its own copy of the prefab's tags — a
+      // distinct set instance, not a shared reference — so they can't desync
+      // each other (and the metadata.tags ReadonlySet stays immutable).
       expect(a.metadata.tags).not.toBe(b.metadata.tags);
       expect(a.metadata.tags.has('hostile')).toBe(true);
       expect(b.metadata.tags.has('hostile')).toBe(true);
-
-      a.metadata.tags.add('special');
-
-      expect(b.metadata.tags.has('special')).toBe(false);
     });
 
     test('records the prefab name on every spawned object', () => {

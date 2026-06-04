@@ -1,5 +1,6 @@
 import { Container } from 'pixi.js';
 import { AbstractWorldObjectComponent, WorldObject } from '../world';
+import type { GraphicsOptions } from './abstract-graphics.types';
 import { Scene } from './scene';
 
 /**
@@ -15,12 +16,15 @@ import { Scene } from './scene';
  *   scale — into the display object once per frame so the visual reflects
  *   every behavior change made during the tick,
  * - exposing the underlying Pixi instance via {@link AbstractGraphics.raw}
- *   for advanced use cases the typed surface doesn't cover.
+ *   for advanced use cases the typed surface doesn't cover,
+ * - applying and exposing the two visual properties every display object
+ *   shares — {@link AbstractGraphics.alpha} and
+ *   {@link AbstractGraphics.visible}.
  *
  * Subclasses provide the concrete display object — typically a Pixi
- * `Graphics` for shape-drawing components, but the base is generic so a
- * future `SpriteGraphics extends AbstractGraphics<Sprite>` slots in without
- * special-casing.
+ * `Graphics` for shape-drawing components, or one of the textured display
+ * objects via {@link AbstractTexturedGraphics}, which layers `anchor` and
+ * `tint` on top of this base.
  *
  * ### Transform-sync timing
  *
@@ -74,11 +78,16 @@ export abstract class AbstractGraphics<
    * @param display The Pixi display object to wrap. Constructed by the
    * subclass and handed up; ownership transfers to this base — it will be
    * destroyed during {@link AbstractGraphics.onDestroy}.
+   * @param options The {@link GraphicsOptions} — the `alpha` and `visible`
+   * every graphic shares. Subclasses widen this with their own options and
+   * pass the whole bag up (defaulting it for their own callers).
    */
-  constructor(host: WorldObject, display: T) {
+  constructor(host: WorldObject, display: T, options: GraphicsOptions) {
     super(host);
 
     this._display = display;
+    this._display.alpha = options.alpha ?? 1;
+    this._display.visible = options.visible ?? true;
     this._scene = host.world.getComponentByType(Scene);
   }
 
@@ -121,6 +130,30 @@ export abstract class AbstractGraphics<
   public override onDestroy(): void {
     this._scene.removeChild(this._display);
     this._display.destroy();
+  }
+
+  /**
+   * Opacity from `0` (fully transparent) to `1` (fully opaque). Applies to
+   * the whole graphic, including any children the display object holds.
+   */
+  public get alpha(): number {
+    return this._display.alpha;
+  }
+
+  public set alpha(value: number) {
+    this._display.alpha = value;
+  }
+
+  /**
+   * Whether the graphic is drawn. A hidden graphic still ticks and stays
+   * transform-synced; it is simply skipped by the renderer.
+   */
+  public get visible(): boolean {
+    return this._display.visible;
+  }
+
+  public set visible(value: boolean) {
+    this._display.visible = value;
   }
 
   private _syncTransform(): void {

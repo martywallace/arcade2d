@@ -1,3 +1,13 @@
+import type { PointPrimitive } from '../geometry';
+
+/**
+ * The world-space origin `(0, 0)`, frozen so it can serve as the shared
+ * default spawn position for {@link WorldObject}s without any caller being
+ * able to mutate the shared instance. {@link World.createEmpty} and
+ * {@link Prefab} copy out of it, so the freeze is belt-and-braces.
+ */
+export const ORIGIN: PointPrimitive = Object.freeze({ x: 0, y: 0 });
+
 /**
  * Reserved component key used by the engine to register the auto-attached
  * {@link Camera} on every {@link World}. Surfaces as a constant so user

@@ -102,19 +102,16 @@ export class Rectangle extends Polygon<
   }
 
   /**
-   * Determines whether this rectangle overlaps another rectangle. Rectangles
-   * that touch only at an edge or corner are considered intersecting.
-   *
-   * @param other The rectangle to test against.
-   * @param offset The position of `other`'s top-left corner relative to this
-   * rectangle's top-left corner.
+   * Returns an independent copy of this rectangle.
    */
-  public intersects(other: Rectangle, offset: PointPrimitive): boolean {
-    return (
-      offset.x <= this.width &&
-      offset.x + other.width >= 0 &&
-      offset.y <= this.height &&
-      offset.y + other.height >= 0
-    );
+  public override clone(): Rectangle {
+    return new Rectangle(this.width, this.height);
+  }
+
+  /**
+   * Returns a string representation of this rectangle (its dimensions).
+   */
+  public override toString(): string {
+    return `Rectangle(${this.width.toFixed(2)} x ${this.height.toFixed(2)})`;
   }
 }

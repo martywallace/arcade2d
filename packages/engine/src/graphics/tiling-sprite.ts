@@ -1,7 +1,7 @@
 import { TilingSprite as PixiTilingSprite } from 'pixi.js';
 import { Point } from '../geometry';
 import { WorldObject } from '../world';
-import { AbstractGraphics } from './abstract-graphics';
+import { AbstractTexturedGraphics } from './abstract-textured-graphics';
 import type { TilingSpriteOptions } from './tiling-sprite.types';
 import { Texture } from './texture';
 
@@ -52,7 +52,7 @@ import { Texture } from './texture';
  * @see {@link Texture} for the drawable that gets repeated.
  * @see {@link Sprite} for the single-copy counterpart.
  */
-export class TilingSprite extends AbstractGraphics<PixiTilingSprite> {
+export class TilingSprite extends AbstractTexturedGraphics<PixiTilingSprite> {
   private _texture: Texture;
 
   /**
@@ -83,18 +83,8 @@ export class TilingSprite extends AbstractGraphics<PixiTilingSprite> {
       display.tilePosition.set(options.tileOffset.x, options.tileOffset.y);
     }
 
-    const anchor = options.anchor ?? 0.5;
-    if (typeof anchor === 'number') {
-      display.anchor.set(anchor, anchor);
-    } else {
-      display.anchor.set(anchor.x, anchor.y);
-    }
-
-    display.tint = options.tint ?? 0xffffff;
-    display.alpha = options.alpha ?? 1;
-    display.visible = options.visible ?? true;
-
-    super(host, display);
+    // anchor/tint/alpha/visible are applied by AbstractTexturedGraphics.
+    super(host, display, options);
 
     this._texture = texture;
   }
@@ -178,58 +168,5 @@ export class TilingSprite extends AbstractGraphics<PixiTilingSprite> {
    */
   public setTileOffset(x: number, y: number): void {
     this.raw.tilePosition.set(x, y);
-  }
-
-  /**
-   * The anchor point as a fresh {@link Point} of per-axis fractions (`0`–`1`).
-   * See {@link TilingSpriteOptions.anchor}. Use {@link TilingSprite.setAnchor}
-   * to change it.
-   */
-  public get anchor(): Point {
-    return new Point(this.raw.anchor.x, this.raw.anchor.y);
-  }
-
-  /**
-   * Sets the anchor point — the spot on the region that sits on the host's
-   * position — as a fraction of the region's size.
-   *
-   * @param x The horizontal anchor fraction.
-   * @param y The vertical anchor fraction. Defaults to `x`.
-   */
-  public setAnchor(x: number, y: number = x): void {
-    this.raw.anchor.set(x, y);
-  }
-
-  /**
-   * Multiplicative tint as a 24-bit RGB integer; `0xffffff` is untinted.
-   */
-  public get tint(): number {
-    return this.raw.tint as number;
-  }
-
-  public set tint(value: number) {
-    this.raw.tint = value;
-  }
-
-  /**
-   * Opacity from `0` (transparent) to `1` (opaque).
-   */
-  public get alpha(): number {
-    return this.raw.alpha;
-  }
-
-  public set alpha(value: number) {
-    this.raw.alpha = value;
-  }
-
-  /**
-   * Whether the tiling sprite is drawn.
-   */
-  public get visible(): boolean {
-    return this.raw.visible;
-  }
-
-  public set visible(value: boolean) {
-    this.raw.visible = value;
   }
 }

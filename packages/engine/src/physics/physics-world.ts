@@ -6,6 +6,8 @@ import type {
   RigidBodyDesc,
   World as RapierWorld,
 } from '@dimforge/rapier2d-compat';
+import { ErrorCode } from '../error.constants';
+import { throwEngineError } from '../error.support';
 import { Point } from '../geometry';
 import type { PointPrimitive } from '../geometry/point.types';
 import { AbstractWorldComponent, World, WorldUpdate } from '../world';
@@ -98,6 +100,13 @@ export class PhysicsWorld extends AbstractWorldComponent {
   // wall-clock time regardless of frame pacing.
   private _accumulator = 0;
 
+  // Set once `onDestroy` frees the Rapier world. Every method that reaches
+  // into the freed WASM `_world` checks this first: touching freed Rapier
+  // memory is a hard crash, not a catchable JS throw, so we must guard rather
+  // than let a straggler call (e.g. a RigidBody.onDestroy that runs after the
+  // world was torn down) reach Rapier at all.
+  private _freed = false;
+
   /**
    * @param host The {@link World} this simulation belongs to.
    * @param options Optional configuration — gravity, scale, and stepping. See
@@ -178,9 +187,14 @@ export class PhysicsWorld extends AbstractWorldComponent {
    *
    * @param desc The Rapier `RigidBodyDesc` describing the body to create.
    * @returns The live Rapier `RigidBody`.
+   * @throws {@link EngineError} with code
+   *   {@link ErrorCode.PHYSICS_BODY_NOT_ATTACHED} if the world has already
+   *   been freed.
    * @internal
    */
   public createBody(desc: RigidBodyDesc): RapierRigidBody {
+    this._assertLive();
+
     return this._world.createRigidBody(desc);
   }
 
@@ -192,9 +206,14 @@ export class PhysicsWorld extends AbstractWorldComponent {
    * material.
    * @param parent The body the collider is rigidly attached to.
    * @returns The live Rapier `Collider`.
+   * @throws {@link EngineError} with code
+   *   {@link ErrorCode.PHYSICS_BODY_NOT_ATTACHED} if the world has already
+   *   been freed.
    * @internal
    */
   public createCollider(desc: ColliderDesc, parent: RapierRigidBody): Collider {
+    this._assertLive();
+
     return this._world.createCollider(desc, parent);
   }
 
@@ -206,6 +225,15 @@ export class PhysicsWorld extends AbstractWorldComponent {
    * @internal
    */
   public removeBody(body: RapierRigidBody): void {
+    // No-op after free: world teardown destroys every object (and so every
+    // RigidBody.onDestroy runs removeBody) *before* the PhysicsWorld's own
+    // onDestroy frees the world — but a straggler removal afterward would
+    // reach freed memory. The body is already gone with the world, so
+    // silently doing nothing is correct, not an error.
+    if (this._freed) {
+      return;
+    }
+
     this._world.removeRigidBody(body);
   }
 
@@ -218,6 +246,12 @@ export class PhysicsWorld extends AbstractWorldComponent {
    * display refresh rate.
    */
   public onPreUpdate(update: WorldUpdate): void {
+    // A tick after teardown would step freed WASM memory. Shouldn't happen
+    // under normal world lifecycle, but cheap insurance against a crash.
+    if (this._freed) {
+      return;
+    }
+
     this._accumulator += update.deltaSeconds;
 
     // Cap the backlog before draining so a long stall can't queue an
@@ -241,6 +275,25 @@ export class PhysicsWorld extends AbstractWorldComponent {
    * fired automatically during world teardown.
    */
   public override onDestroy(): void {
+    if (this._freed) {
+      return;
+    }
+
+    this._freed = true;
     this._world.free();
+  }
+
+  // Guards the body/collider creation seams against being called after the
+  // world is freed. Unlike removal (which is harmlessly idempotent), creating
+  // into a freed world is a programming error worth surfacing loudly.
+  private _assertLive(): void {
+    if (this._freed) {
+      throwEngineError(
+        ErrorCode.PHYSICS_BODY_NOT_ATTACHED,
+        'This PhysicsWorld has been destroyed; its Rapier world is freed and ' +
+          'can no longer create bodies or colliders.',
+        {},
+      );
+    }
   }
 }

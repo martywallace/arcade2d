@@ -1,4 +1,3 @@
-import type { AbstractComponentHost } from '../abstract-component-host';
 import type { Component } from '../components.types';
 import { AbstractDependencyResolver } from './abstract-dependency-resolver';
 import type {
@@ -24,40 +23,24 @@ export class WorldObjectComponentDependencyResolver
   public requireSibling<T extends Component<WorldObject>>(
     type: DependencyComponentConstructor<T>,
   ): T {
-    return this._resolveRequired(
-      'sibling',
-      this._host as unknown as AbstractComponentHost<never>,
-      type,
-    );
+    return this._resolveRequired('sibling', this._host, type);
   }
 
   public optionalSibling<T extends Component<WorldObject>>(
     type: DependencyComponentConstructor<T>,
   ): T | null {
-    return this._resolveOptional(
-      'sibling',
-      this._host as unknown as AbstractComponentHost<never>,
-      type,
-    );
+    return this._resolveOptional('sibling', this._host, type);
   }
 
   public requireFromWorld<T extends Component<World>>(
     type: DependencyComponentConstructor<T>,
   ): T {
-    return this._resolveRequired(
-      'world',
-      this._host.world as unknown as AbstractComponentHost<never>,
-      type,
-    );
+    return this._resolveRequired('world', this._host.world, type);
   }
 
   public optionalFromWorld<T extends Component<World>>(
     type: DependencyComponentConstructor<T>,
   ): T | null {
-    return this._resolveOptional(
-      'world',
-      this._host.world as unknown as AbstractComponentHost<never>,
-      type,
-    );
+    return this._resolveOptional('world', this._host.world, type);
   }
 }

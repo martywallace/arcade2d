@@ -18,6 +18,13 @@ describe('Circle', () => {
     test('area is πr²', () => {
       expect(new Circle(3).area).toBeCloseTo(Math.PI * 9, 10);
     });
+
+    test('the Shape method forms mirror the getters', () => {
+      const circle = new Circle(3);
+
+      expect(circle.getArea()).toBe(circle.area);
+      expect(circle.getPerimeter()).toBe(circle.circumference);
+    });
   });
 
   describe('containsPoint', () => {
@@ -36,6 +43,15 @@ describe('Circle', () => {
     test('a point outside is not contained', () => {
       expect(circle.containsPoint({ x: 6, y: 0 })).toBe(false);
     });
+
+    test('a negative radius is clamped to zero (no area)', () => {
+      const degenerate = new Circle(-5);
+
+      // Only the exact center (on the zero-radius edge) registers; the
+      // radius is not squared back into a positive overlap region.
+      expect(degenerate.containsPoint({ x: 0, y: 0 })).toBe(true);
+      expect(degenerate.containsPoint({ x: 1, y: 0 })).toBe(false);
+    });
   });
 
   describe('intersectsCircle', () => {
@@ -51,6 +67,19 @@ describe('Circle', () => {
 
     test('separated circles do not intersect', () => {
       expect(circle.intersectsCircle(new Circle(3), { x: 9, y: 0 })).toBe(
+        false,
+      );
+    });
+
+    test('a negative radius contributes no reach to the overlap test', () => {
+      // A -5 radius clamps to 0, so this behaves like two radius-0 points and
+      // a radius-5 circle: they only intersect within 5 units of each other.
+      const degenerate = new Circle(-5);
+
+      expect(degenerate.intersectsCircle(new Circle(5), { x: 5, y: 0 })).toBe(
+        true,
+      );
+      expect(degenerate.intersectsCircle(new Circle(5), { x: 6, y: 0 })).toBe(
         false,
       );
     });

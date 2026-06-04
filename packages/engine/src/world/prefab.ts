@@ -10,10 +10,9 @@ import type {
   PrefabComponentMap,
   PrefabOptions,
 } from './prefab.types';
+import { ORIGIN } from './world.constants';
 import { World } from './world';
 import { WorldObject } from './world-object';
-
-const ORIGIN: PointPrimitive = Object.freeze({ x: 0, y: 0 });
 
 /**
  * A template for spawning {@link WorldObject}s with a pre-defined component

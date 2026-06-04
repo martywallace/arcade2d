@@ -3,6 +3,7 @@ import { Circle } from '../geometry';
 import type { PointPrimitive } from '../geometry/point.types';
 import { WorldObject } from '../world';
 import { AbstractGraphics } from './abstract-graphics';
+import type { ShapeGraphicsOptions } from './shape-graphics.types';
 
 /**
  * Renders a filled {@link Circle} centered on the host's position. The circle
@@ -22,25 +23,53 @@ import { AbstractGraphics } from './abstract-graphics';
  * ```
  */
 export class CircleGraphics extends AbstractGraphics<PixiGraphics> {
+  private _fill: number;
+
   /**
    * @param host The world object the circle is attached to.
-   * @param circle The circle shape to draw. Stored as-is for inspection;
-   * mutating the original (it has no public mutators, but cloning rules
-   * still apply) does not retroactively redraw the component.
+   * @param circle The circle shape to draw. Stored as-is for inspection.
    * @param fill The fill color, as a 24-bit RGB integer. Defaults to white.
+   * Change it later with {@link CircleGraphics.setFill}.
+   * @param options Optional {@link ShapeGraphicsOptions} (alpha, visibility).
    */
   constructor(
     host: WorldObject,
     public readonly circle: Circle,
     fill: number = 0xffffff,
+    options: ShapeGraphicsOptions = {},
   ) {
-    const display = new PixiGraphics();
+    super(host, new PixiGraphics(), options);
 
-    if (circle.radius > 0) {
-      display.circle(0, 0, circle.radius).fill(fill);
+    this._fill = fill;
+    this._redraw();
+  }
+
+  /**
+   * The current fill colour, as a 24-bit RGB integer.
+   */
+  public get fill(): number {
+    return this._fill;
+  }
+
+  /**
+   * Recolours the circle, re-issuing the fill into the underlying renderer
+   * graphic. The common case for a shape that flashes or changes state (a
+   * hit flash, a selection highlight) without rebuilding the component.
+   *
+   * @param fill The new fill colour, as a 24-bit RGB integer.
+   */
+  public setFill(fill: number): void {
+    this._fill = fill;
+    this._redraw();
+  }
+
+  // Clears and re-fills the renderer graphic from the current shape + fill.
+  private _redraw(): void {
+    this.raw.clear();
+
+    if (this.circle.radius > 0) {
+      this.raw.circle(0, 0, this.circle.radius).fill(this._fill);
     }
-
-    super(host, display);
   }
 
   /**

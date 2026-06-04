@@ -48,6 +48,10 @@ export class AudioInstance {
   private _panner: StereoPannerNode | null = null;
   private _source: AudioBufferSourceNode | null = null;
 
+  // Subscribers notified when a source reaches its natural (or stopped) end.
+  // AudioSource uses this to prune finished one-shot voices.
+  private readonly _endedListeners = new Set<() => void>();
+
   // Audio context time at which the *currently-running* source was started.
   // Combined with _resumeOffset, this is what lets us compute "where in the
   // buffer are we now" without polling the source node.
@@ -118,9 +122,10 @@ export class AudioInstance {
   }
 
   /**
-   * Whether the clip is not currently emitting audio — `true` when idle,
-   * stopped, or paused; `false` while {@link AudioInstance.playing} is
-   * `true`.
+   * Whether the clip is at rest at the start — `true` when it has never
+   * played (`idle`) or has been stopped/finished (`stopped`); `false` while
+   * {@link AudioInstance.playing} or {@link AudioInstance.paused}. A paused
+   * clip is *not* stopped — it holds a resume position.
    */
   public get stopped(): boolean {
     return this._state === 'idle' || this._state === 'stopped';
@@ -255,6 +260,10 @@ export class AudioInstance {
     this._panner = null;
     this._state = 'stopped';
     this._resumeOffset = 0;
+
+    // Drop subscriber closures so a destroyed-but-still-referenced instance
+    // (e.g. one held by Music) doesn't retain them.
+    this._endedListeners.clear();
   }
 
   /**
@@ -271,8 +280,6 @@ export class AudioInstance {
       this._endedListeners.delete(listener);
     };
   }
-
-  private readonly _endedListeners = new Set<() => void>();
 
   private _startSource(offset: number): void {
     const ctx = this.engine.raw;

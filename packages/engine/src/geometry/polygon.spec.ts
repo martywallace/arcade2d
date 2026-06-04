@@ -121,4 +121,20 @@ describe('Polygon', () => {
       expect(line.containsPoint({ x: 5, y: 5 })).toBe(false);
     });
   });
+
+  describe('clone', () => {
+    test('it copies the vertices into an independent array', () => {
+      const clone = triangle.clone();
+
+      expect(clone).not.toBe(triangle);
+      expect(clone.points).not.toBe(triangle.points);
+      expect(clone.points).toEqual(triangle.points);
+    });
+  });
+
+  describe('toString', () => {
+    test('it reports the vertex count', () => {
+      expect(triangle.toString()).toBe('Polygon(3 points)');
+    });
+  });
 });
