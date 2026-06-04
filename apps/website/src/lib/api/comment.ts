@@ -1,6 +1,11 @@
 import { marked } from 'marked';
 import { highlightCode } from './highlight';
-import { hrefForId, type BlockTag, type Comment, type CommentPart } from './load';
+import {
+  hrefForId,
+  type BlockTag,
+  type Comment,
+  type CommentPart,
+} from './load';
 
 marked.setOptions({ gfm: true });
 
@@ -27,7 +32,8 @@ function partsToMarkdown(parts: CommentPart[] | undefined): string {
   for (const part of parts) {
     if (part.kind === 'inline-tag' && part.tag === '@link') {
       const label = part.text.trim();
-      const href = typeof part.target === 'number' ? hrefForId(part.target) : null;
+      const href =
+        typeof part.target === 'number' ? hrefForId(part.target) : null;
       out += href ? `[${label}](${href})` : `\`${label}\``;
     } else {
       // text + code parts are literal Markdown already.
@@ -54,11 +60,17 @@ export function hasSummary(comment: Comment | undefined): boolean {
 }
 
 /** All block tags of a given `@name`, in source order. */
-export function blockTags(comment: Comment | undefined, tag: string): BlockTag[] {
+export function blockTags(
+  comment: Comment | undefined,
+  tag: string,
+): BlockTag[] {
   return (comment?.blockTags ?? []).filter((t) => t.tag === tag);
 }
 
-export function firstBlockTag(comment: Comment | undefined, tag: string): BlockTag | undefined {
+export function firstBlockTag(
+  comment: Comment | undefined,
+  tag: string,
+): BlockTag | undefined {
   return blockTags(comment, tag)[0];
 }
 
@@ -73,13 +85,17 @@ export function renderBlockTag(tag: BlockTag | undefined): string {
  * (headings, diagrams, code fences) would blow out the layout. Stops at the
  * first blank line and strips inline-code backticks.
  */
-export function summaryExcerpt(comment: Comment | undefined, maxLen = 180): string {
+export function summaryExcerpt(
+  comment: Comment | undefined,
+  maxLen = 180,
+): string {
   const parts = comment?.summary;
   if (!parts) return '';
 
   let text = '';
   for (const part of parts) {
-    const chunk = part.kind === 'code' ? part.text.replace(/`+/g, '') : part.text;
+    const chunk =
+      part.kind === 'code' ? part.text.replace(/`+/g, '') : part.text;
     const breakAt = chunk.indexOf('\n\n');
     if (breakAt !== -1) {
       text += chunk.slice(0, breakAt);

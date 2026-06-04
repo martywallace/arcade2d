@@ -178,14 +178,14 @@ type are registered', ...)`.
 Most operations should be issued from the repo root and let Turborepo
 fan them out:
 
-| Command                                 | What it does                               |
-| --------------------------------------- | ------------------------------------------ |
-| `yarn build`                            | Build every workspace                      |
-| `yarn typecheck`                        | Run `tsc --noEmit` across every workspace  |
-| `yarn lint`                             | ESLint across every workspace              |
-| `yarn test`                             | Jest across every workspace                |
-| `yarn workspace @arcade2d/engine <cmd>` | Run `<cmd>` only in the engine             |
-| `yarn demo:simple-shooter`              | Run the simple-shooter demo against the engine |
+| Command                                 | What it does                                    |
+| --------------------------------------- | ----------------------------------------------- |
+| `yarn build`                            | Build every workspace                           |
+| `yarn typecheck`                        | Run `tsc --noEmit` across every workspace       |
+| `yarn lint`                             | ESLint across every workspace                   |
+| `yarn test`                             | Jest across every workspace                     |
+| `yarn workspace @arcade2d/engine <cmd>` | Run `<cmd>` only in the engine                  |
+| `yarn demo:simple-shooter`              | Run the simple-shooter demo against the engine  |
 | `yarn demo:dungeon-crawler`             | Run the dungeon-crawler demo against the engine |
 
 The demos' `dev` script invokes `yarn workspace @arcade2d/root exec turbo run

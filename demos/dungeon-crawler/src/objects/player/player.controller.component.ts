@@ -1,5 +1,9 @@
 import type { WorldUpdate } from '@arcade2d/engine';
-import { AbstractWorldObjectComponent, Random, WorldTimer } from '@arcade2d/engine';
+import {
+  AbstractWorldObjectComponent,
+  Random,
+  WorldTimer,
+} from '@arcade2d/engine';
 import { BulletPrefab } from '../bullet/bullet.prefab';
 
 /**

@@ -133,7 +133,11 @@ function indexProject(): void {
 // Walk a reflection subtree, recording every id -> {slug, anchor}. Direct
 // members (one level under a top-level symbol) own an anchor; everything
 // deeper (signatures, parameters) inherits the nearest member's anchor.
-function register(node: Reflection, slug: string, anchor: string | undefined): void {
+function register(
+  node: Reflection,
+  slug: string,
+  anchor: string | undefined,
+): void {
   byId.set(node.id, node);
   linkIndex.set(node.id, { slug, anchor });
   for (const child of node.children ?? []) {
@@ -209,7 +213,9 @@ export function symbolCategories(): { title: string; symbols: DocSymbol[] }[] {
     title: CATEGORY_LABELS[key] ?? key,
     symbols: (buckets.get(key) ?? []).sort((a, b) => {
       const rank = kindRank(a.reflection.kind) - kindRank(b.reflection.kind);
-      return rank !== 0 ? rank : a.reflection.name.localeCompare(b.reflection.name);
+      return rank !== 0
+        ? rank
+        : a.reflection.name.localeCompare(b.reflection.name);
     }),
   }));
 }
@@ -230,7 +236,9 @@ export function getReflection(id: number): Reflection | undefined {
 export function hrefForId(id: number): string | null {
   const link = linkIndex.get(id);
   if (!link) return null;
-  return link.anchor ? `/docs/${link.slug}#${link.anchor}` : `/docs/${link.slug}`;
+  return link.anchor
+    ? `/docs/${link.slug}#${link.anchor}`
+    : `/docs/${link.slug}`;
 }
 
 export { Kind };

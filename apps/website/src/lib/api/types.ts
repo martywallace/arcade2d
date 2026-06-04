@@ -1,10 +1,12 @@
-import { hrefForId, type Reflection, type Signature, type TypeNode } from './load';
+import {
+  hrefForId,
+  type Reflection,
+  type Signature,
+  type TypeNode,
+} from './load';
 
 function esc(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 const kw = (s: string) => `<span class="ty-kw">${esc(s)}</span>`;

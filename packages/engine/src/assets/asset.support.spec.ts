@@ -56,14 +56,12 @@ describe('inferAssetType', () => {
     );
   });
 
-  test.each([
-    'press-start-2p.ttf',
-    'inter.otf',
-    'roboto.woff',
-    'roboto.woff2',
-  ])('infers Font from the extension of "%s"', (path) => {
-    expect(inferAssetType(path)).toBe(AssetType.Font);
-  });
+  test.each(['press-start-2p.ttf', 'inter.otf', 'roboto.woff', 'roboto.woff2'])(
+    'infers Font from the extension of "%s"',
+    (path) => {
+      expect(inferAssetType(path)).toBe(AssetType.Font);
+    },
+  );
 
   test('infers Font from a data URL with a font MIME type', () => {
     expect(inferAssetType('data:font/woff2;base64,d09GMgAB')).toBe(

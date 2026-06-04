@@ -24,7 +24,10 @@ export class CoinController extends AbstractWorldObjectComponent {
   public override onUpdate(update: WorldUpdate): void {
     const player = this.world.findOneByTag('player');
 
-    if (player && this.host.position.distanceTo(player.position) < PICKUP_RADIUS) {
+    if (
+      player &&
+      this.host.position.distanceTo(player.position) < PICKUP_RADIUS
+    ) {
       this.game.getComponentByType(ScoreComponent).add(1);
       this.host.destroy();
       return;

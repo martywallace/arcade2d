@@ -39,7 +39,12 @@ function createWorldWithScene() {
 function frames(count: number, size = 16): Texture[] {
   return Array.from({ length: count }, () => {
     const source = new TextureSource({ width: size, height: size });
-    const asset = new ImageAsset('a', 'default', 'a.png', new PixiTexture({ source }));
+    const asset = new ImageAsset(
+      'a',
+      'default',
+      'a.png',
+      new PixiTexture({ source }),
+    );
     return new Texture(asset);
   });
 }

@@ -1,6 +1,11 @@
 import './style.css';
 
-import { Game, initPhysics, PhysicsWorld } from '@arcade2d/engine';
+import {
+  Game,
+  initPhysics,
+  PhysicsDebugRenderer,
+  PhysicsWorld,
+} from '@arcade2d/engine';
 import { createBall } from './objects/ball';
 import { createBox } from './objects/box';
 import { createBin } from './objects/bin';
@@ -17,10 +22,17 @@ async function start(): Promise<void> {
   // PhysicsWorld, the same way assets are preloaded before createWorld.
   await initPhysics();
 
+  // Flip to false to hide the collider outlines. The renderer is opt-in by
+  // registration — there's no runtime cost when it isn't in the factory.
+  const debugPhysics = true;
+
   const world = game.createWorld({
     components: (world) => ({
       physics: () => new PhysicsWorld(world, { gravity: { x: 0, y: 980 } }),
       spawner: () => new Spawner(world),
+      ...(debugPhysics
+        ? { physicsDebug: () => new PhysicsDebugRenderer(world) }
+        : {}),
     }),
   });
 

@@ -45,7 +45,8 @@ export function propertyLine(member: Reflection): string {
 /** `accessorName: Foo` derived from the get (or set) signature. */
 export function accessorLine(member: Reflection): string {
   const sig = member.getSignature ?? member.setSignature;
-  const type = member.getSignature?.type ?? member.setSignature?.parameters?.[0]?.type;
+  const type =
+    member.getSignature?.type ?? member.setSignature?.parameters?.[0]?.type;
   void sig;
   return name(member.name) + punct(': ') + renderType(type);
 }
