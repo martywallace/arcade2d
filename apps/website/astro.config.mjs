@@ -7,7 +7,7 @@ import tailwindcss from '@tailwindcss/vite';
 // Tailwind v4 is wired through its Vite plugin (no separate Astro integration);
 // the theme tokens live in src/styles/global.css via @theme.
 export default defineConfig({
-  site: 'https://arcade2d.dev',
+  site: 'https://arcade2d.com',
   output: 'static',
   trailingSlash: 'ignore',
   integrations: [icon()],

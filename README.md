@@ -5,9 +5,9 @@ world model, prefab-based object spawning, and a batteries-included runtime for
 rendering, physics, audio, and input — built on the libraries you already
 reach for, with a fully-typed, thoroughly-documented API.
 
-- **Website:** https://arcade2d.dev
-- **Demos:** https://arcade2d.dev/demos
-- **API reference:** https://arcade2d.dev/docs
+- **Website:** https://arcade2d.com
+- **Demos:** https://arcade2d.com/demos
+- **API reference:** https://arcade2d.com/docs
 
 ```bash
 npm install @arcade2d/engine
@@ -34,7 +34,7 @@ The design goals:
   than shipping a weaker home-grown version of each.
 - **The docs are the product.** Every public symbol carries thorough JSDoc and
   cross-links, surfaced in your editor and rendered to the
-  [API reference](https://arcade2d.dev/docs). The engine is built to be learned
+  [API reference](https://arcade2d.com/docs). The engine is built to be learned
   from autocomplete.
 - **Strict by default.** The codebase runs under TypeScript's strictest
   settings and codifies every engine error behind an `ErrorCode`, so failure
@@ -57,12 +57,12 @@ model so you write game logic, not glue code.
 Three demos exercise the engine end-to-end and double as living documentation
 of idiomatic arcade2d code. Play them in the browser, or read the source:
 
-- **[Simple Shooter](https://arcade2d.dev/demos/simple-shooter)** — top-down
+- **[Simple Shooter](https://arcade2d.com/demos/simple-shooter)** — top-down
   shooter with player movement, prefab spawning, and a pile of zombies,
   rendered with basic shapes.
-- **[Dungeon Crawler](https://arcade2d.dev/demos/dungeon-crawler)** — texture
+- **[Dungeon Crawler](https://arcade2d.com/demos/dungeon-crawler)** — texture
   and sprite rendering with a full tileset and animated characters.
-- **[Physics Playground](https://arcade2d.dev/demos/physics-playground)** — a
+- **[Physics Playground](https://arcade2d.com/demos/physics-playground)** — a
   Rapier-backed rigid-body sandbox of falling, colliding, stacking shapes.
 
 ## Development
@@ -81,7 +81,7 @@ demos/
   dungeon-crawler/  texture & sprite rendering (private)
   physics-playground/ Rapier rigid-body sandbox (private)
 apps/
-  website/          arcade2d.dev — marketing site + generated API reference
+  website/          arcade2d.com — marketing site + generated API reference
   devserver/        in-progress dev-server / editor surface
 docker/
   devserver.Dockerfile   builds backend + frontend into a single image
@@ -99,7 +99,7 @@ yarn test                    # turbo test (Jest)
 yarn demo:simple-shooter     # run a demo against freshly-built engine dist
 yarn demo:dungeon-crawler
 yarn demo:physics-playground
-yarn website                 # run the arcade2d.dev site locally
+yarn website                 # run the arcade2d.com site locally
 yarn devserver               # run the dev-server backend + frontend
 ```
 
