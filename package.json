@@ -22,6 +22,7 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,yml}\"",
     "demo:simple-shooter": "yarn workspace @arcade2d/demo-simple-shooter dev",
     "demo:dungeon-crawler": "yarn workspace @arcade2d/demo-dungeon-crawler dev",
+    "demo:physics-playground": "yarn workspace @arcade2d/demo-physics-playground dev",
     "website": "yarn workspace @arcade2d/website dev",
     "devserver": "turbo dev --filter=@arcade2d/devserver-backend --filter=@arcade2d/devserver-frontend",
     "changeset": "changeset",

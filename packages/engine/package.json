@@ -31,6 +31,7 @@
     "Marty Wallace <marty@martywallace.com> (https://martywallace.com)"
   ],
   "dependencies": {
+    "@dimforge/rapier2d-compat": "^0.19.3",
     "pixi.js": "^8.18.1"
   },
   "devDependencies": {

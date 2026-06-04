@@ -13,5 +13,6 @@ export * from './game.types';
 export * from './geometry';
 export * from './graphics';
 export * from './input';
+export * from './physics';
 export * from './utils';
 export * from './world';

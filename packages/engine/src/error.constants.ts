@@ -5,8 +5,9 @@
  * a code is a breaking change.
  *
  * Each value is prefixed with a short domain tag (`COMP`, `PREFAB`, `DEP`,
- * `GAME`, `ASSET`, `RAND`, `GFX`) followed by a zero-padded sequence number,
- * so codes sort by domain and the wire format is stable across catalog growth.
+ * `GAME`, `ASSET`, `RAND`, `GFX`, `AUDIO`, `PHYS`) followed by a zero-padded
+ * sequence number, so codes sort by domain and the wire format is stable
+ * across catalog growth.
  */
 export enum ErrorCode {
   COMPONENT_NOT_FOUND = 'COMP001_COMPONENT_NOT_FOUND',
@@ -30,4 +31,8 @@ export enum ErrorCode {
   ANIMATED_SPRITE_EMPTY_FRAMES = 'GFX001_ANIMATED_SPRITE_EMPTY_FRAMES',
   AUDIO_UNAVAILABLE = 'AUDIO001_AUDIO_UNAVAILABLE',
   AUDIO_NO_SOURCE = 'AUDIO002_AUDIO_NO_SOURCE',
+  PHYSICS_NOT_INITIALISED = 'PHYS001_PHYSICS_NOT_INITIALISED',
+  PHYSICS_INVALID_SHAPE = 'PHYS002_PHYSICS_INVALID_SHAPE',
+  PHYSICS_NO_COLLIDER = 'PHYS003_PHYSICS_NO_COLLIDER',
+  PHYSICS_BODY_NOT_ATTACHED = 'PHYS004_PHYSICS_BODY_NOT_ATTACHED',
 }

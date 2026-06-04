@@ -18,6 +18,12 @@
       "runtimeExecutable": "yarn",
       "runtimeArgs": ["workspace", "@arcade2d/demo-dungeon-crawler", "exec", "vite", "preview", "--port", "4331"],
       "port": 4331
+    },
+    {
+      "name": "physics-playground",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": ["workspace", "@arcade2d/demo-physics-playground", "exec", "vite", "--port", "4332"],
+      "port": 4332
     }
   ]
 }
