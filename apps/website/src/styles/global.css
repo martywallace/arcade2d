@@ -48,6 +48,43 @@
     color-scheme: light;
   }
 
+  /* Dark theme. Tailwind v4 emits the @theme tokens above as real CSS
+     variables on :root and every color utility (bg-canvas, text-fg, …) reads
+     them via var(). Re-declaring the same variables under a more specific
+     selector therefore re-themes the entire site — utilities, prose, and the
+     generated-HTML layer alike — without touching a single class name. The
+     [data-theme] attribute is set on <html> by the inline script in
+     Layout.astro before first paint, so there is no flash. */
+  html[data-theme='dark'] {
+    color-scheme: dark;
+
+    --color-canvas: #161513;
+    --color-fg: #ededea;
+    --color-muted: #9a9ea6;
+    --color-accent: #ff6a1f;
+    --color-accent-hover: #ff8344;
+    --color-accent-contrast: #161513;
+    --color-surface: #211f1c;
+    --color-border: #34312c;
+
+    --color-ty-intrinsic: #e0a060;
+    --color-ty-literal: #7bc88a;
+    --color-ty-kw: #d98fd2;
+  }
+
+  /* Theme-toggle glyphs: show the moon (→ go dark) in light mode, the sun
+     (→ go light) in dark mode. Driven entirely by data-theme so the button
+     stays correct without any per-click DOM work. */
+  .theme-icon-dark {
+    display: none;
+  }
+  html[data-theme='dark'] .theme-icon-light {
+    display: none;
+  }
+  html[data-theme='dark'] .theme-icon-dark {
+    display: inline-block;
+  }
+
   html,
   body {
     margin: 0;
@@ -122,6 +159,13 @@
      so highlighted blocks match inline code and signature blocks. */
   .prose :where(pre.shiki) {
     background: var(--color-surface) !important;
+  }
+  /* Dual-theme Shiki output carries the dark palette on a per-token
+     --shiki-dark custom property (see highlight.ts). Swap the token colors to
+     it under the dark theme; the block background stays --color-surface above. */
+  html[data-theme='dark'] .prose :where(pre.shiki),
+  html[data-theme='dark'] .prose :where(pre.shiki span) {
+    color: var(--shiki-dark) !important;
   }
   .prose :where(pre code) {
     background: none;

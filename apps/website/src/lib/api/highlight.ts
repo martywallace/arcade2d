@@ -12,13 +12,18 @@ const ALIASES: Record<string, string> = {
   sh: 'bash',
   shell: 'bash',
 };
-const THEME = 'github-light';
+
+// Dual-theme output: `light` colors are applied inline as the default, while
+// `dark` colors ride along on a per-token `--shiki-dark` custom property. The
+// stylesheet swaps to that property under html[data-theme='dark'] (global.css),
+// so a single static render serves both themes with no client-side rehighlight.
+const THEMES = { light: 'github-light', dark: 'github-dark' } as const;
 
 // Created once at module load. `createHighlighter` is async (it loads grammars
-// + theme), but the resulting `codeToHtml` is synchronous — which lets the
+// + themes), but the resulting `codeToHtml` is synchronous — which lets the
 // Markdown renderer stay sync. Top-level await is fine in the SSG build.
 const highlighter = await createHighlighter({
-  themes: [THEME],
+  themes: [THEMES.light, THEMES.dark],
   langs: [...LANGS],
 });
 
@@ -32,5 +37,9 @@ const loaded = new Set<string>(highlighter.getLoadedLanguages());
 export function highlightCode(code: string, lang: string | undefined): string {
   const resolved = lang ? (ALIASES[lang] ?? lang) : 'text';
   const safeLang = loaded.has(resolved) ? resolved : 'text';
-  return highlighter.codeToHtml(code, { lang: safeLang, theme: THEME });
+  return highlighter.codeToHtml(code, {
+    lang: safeLang,
+    themes: THEMES,
+    defaultColor: 'light',
+  });
 }

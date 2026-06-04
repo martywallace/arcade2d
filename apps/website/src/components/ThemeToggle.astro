@@ -1,0 +1,19 @@
+---
+import { Icon } from 'astro-icon/components';
+
+// Stateless: the button only emits a click. The actual theme state lives on
+// <html data-theme> and is flipped by the delegated handler in Layout.astro,
+// so multiple instances (header + homepage hero) stay in sync for free. Which
+// glyph shows is driven purely by CSS keyed off data-theme (see global.css).
+---
+
+<button
+  type="button"
+  data-theme-toggle
+  aria-label="Toggle dark mode"
+  title="Toggle dark mode"
+  class="inline-flex items-center justify-center rounded-md border border-border p-1.5 text-muted hover:border-accent hover:text-fg"
+>
+  <Icon name="lucide:moon" class="theme-icon-light size-4" />
+  <Icon name="lucide:sun" class="theme-icon-dark size-4" />
+</button>

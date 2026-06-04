@@ -2,6 +2,7 @@
 import { Icon } from 'astro-icon/components';
 import { REPO_URL } from '../demos';
 import Search from '../components/Search.astro';
+import ThemeToggle from '../components/ThemeToggle.astro';
 import '../styles/global.css';
 
 type Props = {
@@ -26,6 +27,23 @@ const navLink = 'inline-flex items-center text-muted hover:text-fg hover:no-unde
     <link rel="icon" type="image/png" href="/favicon.png" />
     {description && <meta name="description" content={description} />}
     <title>{fullTitle}</title>
+    {/* Resolve the theme before first paint to avoid a flash of the wrong
+        palette: an explicit choice (localStorage) wins, otherwise fall back to
+        the OS preference. is:inline keeps it out of the bundle so it runs
+        synchronously in <head>. */}
+    <script is:inline>
+      (() => {
+        try {
+          const stored = localStorage.getItem('theme');
+          const theme =
+            stored ||
+            (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+          document.documentElement.dataset.theme = theme;
+        } catch {
+          document.documentElement.dataset.theme = 'light';
+        }
+      })();
+    </script>
   </head>
   <body>
     {
@@ -58,6 +76,7 @@ const navLink = 'inline-flex items-center text-muted hover:text-fg hover:no-unde
             >
               <Icon name="lucide:github" class="size-5" />
             </a>
+            <ThemeToggle />
           </nav>
         </header>
       )
@@ -83,5 +102,19 @@ const navLink = 'inline-flex items-center text-muted hover:text-fg hover:no-unde
       </nav>
     </footer>
     <Search />
+    {/* Delegated so every ThemeToggle instance (header + homepage hero) shares
+        one handler. Flips data-theme and persists the explicit choice so it
+        survives reloads and overrides the OS default thereafter. */}
+    <script is:inline>
+      document.addEventListener('click', (event) => {
+        if (!event.target.closest('[data-theme-toggle]')) return;
+        const root = document.documentElement;
+        const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+        root.dataset.theme = next;
+        try {
+          localStorage.setItem('theme', next);
+        } catch {}
+      });
+    </script>
   </body>
 </html>

@@ -2,6 +2,7 @@
 import { Icon } from 'astro-icon/components';
 import Layout from '../layouts/Layout.astro';
 import DemoGrid from '../components/DemoGrid.astro';
+import ThemeToggle from '../components/ThemeToggle.astro';
 import { DEMOS, REPO_URL } from '../demos';
 import { symbolCategories } from '../lib/api/load';
 import { toSlug } from '../lib/api/slug';
@@ -46,6 +47,10 @@ const buttonGhost = `${button} border-border bg-transparent text-fg hover:border
   <section
     class="relative flex min-h-[calc(100svh-2rem)] flex-col items-center justify-center text-center"
   >
+    {/* The homepage suppresses the site header, so surface the toggle here. */}
+    <div class="absolute right-0 top-0">
+      <ThemeToggle />
+    </div>
     <h1 class="mb-6">
       {/* The source art is only 180px wide — render at (or below) native size
           so it stays crisp instead of upscaling and blurring. */}
