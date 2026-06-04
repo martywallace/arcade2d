@@ -65,6 +65,14 @@ export const DEMOS: readonly DemoEntry[] = [
       { input: 'Click', action: 'Shoot' },
     ],
   },
+  {
+    slug: 'physics-playground',
+    title: 'Physics Playground',
+    description:
+      'A rigid-body sandbox built on arcade2d, exercising the Rapier-backed physics components — boxes and balls fall under gravity, collide, and stack inside a bin.',
+    workspaceDir: 'physics-playground',
+    controls: [{ input: 'Click', action: 'Spawn a box or ball' }],
+  },
 ];
 
 export function findDemo(slug: string): DemoEntry | undefined {

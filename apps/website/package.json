@@ -18,6 +18,7 @@
   },
   "devDependencies": {
     "@arcade2d/demo-dungeon-crawler": "workspace:*",
+    "@arcade2d/demo-physics-playground": "workspace:*",
     "@arcade2d/demo-simple-shooter": "workspace:*",
     "@arcade2d/engine": "workspace:*",
     "@astrojs/check": "^0.9.0",
