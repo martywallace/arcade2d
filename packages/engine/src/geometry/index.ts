@@ -25,6 +25,8 @@ export const SHAPE_CONSTRUCTORS = [Polygon, Rectangle, Circle] as const;
 
 export * from './circle';
 export * from './intersection.support';
+export * from './matrix';
+export * from './matrix.types';
 export * from './point';
 export * from './point.types';
 export * from './polygon';

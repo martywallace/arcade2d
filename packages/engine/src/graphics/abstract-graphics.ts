@@ -1,4 +1,4 @@
-import { Container } from 'pixi.js';
+import { Container, Matrix as PixiMatrix } from 'pixi.js';
 import { AbstractWorldObjectComponent, WorldObject } from '../world';
 import type { GraphicsOptions } from './abstract-graphics.types';
 import { Scene } from './scene';
@@ -12,9 +12,11 @@ import { Scene } from './scene';
  *   to live,
  * - parenting and unparenting the display object across the component's
  *   lifecycle,
- * - syncing the host {@link WorldObject}'s transform — position, rotation,
- *   scale — into the display object once per frame so the visual reflects
- *   every behavior change made during the tick,
+ * - syncing the host {@link WorldObject}'s fully-resolved **world**
+ *   transform (its own position/rotation/scale composed with every
+ *   ancestor's) into the display object once per frame, so the visual
+ *   reflects every behavior change made during the tick and a parented
+ *   object renders relative to its parent,
  * - exposing the underlying Pixi instance via {@link AbstractGraphics.raw}
  *   for advanced use cases the typed surface doesn't cover,
  * - applying and exposing the two visual properties every display object
@@ -73,8 +75,8 @@ export abstract class AbstractGraphics<
 
   /**
    * @param host The {@link WorldObject} this component is attached to. The
-   * host's `position`, `rotation`, and `scale` drive the display object's
-   * transform once per frame.
+   * host's resolved {@link WorldObject.worldMatrix world transform} drives the
+   * display object's transform once per frame.
    * @param display The Pixi display object to wrap. Constructed by the
    * subclass and handed up; ownership transfers to this base — it will be
    * destroyed during {@link AbstractGraphics.onDestroy}.
@@ -157,9 +159,16 @@ export abstract class AbstractGraphics<
   }
 
   private _syncTransform(): void {
-    this._display.x = this.host.position.x;
-    this._display.y = this.host.position.y;
-    this._display.rotation = this.host.rotation;
-    this._display.scale.set(this.host.scale.x, this.host.scale.y);
+    // Push the host's fully-resolved *world* transform, not its local one, so
+    // a parented object renders composed with its ancestry — including the
+    // shear a rotation-plus-non-uniform-scale chain produces, which a
+    // position/rotation/scale copy could not represent. The Scene container
+    // this display lives under carries the camera transform, so world space
+    // is exactly the right frame to hand the renderer. For a root object the
+    // world matrix is just its local transform, so this stays a faithful
+    // copy of position/rotation/scale.
+    const { a, b, c, d, tx, ty } = this.host.worldMatrix;
+
+    this._display.setFromMatrix(new PixiMatrix(a, b, c, d, tx, ty));
   }
 }

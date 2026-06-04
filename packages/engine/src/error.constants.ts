@@ -90,6 +90,20 @@ export enum ErrorCode {
    */
   WORLD_OBJECT_ID_CONFLICT = 'WORLD001_WORLD_OBJECT_ID_CONFLICT',
   /**
+   * {@link WorldObject.setParent} was given a prospective parent that belongs
+   * to a different {@link World}. The transform hierarchy is scoped to a
+   * single world — a parent and child must share one. Context:
+   * `{ child, parent }`.
+   */
+  WORLD_OBJECT_PARENT_FOREIGN = 'WORLD002_WORLD_OBJECT_PARENT_FOREIGN',
+  /**
+   * {@link WorldObject.setParent} would have created a cycle — the
+   * prospective parent is the object itself or one of its descendants.
+   * Parenting must form a tree, so a node can never be nested beneath its
+   * own subtree. Context: `{ child, parent }`.
+   */
+  WORLD_OBJECT_HIERARCHY_CYCLE = 'WORLD003_WORLD_OBJECT_HIERARCHY_CYCLE',
+  /**
    * An asset was requested by a key that isn't loaded in the
    * {@link AssetLibrary}.
    */

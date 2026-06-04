@@ -52,6 +52,19 @@
         "4332"
       ],
       "port": 4332
+    },
+    {
+      "name": "simple-shooter",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": [
+        "workspace",
+        "@arcade2d/demo-simple-shooter",
+        "exec",
+        "vite",
+        "--port",
+        "4333"
+      ],
+      "port": 4333
     }
   ]
 }

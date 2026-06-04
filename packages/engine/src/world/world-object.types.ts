@@ -27,3 +27,26 @@ export type WorldObjectMetadata = {
    */
   readonly prefabName?: string;
 };
+
+/**
+ * Options controlling how {@link WorldObject.setParent} re-homes an object
+ * within the transform hierarchy.
+ */
+export type SetParentOptions = {
+  /**
+   * Whether the object should stay visually put when its parent changes.
+   *
+   * - `true` (the default) — the object's **world** transform is preserved.
+   *   Its local position/rotation/scale are recomputed relative to the new
+   *   parent so it does not appear to move, the way dragging a node between
+   *   folders in an editor leaves it on screen where it was. Because the
+   *   recomputed local transform is derived by {@link Matrix.decompose}, a
+   *   new parent carrying shear (rotation plus non-uniform scale) can only be
+   *   compensated for approximately.
+   * - `false` — the object keeps its existing local position/rotation/scale
+   *   and is simply reinterpreted relative to the new parent, so it snaps to
+   *   wherever those local values now place it. Cheaper, and what you want
+   *   when you are about to set the local transform yourself anyway.
+   */
+  readonly keepWorldTransform?: boolean;
+};
