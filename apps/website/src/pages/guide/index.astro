@@ -1,0 +1,334 @@
+---
+import { Icon } from 'astro-icon/components';
+import Layout from '../../layouts/Layout.astro';
+import { highlightCode } from '../../lib/api/highlight';
+
+// The guide is a hand-authored, sequential walkthrough — deliberately separate
+// from the generated API reference under /docs. It teaches the *order* you
+// scaffold a game in; the reference documents each symbol in depth. Every
+// inline `<a href="/docs/...">` points at a real generated doc page (slugs are
+// toSlug(SymbolName)), so the two surfaces reinforce each other.
+
+const ts = (src: string) => highlightCode(src.trim(), 'typescript');
+
+// Section ids drive both the in-page table of contents and the `<section>`
+// anchors below — keep the two lists in lockstep.
+const sections = [
+  { id: 'game', title: 'Setting up Game' },
+  { id: 'world', title: 'Creating a World' },
+  { id: 'prefabs', title: 'Setting up prefabs' },
+  { id: 'components', title: 'Understanding components' },
+  { id: 'spawning', title: 'Spawning world objects' },
+  { id: 'graphics-audio-physics', title: 'Graphics, audio & physics' },
+] as const;
+
+const tocLink =
+  'block py-[0.15rem] text-[0.85rem] hover:text-fg hover:no-underline';
+const docLinks = 'mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.85rem]';
+---
+
+<Layout
+  title="Guide"
+  description="A terse, top-to-bottom walkthrough of scaffolding an arcade2d game: Game, World, prefabs, components, and the graphics, audio and physics systems."
+>
+  <div class="grid grid-cols-[220px_minmax(0,1fr)] items-start gap-10 max-[820px]:grid-cols-1">
+    <nav
+      class="sticky top-6 max-h-[calc(100vh-3rem)] self-start overflow-y-auto max-[820px]:static max-[820px]:mb-6 max-[820px]:max-h-none max-[820px]:border-b max-[820px]:border-border max-[820px]:pb-4"
+      aria-label="Guide contents"
+    >
+      <a class="mb-4 block font-bold text-fg" href="/guide">Guide</a>
+      <ul class="m-0 list-none p-0">
+        {sections.map((s, i) => (
+          <li>
+            <a class={`${tocLink} text-muted`} href={`#${s.id}`}>
+              <span class="text-accent">{i + 1}.</span> {s.title}
+            </a>
+          </li>
+        ))}
+      </ul>
+      <a
+        class="mt-5 block border-t border-border pt-4 text-[0.85rem] text-muted hover:text-fg hover:no-underline"
+        href="/docs"
+      >
+        Full API reference &rarr;
+      </a>
+    </nav>
+
+    <article class="min-w-0">
+      <header class="mb-10">
+        <h1 class="mb-2">Guide</h1>
+        <p class="m-0 max-w-[62ch] text-muted">
+          arcade2d games are assembled in a fixed order: a <code class="font-mono text-fg">Game</code>
+          owns the canvas and loop, a <code class="font-mono text-fg">World</code> holds your objects,
+          <strong class="font-semibold text-fg">prefabs</strong> are reusable blueprints, and
+          <strong class="font-semibold text-fg">components</strong> are the behaviour you compose onto
+          objects. This guide walks that scaffolding top to bottom — terse on purpose. Each step links
+          into the <a href="/docs">API reference</a> for the full detail.
+        </p>
+      </header>
+
+      {/* 1 — Game ---------------------------------------------------------- */}
+      <section id="game" class="mb-12 scroll-mt-6">
+        <h2 class="mb-2 text-[1.4rem]">
+          <span class="text-accent">1.</span> Setting up <code class="font-mono">Game</code>
+        </h2>
+        <p class="mb-3 max-w-[62ch] text-muted">
+          Everything hangs off a single <a href="/docs/game">Game</a>. <code class="font-mono">Game.bootstrap</code>
+          is <em>async</em> — it spins up the renderer, sizes the canvas, and starts the frame loop —
+          so <code class="font-mono">await</code> it before doing anything else. The returned instance
+          also owns <code class="font-mono">game.assets</code> and <code class="font-mono">game.audio</code>.
+        </p>
+        <div class="prose" set:html={ts(`
+import { Game } from '@arcade2d/engine';
+
+const game = await Game.bootstrap({
+  backgroundColour: 0x1099bb,
+  canvas: { fill: 'window' }, // or { width: 960, height: 640 }
+  debug: true, // exposes the instance as window.game in the console
+});
+        `)} />
+        <div class={docLinks}>
+          <a href="/docs/game">Game</a>
+        </div>
+      </section>
+
+      {/* 2 — World --------------------------------------------------------- */}
+      <section id="world" class="mb-12 scroll-mt-6">
+        <h2 class="mb-2 text-[1.4rem]">
+          <span class="text-accent">2.</span> Creating a <code class="font-mono">World</code>
+        </h2>
+        <p class="mb-3 max-w-[62ch] text-muted">
+          A <a href="/docs/world">World</a> holds your objects and runs the per-frame update loop the
+          Game drives. <code class="font-mono">createWorld</code> builds one and makes it active.
+        </p>
+        <div class="prose" set:html={ts(`
+const world = game.createWorld();
+        `)} />
+        <p class="mb-3 mt-4 max-w-[62ch] text-muted">
+          World-level systems — things that act on the whole world rather than one object, like physics —
+          are registered up front through the <code class="font-mono">components</code> factory. The keys
+          you give them are how you look them up later.
+        </p>
+        <div class="prose" set:html={ts(`
+import { PhysicsWorld } from '@arcade2d/engine';
+
+const world = game.createWorld({
+  components: (world) => ({
+    physics: () => new PhysicsWorld(world, { gravity: { x: 0, y: 980 } }),
+  }),
+});
+        `)} />
+        <div class={docLinks}>
+          <a href="/docs/world">World</a>
+          <a href="/docs/physics-world">PhysicsWorld</a>
+        </div>
+      </section>
+
+      {/* 3 — Prefabs ------------------------------------------------------- */}
+      <section id="prefabs" class="mb-12 scroll-mt-6">
+        <h2 class="mb-2 text-[1.4rem]">
+          <span class="text-accent">3.</span> Setting up prefabs
+        </h2>
+        <p class="mb-3 max-w-[62ch] text-muted">
+          A <a href="/docs/prefab">Prefab</a> is a reusable blueprint for a world object: a name, optional
+          tags, and a map of component factories. Define it once, spawn it many times. Each factory is
+          handed a context — <code class="font-mono">{'{ object, world, assets }'}</code> — so a component
+          can wire itself to its host object and pull from the asset library.
+        </p>
+        <div class="prose" set:html={ts(`
+import { Prefab, PolygonGraphics } from '@arcade2d/engine';
+import { PlayerController } from './player.controller';
+
+export const PlayerPrefab = new Prefab({
+  name: 'player',
+  tags: ['player'],
+  components: {
+    controller: ({ object }) => new PlayerController(object),
+    graphics: ({ object }) =>
+      PolygonGraphics.asRectangle(object, 50, 50, 0xffffff),
+  },
+});
+        `)} />
+        <p class="mt-4 max-w-[62ch] text-muted">
+          Hand a <a href="/docs/prefab-registry">PrefabRegistry</a> to <code class="font-mono">createWorld</code>
+          if you want to spawn prefabs by name instead of by import.
+        </p>
+        <div class={docLinks}>
+          <a href="/docs/prefab">Prefab</a>
+          <a href="/docs/prefab-registry">PrefabRegistry</a>
+        </div>
+      </section>
+
+      {/* 4 — Components ---------------------------------------------------- */}
+      <section id="components" class="mb-12 scroll-mt-6">
+        <h2 class="mb-2 text-[1.4rem]">
+          <span class="text-accent">4.</span> Understanding components
+        </h2>
+        <p class="mb-3 max-w-[62ch] text-muted">
+          Components are where behaviour lives. There are two tiers:
+        </p>
+        <ul class="mb-3 max-w-[62ch] list-disc pl-5 text-muted">
+          <li>
+            <a href="/docs/abstract-world-object-component">AbstractWorldObjectComponent</a> — attached to
+            a single object: a controller, a rigid body, a sprite.
+          </li>
+          <li>
+            <a href="/docs/abstract-world-component">AbstractWorldComponent</a> — attached to the world
+            itself: physics, a spawner, score-keeping.
+          </li>
+        </ul>
+        <p class="mb-3 max-w-[62ch] text-muted">
+          Override only the lifecycle hooks you need; the world calls them each frame.
+          <code class="font-mono">this.host</code> is the owning object, and
+          <code class="font-mono">this.world</code> / <code class="font-mono">this.game</code> reach up the
+          tree. Release anything you allocate in <code class="font-mono">onDestroy</code>.
+        </p>
+        <div class="prose" set:html={ts(`
+import { AbstractWorldObjectComponent, WorldTimer } from '@arcade2d/engine';
+import type { WorldUpdate } from '@arcade2d/engine';
+
+export class PlayerController extends AbstractWorldObjectComponent {
+  public override onUpdate(update: WorldUpdate): void {
+    const keyboard = this.game.getKeyboardState();
+    const mouse = this.world.getMouseState();
+    const angle = this.host.position.angleTo(mouse.position);
+
+    if (keyboard.isDown('KeyW')) {
+      this.host.position.moveInDirection(angle, 0.08 * update.deltaMilliseconds);
+    }
+
+    this.host.rotation = angle;
+  }
+}
+        `)} />
+        <div class={docLinks}>
+          <a href="/docs/abstract-world-object-component">AbstractWorldObjectComponent</a>
+          <a href="/docs/abstract-world-component">AbstractWorldComponent</a>
+          <a href="/docs/world-update">WorldUpdate</a>
+        </div>
+      </section>
+
+      {/* 5 — Spawning ------------------------------------------------------ */}
+      <section id="spawning" class="mb-12 scroll-mt-6">
+        <h2 class="mb-2 text-[1.4rem]">
+          <span class="text-accent">5.</span> Spawning world objects
+        </h2>
+        <p class="mb-3 max-w-[62ch] text-muted">
+          With a prefab defined, <code class="font-mono">createFromPrefab</code> instantiates its
+          components onto a fresh <a href="/docs/world-object">WorldObject</a> and adds it to the world
+          (it joins on the next tick). Pass a position, or omit it to spawn at the origin.
+        </p>
+        <div class="prose" set:html={ts(`
+world.createFromPrefab(PlayerPrefab);
+world.createFromPrefab(ZombiePrefab, { x: 200, y: -120 });
+        `)} />
+        <p class="mb-3 mt-4 max-w-[62ch] text-muted">
+          Need an object without a prefab? <code class="font-mono">createEmpty</code> gives you a bare
+          object (with optional tags) you can attach component factories to directly.
+        </p>
+        <div class="prose" set:html={ts(`
+import { Circle, CircleGraphics, RigidBody } from '@arcade2d/engine';
+
+const ball = world.createEmpty({ x: 0, y: -200 }, ['ball']);
+
+ball.addComponentsFromFactories({
+  graphics: (host) => new CircleGraphics(host, new Circle(16), 0xff9f1c),
+  body: (host) =>
+    new RigidBody(host, {
+      type: 'dynamic',
+      collider: { shape: new Circle(16), restitution: 0.6 },
+    }),
+});
+        `)} />
+        <div class={docLinks}>
+          <a href="/docs/world-object">WorldObject</a>
+          <a href="/docs/world">World</a>
+        </div>
+      </section>
+
+      {/* 6 — Graphics, audio & physics ------------------------------------ */}
+      <section id="graphics-audio-physics" class="mb-4 scroll-mt-6">
+        <h2 class="mb-2 text-[1.4rem]">
+          <span class="text-accent">6.</span> Graphics, audio &amp; physics
+        </h2>
+        <p class="mb-4 max-w-[62ch] text-muted">
+          The engine ships components for the three things every game needs. Attach them like any other
+          component — in a prefab factory or via <code class="font-mono">addComponent</code>.
+        </p>
+
+        <h3 class="mb-2 text-[1.05rem] font-semibold">Graphics</h3>
+        <p class="mb-3 max-w-[62ch] text-muted">
+          Render an object as a shape or a texture. Graphics components auto-sync to their host's
+          transform every frame, so you never position them by hand. Reach for
+          <a href="/docs/polygon-graphics">PolygonGraphics</a>, <a href="/docs/circle-graphics">CircleGraphics</a>,
+          <a href="/docs/sprite">Sprite</a>, <a href="/docs/animated-sprite">AnimatedSprite</a>,
+          <a href="/docs/tiling-sprite">TilingSprite</a>, or <a href="/docs/text">Text</a>.
+        </p>
+        <div class="prose" set:html={ts(`
+import { ImageAsset, Sprite, Texture } from '@arcade2d/engine';
+
+// In a prefab component factory — resolve a preloaded, typed texture:
+graphics: ({ assets, object }) => {
+  const asset = assets.use(characters).getAs('player', ImageAsset);
+  return new Sprite(object, new Texture(asset));
+},
+        `)} />
+
+        <h3 class="mb-2 mt-6 text-[1.05rem] font-semibold">Audio</h3>
+        <p class="mb-3 max-w-[62ch] text-muted">
+          <a href="/docs/audio-source">AudioSource</a> plays a clip from an object; the game-level
+          <code class="font-mono">game.audio</code> engine is the master bus with per-category volume.
+        </p>
+        <div class="prose" set:html={ts(`
+import { AudioAsset, AudioSource } from '@arcade2d/engine';
+
+const gunshot = assets.use(sfx).getAs('gunshot', AudioAsset);
+
+object.addComponentFromFactory(
+  'sfx',
+  (host) => new AudioSource(host, gunshot, { volume: 0.6 }),
+);
+
+object.getComponent<AudioSource>('sfx').play();
+        `)} />
+
+        <h3 class="mb-2 mt-6 text-[1.05rem] font-semibold">Physics</h3>
+        <p class="mb-3 max-w-[62ch] text-muted">
+          Physics is opt-in and backed by Rapier. Call <a href="/docs/init-physics">initPhysics</a> once
+          (it bootstraps the WebAssembly module) before building a world that uses it, register a
+          <a href="/docs/physics-world">PhysicsWorld</a> (step 2), then give objects a
+          <a href="/docs/rigid-body">RigidBody</a> (step 5).
+        </p>
+        <div class="prose" set:html={ts(`
+import { initPhysics } from '@arcade2d/engine';
+
+await initPhysics(); // one-time WASM bootstrap, before createWorld
+        `)} />
+        <div class={docLinks}>
+          <a href="/docs#graphics">Graphics</a>
+          <a href="/docs#audio">Audio</a>
+          <a href="/docs#physics">Physics</a>
+        </div>
+      </section>
+
+      <footer class="mt-12 flex flex-wrap gap-3 border-t border-border pt-8">
+        <a
+          class="inline-flex items-center gap-2 rounded-md border border-accent bg-accent px-[1.1rem] py-[0.55rem] text-[0.95rem] font-semibold text-accent-contrast hover:border-accent-hover hover:bg-accent-hover hover:no-underline"
+          href="/demos"
+        >
+          <Icon name="lucide:gamepad-2" class="size-[1.1rem]" />
+          See it running in the demos
+        </a>
+        <a
+          class="inline-flex items-center gap-2 rounded-md border border-border bg-transparent px-[1.1rem] py-[0.55rem] text-[0.95rem] font-semibold text-fg hover:border-accent hover:bg-surface hover:no-underline"
+          href="/docs"
+        >
+          <Icon name="lucide:book-open" class="size-[1.1rem]" />
+          Browse the full API
+        </a>
+      </footer>
+    </article>
+  </div>
+</Layout>
+</content>
+</invoke>
