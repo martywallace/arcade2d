@@ -42,11 +42,11 @@ export type DemoEntry = {
 
 export const DEMOS: readonly DemoEntry[] = [
   {
-    slug: 'simple-shooter',
-    title: 'Simple Shooter',
+    slug: 'rpg',
+    title: 'Top-Down RPG',
     description:
-      'A top-down shooter built on arcade2d — player movement, prefab spawning, and a pile of zombies, rendered with basic shapes. The de-facto end-to-end exercise of the engine.',
-    workspaceDir: 'simple-shooter',
+      'A top-down zombie-survival showcase — mouse-aimed WASD shooting, physics-driven collisions, houses built as parent/child objects with nested furniture, and timer-based zombie spawners. The most complete end-to-end exercise of the engine: sprites, physics, collision events, and prefabs together.',
+    workspaceDir: 'rpg',
     controls: [
       { input: 'WASD', action: 'Move' },
       { input: 'Mouse', action: 'Aim' },
