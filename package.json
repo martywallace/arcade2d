@@ -23,6 +23,7 @@
     "demo:simple-shooter": "yarn workspace @arcade2d/demo-simple-shooter dev",
     "demo:dungeon-crawler": "yarn workspace @arcade2d/demo-dungeon-crawler dev",
     "demo:physics-playground": "yarn workspace @arcade2d/demo-physics-playground dev",
+    "demo:rpg": "yarn workspace @arcade2d/demo-rpg dev",
     "website": "yarn workspace @arcade2d/website dev",
     "devserver": "turbo dev --filter=@arcade2d/devserver-backend --filter=@arcade2d/devserver-frontend",
     "changeset": "changeset",

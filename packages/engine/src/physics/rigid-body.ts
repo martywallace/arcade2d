@@ -16,6 +16,7 @@ import { PhysicsWorld } from './physics-world';
 import { toColliderDesc } from './rigid-body.support';
 import type {
   ColliderOptions,
+  CollisionListener,
   RigidBodyOptions,
   RigidBodyType,
 } from './rigid-body.types';
@@ -98,6 +99,16 @@ export class RigidBody extends AbstractWorldObjectComponent<RigidBodyDeps> {
   // re-resolving the dependency.
   private _physics: PhysicsWorld | null = null;
 
+  // Collision listeners pulled out of the options, kept as own fields so the
+  // hot dispatch path doesn't re-read the options object. Either being present
+  // is what opts the body into Rapier's collision-event reporting.
+  private readonly _onCollisionStart?: CollisionListener;
+  private readonly _onCollisionEnd?: CollisionListener;
+
+  // Rapier collider handles created in onAdded, retained so onDestroy can
+  // unregister them from the PhysicsWorld's handle→body lookup.
+  private readonly _colliderHandles: number[] = [];
+
   /**
    * @param host The {@link WorldObject} to give a physical body.
    * @param options Body type, colliders, and initial motion. See
@@ -124,6 +135,8 @@ export class RigidBody extends AbstractWorldObjectComponent<RigidBodyDeps> {
     this._options = options;
     this._type = options.type ?? 'dynamic';
     this._colliders = colliders;
+    this._onCollisionStart = options.onCollisionStart;
+    this._onCollisionEnd = options.onCollisionEnd;
   }
 
   /**
@@ -268,6 +281,12 @@ export class RigidBody extends AbstractWorldObjectComponent<RigidBodyDeps> {
     const desc = this._buildBodyDesc();
     const body = physics.createBody(desc);
 
+    // Only flag colliders for event reporting when this body actually listens.
+    // Rapier emits a pair's events if *either* collider opts in, so a listening
+    // body picks up contacts with inert static geometry without that geometry
+    // needing a flag of its own.
+    const wantsEvents = this._wantsCollisionEvents();
+
     for (const collider of this._colliders) {
       const colliderDesc = toColliderDesc(collider.shape);
 
@@ -291,10 +310,33 @@ export class RigidBody extends AbstractWorldObjectComponent<RigidBodyDeps> {
         colliderDesc.setSensor(true);
       }
 
-      physics.createCollider(colliderDesc, body);
+      if (wantsEvents) {
+        colliderDesc.setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
+      }
+
+      const created = physics.createCollider(colliderDesc, body);
+
+      // Register every collider (not just listening ones): resolving a drained
+      // event needs to name both owners, and the non-listening side is still a
+      // valid "other" party for whoever did opt in.
+      this._colliderHandles.push(created.handle);
+      physics._registerCollider(created.handle, this);
     }
 
     this._body = body;
+  }
+
+  /**
+   * Whether this body subscribes to collision events — i.e. at least one of
+   * {@link RigidBodyOptions.onCollisionStart} /
+   * {@link RigidBodyOptions.onCollisionEnd} was supplied. Drives both the
+   * collider event flag at attach time and the per-frame dispatch. Engine seam
+   * read by {@link PhysicsWorld}.
+   *
+   * @internal
+   */
+  public _wantsCollisionEvents(): boolean {
+    return Boolean(this._onCollisionStart || this._onCollisionEnd);
   }
 
   /**
@@ -332,15 +374,49 @@ export class RigidBody extends AbstractWorldObjectComponent<RigidBodyDeps> {
   }
 
   /**
-   * Removes the body (and its attached colliders, which Rapier frees with it)
-   * from the simulation. Safe to call after a partial construction where the
-   * body was never created.
+   * Delivers this frame's collisions to the body's listeners. Runs in the
+   * object update phase — after {@link PhysicsWorld} stepped and drained the
+   * event queue in the world pre-update, and after this component's own
+   * pre-update readback — so listeners see settled transforms. Skipped entirely
+   * for bodies with no listener.
+   *
+   * Because this is a normal component update hook, the host wraps it in the
+   * world's per-component error isolation: a listener that throws is reported
+   * through {@link World.reportError} (or the world's `onError`) without
+   * derailing the rest of the tick.
    */
-  public override onDestroy(): void {
-    if (this._body && this._physics) {
-      this._physics.removeBody(this._body);
+  public override onUpdate(): void {
+    if (!this._physics || !this._wantsCollisionEvents()) {
+      return;
     }
 
+    for (const { other, started } of this._physics._takeCollisions(this)) {
+      const listener = started ? this._onCollisionStart : this._onCollisionEnd;
+
+      // The opposite-direction listener may be absent (e.g. a body that only
+      // handles starts still gets end events buffered); just skip those.
+      listener?.({ self: this, other, otherObject: other.host });
+    }
+  }
+
+  /**
+   * Removes the body (and its attached colliders, which Rapier frees with it)
+   * from the simulation, and unregisters its collider handles from the
+   * {@link PhysicsWorld} event lookup. Safe to call after a partial
+   * construction where the body was never created.
+   */
+  public override onDestroy(): void {
+    if (this._physics) {
+      for (const handle of this._colliderHandles) {
+        this._physics._unregisterCollider(handle);
+      }
+
+      if (this._body) {
+        this._physics.removeBody(this._body);
+      }
+    }
+
+    this._colliderHandles.length = 0;
     this._body = null;
   }
 

@@ -65,6 +65,19 @@
         "4333"
       ],
       "port": 4333
+    },
+    {
+      "name": "rpg",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": [
+        "workspace",
+        "@arcade2d/demo-rpg",
+        "exec",
+        "vite",
+        "--port",
+        "4334"
+      ],
+      "port": 4334
     }
   ]
 }

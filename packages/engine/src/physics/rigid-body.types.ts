@@ -1,5 +1,7 @@
 import type { Circle, Polygon, Rectangle } from '../geometry';
 import type { PointPrimitive } from '../geometry/point.types';
+import type { WorldObject } from '../world';
+import type { RigidBody } from './rigid-body';
 
 /**
  * The simulation behaviour of a {@link RigidBody}.
@@ -110,6 +112,65 @@ export interface ColliderOptions {
 }
 
 /**
+ * A single collision delivered to a {@link RigidBody}'s
+ * {@link RigidBodyOptions.onCollisionStart} or
+ * {@link RigidBodyOptions.onCollisionEnd} listener: a description of *who*
+ * touched (or stopped touching) the listening body this frame.
+ *
+ * The event is fired from the listening body's point of view, so
+ * {@link CollisionEvent.self} is always the body whose listener is running and
+ * {@link CollisionEvent.other} is its counterpart. Use the event to react to
+ * contact — deal damage, play a hit sound, despawn a projectile — by reading
+ * the other body's host {@link WorldObject} and its components.
+ *
+ * ## Lifetime and timing
+ *
+ * The event object is short-lived: it is constructed for the dispatch and not
+ * retained by the engine, so it is safe to read synchronously but should not
+ * be stashed for a later frame (capture the values you need instead). Listeners
+ * run during the listening body's update phase, after the simulation has
+ * stepped and transforms have been read back, so both hosts' positions are the
+ * settled post-step values for the frame.
+ *
+ * Either party may already be marked for destruction by the time your listener
+ * runs (another object's update earlier in the same frame may have called
+ * {@link WorldObject.destroy}). The object is still live — its teardown is
+ * deferred to the end of the tick — but check
+ * {@link WorldObject.destroyed} before acting on it if your reaction depends on
+ * it surviving.
+ *
+ * @see {@link RigidBodyOptions.onCollisionStart} — fired on first contact.
+ * @see {@link RigidBodyOptions.onCollisionEnd} — fired when contact breaks.
+ */
+export interface CollisionEvent {
+  /**
+   * The body whose listener is running — i.e. the one the
+   * {@link RigidBodyOptions.onCollisionStart} /
+   * {@link RigidBodyOptions.onCollisionEnd} callback belongs to.
+   */
+  readonly self: RigidBody;
+
+  /**
+   * The other body involved in the contact.
+   */
+  readonly other: RigidBody;
+
+  /**
+   * Convenience accessor for `other.host` — the {@link WorldObject} the other
+   * body is attached to, the usual entry point for reading its tags and
+   * components.
+   */
+  readonly otherObject: WorldObject;
+}
+
+/**
+ * A listener for {@link RigidBody} collision start/end events. See
+ * {@link CollisionEvent} for the payload and {@link RigidBodyOptions.onCollisionStart}
+ * for the enabling semantics.
+ */
+export type CollisionListener = (event: CollisionEvent) => void;
+
+/**
  * Construction options for a {@link RigidBody}. A body needs at least one
  * collider — supply exactly one via {@link RigidBodyOptions.collider}, or
  * several via {@link RigidBodyOptions.colliders}. Providing neither throws
@@ -177,4 +238,53 @@ export interface RigidBodyOptions {
    * to `false`.
    */
   readonly ccd?: boolean;
+
+  /**
+   * Called once when this body **begins** touching another body, with a
+   * {@link CollisionEvent} describing the other party. This is the primary
+   * gameplay hook for contact reactions — a bullet despawning on impact, an
+   * enemy taking damage, a trigger volume firing.
+   *
+   * ## Opting in
+   *
+   * Supplying this (or {@link RigidBodyOptions.onCollisionEnd}) is what enables
+   * collision reporting for the body: the engine flips Rapier's
+   * collision-event flag on the body's colliders. A body with no listener
+   * generates no events and costs nothing — so the static walls a projectile
+   * hits do **not** need a listener; only the projectile does. Rapier reports a
+   * pair as soon as *either* collider opts in.
+   *
+   * ## Sensors vs. solid contact
+   *
+   * The hook fires for both kinds of overlap: solid bodies physically colliding
+   * *and* a sensor collider ({@link ColliderOptions.isSensor}) passing through
+   * another collider without pushing it. A fast projectile is typically a
+   * sensor so it registers the hit without knocking its target around.
+   *
+   * ## Error handling and timing
+   *
+   * The callback runs during the body's own update phase and is wrapped in the
+   * world's standard per-component error isolation: if it throws, the failure
+   * is routed through {@link World.reportError} (or the world's `onError`
+   * handler) and the rest of the tick continues. See {@link CollisionEvent}
+   * for the guarantees about transform state and object lifetime at call time.
+   *
+   * @param event The collision, from this body's point of view.
+   */
+  readonly onCollisionStart?: CollisionListener;
+
+  /**
+   * Called once when this body **stops** touching another body it was
+   * previously in contact with, with a {@link CollisionEvent} describing the
+   * other party. Useful for un-applying something a
+   * {@link RigidBodyOptions.onCollisionStart} did — leaving a trigger zone,
+   * ending an overlap highlight.
+   *
+   * Like {@link RigidBodyOptions.onCollisionStart}, supplying this enables
+   * collision reporting for the body, and the callback runs under the same
+   * error isolation and timing guarantees.
+   *
+   * @param event The collision that just ended, from this body's point of view.
+   */
+  readonly onCollisionEnd?: CollisionListener;
 }

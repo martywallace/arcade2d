@@ -4,10 +4,15 @@ import { Circle } from '../geometry';
 import { EngineError } from '../error';
 import { ErrorCode } from '../error.constants';
 import type { Component } from '../components.types';
-import { World, WorldObject, WorldUpdate } from '../world';
+import {
+  World,
+  WorldObject,
+  WorldUpdate,
+  type WorldErrorContext,
+} from '../world';
 import { PhysicsWorld } from './physics-world';
 import { RigidBody } from './rigid-body';
-import { RigidBodyOptions } from './rigid-body.types';
+import { CollisionEvent, RigidBodyOptions } from './rigid-body.types';
 import { initPhysics } from './physics.support';
 
 beforeAll(async () => {
@@ -317,6 +322,226 @@ describe('RigidBody', () => {
       const detached = new RigidBody(object, CIRCLE);
 
       expect(() => detached.onDestroy()).not.toThrow();
+    });
+  });
+
+  describe('collision events', () => {
+    // A still, gravity-free dynamic body carrying a sensor collider: it stays
+    // where placed but its overlaps are reported. The standard "probe" for
+    // these tests.
+    function sensorProbe(
+      onCollisionStart?: (event: CollisionEvent) => void,
+      onCollisionEnd?: (event: CollisionEvent) => void,
+    ): RigidBodyOptions {
+      return {
+        type: 'dynamic',
+        gravityScale: 0,
+        collider: { shape: new Circle(20), isSensor: true },
+        ...(onCollisionStart ? { onCollisionStart } : {}),
+        ...(onCollisionEnd ? { onCollisionEnd } : {}),
+      };
+    }
+
+    const TARGET: RigidBodyOptions = {
+      type: 'fixed',
+      collider: { shape: new Circle(20) },
+    };
+
+    test('onCollisionStart fires once when two bodies begin overlapping', () => {
+      const world = makeWorld();
+      const physics = world.getComponentByType(PhysicsWorld);
+      const events: CollisionEvent[] = [];
+
+      const { object: target } = addBody(world, TARGET, { x: 0, y: 0 });
+      const { body: probe } = addBody(
+        world,
+        sensorProbe((event) => events.push(event)),
+        { x: 10, y: 0 },
+      );
+
+      physics.onPreUpdate(tick(1 / 60));
+      probe.onUpdate();
+
+      expect(events).toHaveLength(1);
+      expect(events[0]!.self).toBe(probe);
+      expect(events[0]!.otherObject).toBe(target);
+    });
+
+    test('a body with no listener neither flags its collider nor receives events', () => {
+      const world = makeWorld();
+      const physics = world.getComponentByType(PhysicsWorld);
+
+      addBody(world, TARGET, { x: 0, y: 0 });
+      // No onCollisionStart/onCollisionEnd: this body opts out entirely.
+      const { body: silent } = addBody(world, sensorProbe(), { x: 10, y: 0 });
+
+      physics.onPreUpdate(tick(1 / 60));
+
+      // Nothing was buffered for it, so draining its (absent) events is empty.
+      expect(silent._wantsCollisionEvents()).toBe(false);
+      expect(physics._takeCollisions(silent)).toHaveLength(0);
+    });
+
+    test('delivers the collision to every listening body in the pair', () => {
+      const world = makeWorld();
+      const physics = world.getComponentByType(PhysicsWorld);
+      const seenByA: CollisionEvent[] = [];
+      const seenByB: CollisionEvent[] = [];
+
+      const { object: objectA, body: bodyA } = addBody(
+        world,
+        sensorProbe((event) => seenByA.push(event)),
+        { x: 0, y: 0 },
+      );
+      const { object: objectB, body: bodyB } = addBody(
+        world,
+        sensorProbe((event) => seenByB.push(event)),
+        { x: 10, y: 0 },
+      );
+
+      physics.onPreUpdate(tick(1 / 60));
+      bodyA.onUpdate();
+      bodyB.onUpdate();
+
+      expect(seenByA).toHaveLength(1);
+      expect(seenByA[0]!.otherObject).toBe(objectB);
+      expect(seenByB).toHaveLength(1);
+      expect(seenByB[0]!.otherObject).toBe(objectA);
+    });
+
+    test('onCollisionEnd fires when a previously-overlapping body separates', () => {
+      const world = makeWorld();
+      const physics = world.getComponentByType(PhysicsWorld);
+      const starts: CollisionEvent[] = [];
+      const ends: CollisionEvent[] = [];
+
+      const { object: target } = addBody(world, TARGET, { x: 0, y: 0 });
+      const { body: probe } = addBody(
+        world,
+        sensorProbe(
+          (event) => starts.push(event),
+          (event) => ends.push(event),
+        ),
+        { x: 10, y: 0 },
+      );
+
+      physics.onPreUpdate(tick(1 / 60));
+      probe.onUpdate();
+      expect(starts).toHaveLength(1);
+
+      // Send the probe far clear of the target and let the sim catch up.
+      probe.velocity = { x: 2000, y: 0 };
+      for (let i = 0; i < 30 && ends.length === 0; i++) {
+        physics.onPreUpdate(tick(1 / 60));
+        probe.onUpdate();
+      }
+
+      expect(ends).toHaveLength(1);
+      expect(ends[0]!.otherObject).toBe(target);
+    });
+
+    test('forgets a destroyed body so it stops generating events', () => {
+      const world = makeWorld();
+      const physics = world.getComponentByType(PhysicsWorld);
+      const events: CollisionEvent[] = [];
+
+      addBody(world, TARGET, { x: 0, y: 0 });
+      const { body: probe } = addBody(
+        world,
+        sensorProbe((event) => events.push(event)),
+        { x: 10, y: 0 },
+      );
+
+      probe.onDestroy();
+
+      physics.onPreUpdate(tick(1 / 60));
+
+      // Its colliders were unregistered, so the overlap resolves to no body.
+      expect(physics._takeCollisions(probe)).toHaveLength(0);
+      expect(events).toHaveLength(0);
+    });
+
+    test('buffers several collisions against one body in a single frame', () => {
+      const world = makeWorld();
+      const physics = world.getComponentByType(PhysicsWorld);
+      const events: CollisionEvent[] = [];
+
+      // One probe straddling two targets overlaps both in the same step.
+      addBody(world, TARGET, { x: -10, y: 0 });
+      addBody(world, TARGET, { x: 10, y: 0 });
+      const { body: probe } = addBody(
+        world,
+        sensorProbe((event) => events.push(event)),
+        { x: 0, y: 0 },
+      );
+
+      physics.onPreUpdate(tick(1 / 60));
+      probe.onUpdate();
+
+      expect(events).toHaveLength(2);
+    });
+
+    test('onUpdate is a no-op for a body that was never added', () => {
+      const object = makeWorld().createEmpty();
+      const detached = new RigidBody(
+        object,
+        sensorProbe(() => {
+          throw new Error('should never run');
+        }),
+      );
+
+      expect(() => detached.onUpdate()).not.toThrow();
+    });
+
+    test('ignores overlaps with raw colliders not owned by a RigidBody', () => {
+      const world = makeWorld();
+      const physics = world.getComponentByType(PhysicsWorld);
+      const events: CollisionEvent[] = [];
+
+      const { body: probe } = addBody(
+        world,
+        sensorProbe((event) => events.push(event)),
+        { x: 0, y: 0 },
+      );
+
+      // A collider created straight through the Rapier escape hatch is unknown
+      // to the handle→body map; an overlap with it must resolve to no body and
+      // be quietly dropped rather than crashing the dispatch.
+      const rawBody = physics.raw.createRigidBody(
+        RAPIER.RigidBodyDesc.fixed().setTranslation(10, 0),
+      );
+      physics.raw.createCollider(RAPIER.ColliderDesc.ball(20), rawBody);
+
+      physics.onPreUpdate(tick(1 / 60));
+      probe.onUpdate();
+
+      expect(events).toHaveLength(0);
+    });
+
+    test('a throwing listener is isolated through the world error channel', () => {
+      const errors: WorldErrorContext[] = [];
+      const world = new World(Game.createHeadless(), {
+        components: (w) => ({ physics: () => new PhysicsWorld(w) }),
+        onError: (context) => errors.push(context),
+      });
+      const physics = world.getComponentByType(PhysicsWorld);
+
+      addBody(world, TARGET, { x: 0, y: 0 });
+      const { object: probeObject } = addBody(
+        world,
+        sensorProbe(() => {
+          throw new Error('listener boom');
+        }),
+        { x: 10, y: 0 },
+      );
+
+      physics.onPreUpdate(tick(1 / 60));
+      // Drive the object's update phase so the host's per-component isolation
+      // wraps the listener, rather than calling the body hook directly.
+      probeObject.onUpdate(tick(1 / 60));
+
+      expect(errors).toHaveLength(1);
+      expect(errors[0]!.phase).toBe('component-update');
     });
   });
 });

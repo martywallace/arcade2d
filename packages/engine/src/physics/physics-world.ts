@@ -2,6 +2,8 @@ import RAPIER from '@dimforge/rapier2d-compat';
 import type {
   Collider,
   ColliderDesc,
+  ColliderHandle,
+  EventQueue,
   RigidBody as RapierRigidBody,
   RigidBodyDesc,
   World as RapierWorld,
@@ -19,6 +21,21 @@ import {
 } from './physics-world.constants';
 import { assertPhysicsReady } from './physics.support';
 import type { PhysicsWorldOptions } from './physics-world.types';
+import type { RigidBody } from './rigid-body';
+
+/**
+ * One collision queued against a {@link RigidBody} for the current frame: the
+ * other body involved, and whether contact started (`true`) or ended
+ * (`false`). Buffered by {@link PhysicsWorld} as it drains Rapier's event queue
+ * and consumed by each {@link RigidBody} in its update phase, where it is
+ * turned into the public {@link CollisionEvent}.
+ *
+ * @internal
+ */
+interface QueuedCollision {
+  readonly other: RigidBody;
+  readonly started: boolean;
+}
 
 /**
  * The world-scoped owner of the physics simulation: a thin, opinionated
@@ -73,6 +90,18 @@ import type { PhysicsWorldOptions } from './physics-world.types';
  * `lengthUnit` so the solver stays numerically stable at that scale without
  * any coordinate conversion leaking into your game code.
  *
+ * ## Collision events
+ *
+ * After each step this component drains Rapier's contact-event queue and fans
+ * the results out to the bodies involved. A {@link RigidBody} subscribes by
+ * supplying {@link RigidBodyOptions.onCollisionStart} /
+ * {@link RigidBodyOptions.onCollisionEnd}; those callbacks fire during the
+ * body's own update phase (so transforms are already settled) with a
+ * {@link CollisionEvent} naming the other party. Bodies without a listener
+ * generate no events and incur no per-frame cost — see
+ * {@link RigidBodyOptions.onCollisionStart} for the opt-in rules and the
+ * sensor-vs-solid distinction.
+ *
  * @example
  * ```ts
  * import { Game, initPhysics, PhysicsWorld } from '@arcade2d/engine';
@@ -94,6 +123,26 @@ export class PhysicsWorld extends AbstractWorldComponent {
   private readonly _world: RapierWorld;
   private readonly _fixedTimeStep: number;
   private readonly _maxSubSteps: number;
+
+  // Rapier's collision-event collector, passed to every `step()`. autoDrain is
+  // on, so it clears itself before each step; we drain it right after each step
+  // to copy that step's contact start/stop events into `_collisions`. Freed
+  // alongside the world in onDestroy.
+  private readonly _eventQueue: EventQueue;
+
+  // Reverse lookup from a Rapier collider handle to the arcade2d RigidBody that
+  // owns it. Every RigidBody registers all of its collider handles here on
+  // attach so a drained event (which names raw handles) can be resolved back to
+  // both owning bodies — even the non-listening one, whose identity the
+  // listener needs as the "other" party.
+  private readonly _bodiesByCollider = new Map<ColliderHandle, RigidBody>();
+
+  // Per-frame collision buffer, keyed by the listening body. Filled while
+  // draining the event queue during `onPreUpdate` and drained by each
+  // RigidBody during its own update phase. Cleared at the top of every
+  // `onPreUpdate` so a body that never reads its events (e.g. a disabled one)
+  // can't accumulate them without bound.
+  private readonly _collisions = new Map<RigidBody, QueuedCollision[]>();
 
   // Real elapsed time owed to the simulation but not yet stepped. Carries the
   // sub-timestep remainder across frames so the average step rate matches
@@ -131,6 +180,11 @@ export class PhysicsWorld extends AbstractWorldComponent {
     this._fixedTimeStep = options.fixedTimeStep ?? DEFAULT_FIXED_TIME_STEP;
     this._world.timestep = this._fixedTimeStep;
     this._maxSubSteps = options.maxSubSteps ?? DEFAULT_MAX_SUB_STEPS;
+
+    // autoDrain: clears the queue before each step so only the most recent
+    // step's events survive to be drained. We still drain manually after every
+    // step to fan events out to the listening bodies.
+    this._eventQueue = new RAPIER.EventQueue(true);
   }
 
   /**
@@ -252,6 +306,11 @@ export class PhysicsWorld extends AbstractWorldComponent {
       return;
     }
 
+    // Discard last frame's buffer up front: every body that cares has already
+    // drained its events in the previous tick's update phase, so anything
+    // lingering belongs to a body that never read them and must not carry over.
+    this._collisions.clear();
+
     this._accumulator += update.deltaSeconds;
 
     // Cap the backlog before draining so a long stall can't queue an
@@ -264,8 +323,103 @@ export class PhysicsWorld extends AbstractWorldComponent {
     }
 
     while (this._accumulator >= this._fixedTimeStep) {
-      this._world.step();
+      // Pass the event queue so this step records its contacts; drain it
+      // immediately after, before the next step's autoDrain wipes it.
+      this._world.step(this._eventQueue);
+      this._eventQueue.drainCollisionEvents((handleA, handleB, started) =>
+        this._recordCollision(handleA, handleB, started),
+      );
       this._accumulator -= this._fixedTimeStep;
+    }
+  }
+
+  /**
+   * Associates a Rapier collider handle with the {@link RigidBody} that owns
+   * it, so drained collision events can be resolved back to their bodies. Every
+   * collider is registered regardless of whether its body listens for events —
+   * the listener on the *other* collider needs this body's identity. Engine
+   * seam used by {@link RigidBody.onAdded}.
+   *
+   * @param handle The Rapier collider handle.
+   * @param body The owning {@link RigidBody}.
+   * @internal
+   */
+  public _registerCollider(handle: ColliderHandle, body: RigidBody): void {
+    this._bodiesByCollider.set(handle, body);
+  }
+
+  /**
+   * Forgets a collider handle previously registered with
+   * {@link PhysicsWorld._registerCollider}. Engine seam used by
+   * {@link RigidBody.onDestroy}.
+   *
+   * @param handle The Rapier collider handle to forget.
+   * @internal
+   */
+  public _unregisterCollider(handle: ColliderHandle): void {
+    this._bodiesByCollider.delete(handle);
+  }
+
+  /**
+   * Hands a listening {@link RigidBody} the collisions buffered for it this
+   * frame and clears them, so they are delivered exactly once. Returns an empty
+   * array when nothing touched the body. Engine seam used by
+   * {@link RigidBody.onUpdate}.
+   *
+   * @param body The body draining its events.
+   * @returns The collisions recorded against `body` since the last frame.
+   * @internal
+   */
+  public _takeCollisions(body: RigidBody): readonly QueuedCollision[] {
+    const events = this._collisions.get(body);
+
+    if (!events) {
+      return [];
+    }
+
+    this._collisions.delete(body);
+
+    return events;
+  }
+
+  // Resolves a drained (handleA, handleB, started) event back to its two owning
+  // bodies and files it under each one that actually listens. Skips self-pairs
+  // (a compound body's two colliders touching is not a collision) and any
+  // handle whose body has already been forgotten (e.g. destroyed mid-step).
+  private _recordCollision(
+    handleA: ColliderHandle,
+    handleB: ColliderHandle,
+    started: boolean,
+  ): void {
+    const bodyA = this._bodiesByCollider.get(handleA);
+    const bodyB = this._bodiesByCollider.get(handleB);
+
+    if (!bodyA || !bodyB || bodyA === bodyB) {
+      return;
+    }
+
+    this._enqueue(bodyA, bodyB, started);
+    this._enqueue(bodyB, bodyA, started);
+  }
+
+  // Files one direction of a collision against `listener` (with `other` as its
+  // counterpart), but only when `listener` opted into events — a non-listening
+  // body never needs a buffer.
+  private _enqueue(
+    listener: RigidBody,
+    other: RigidBody,
+    started: boolean,
+  ): void {
+    if (!listener._wantsCollisionEvents()) {
+      return;
+    }
+
+    const existing = this._collisions.get(listener);
+
+    if (existing) {
+      existing.push({ other, started });
+    } else {
+      this._collisions.set(listener, [{ other, started }]);
     }
   }
 
@@ -280,6 +434,10 @@ export class PhysicsWorld extends AbstractWorldComponent {
     }
 
     this._freed = true;
+    this._collisions.clear();
+    this._bodiesByCollider.clear();
+    // The event queue holds its own WASM allocation, distinct from the world's.
+    this._eventQueue.free();
     this._world.free();
   }
 

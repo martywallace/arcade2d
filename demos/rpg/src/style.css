@@ -1,0 +1,17 @@
+* {
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  background: #12121c;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
