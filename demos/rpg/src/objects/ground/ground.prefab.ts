@@ -1,5 +1,6 @@
 import { ImageAsset, Prefab, Texture, TilingSprite } from '@arcade2d/engine';
 import { terrain } from '../../assets';
+import { WORLD_SIZE } from '../../constants';
 
 /**
  * The grass field the whole scene sits on: one large tiled sprite centred on
@@ -13,7 +14,10 @@ export const GroundPrefab = new Prefab({
     grass: ({ assets, object }) => {
       const tile = new Texture(assets.use(terrain).getAs('grass', ImageAsset));
 
-      return new TilingSprite(object, tile, { width: 8000, height: 8000 });
+      return new TilingSprite(object, tile, {
+        width: WORLD_SIZE,
+        height: WORLD_SIZE,
+      });
     },
   },
 });

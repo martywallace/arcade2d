@@ -2,6 +2,7 @@ import './style.css';
 
 import { Game, PhysicsWorld, initPhysics } from '@arcade2d/engine';
 import { characters, terrain, tilesheet } from './assets';
+import { FlowField } from './components/flow-field.component';
 import { KillCount } from './components/kill-count.component';
 import { buildMap } from './map';
 import { HudPrefab } from './objects/hud/hud.prefab';
@@ -31,10 +32,12 @@ async function start(): Promise<void> {
     game.assets.use(tilesheet).load(),
   ]);
 
-  // Top-down world: no gravity, collisions only.
+  // Top-down world: no gravity, collisions only. The shared FlowField gives the
+  // zombie horde a single navigation map to route around the houses and props.
   const world = game.createWorld({
     components: (world) => ({
       physics: () => new PhysicsWorld(world, { gravity: { x: 0, y: 0 } }),
+      flow: () => new FlowField(world),
     }),
   });
 

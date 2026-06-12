@@ -8,6 +8,17 @@
 export const TILE = 64;
 
 /**
+ * Edge length of the square tiled ground, in world pixels. The playable area is
+ * this centred on the origin, so valid world coordinates run from
+ * `-WORLD_HALF` to `+WORLD_HALF` on both axes. The ground sprite, the player
+ * clamp, and the camera clamp all derive their bounds from this one value.
+ */
+export const WORLD_SIZE = 8000;
+
+/** Half {@link WORLD_SIZE}: the world extends `±WORLD_HALF` from the origin. */
+export const WORLD_HALF = WORLD_SIZE / 2;
+
+/**
  * Display scale for the character sprites (~38px source art), nudged up so
  * they read at roughly two-thirds of a tile, matching the sample scene.
  */
@@ -20,6 +31,22 @@ export const TAG = {
   bullet: 'bullet',
   structure: 'structure',
 } as const;
+
+// --- Camera -----------------------------------------------------------------
+
+/**
+ * How far the camera leads from the player toward the mouse, as a fraction of
+ * the player→cursor vector. `0.5` looks at the midpoint — aiming reveals more
+ * of the world in the direction you're facing.
+ */
+export const CAMERA_LOOK_AHEAD = 0.5;
+
+/**
+ * Exponential smoothing rate for the camera ease, in "per second". Higher is
+ * snappier; the camera closes ~63% of the remaining gap every `1 / rate`
+ * seconds. Applied frame-rate-independently via the frame delta.
+ */
+export const CAMERA_EASE_RATE = 6;
 
 // --- Player ----------------------------------------------------------------
 
@@ -49,3 +76,21 @@ export const ZOMBIE_ATTACK_INTERVAL = 800; // ms between bites while in contact
 export const SPAWNER_CAP = 3; // live zombies a spawn point maintains
 export const SPAWN_INTERVAL = 2600; // ms between respawns once below the cap
 export const SPAWN_JITTER = 48; // px of scatter around a spawn point
+
+// --- Navigation (zombie flow field) ----------------------------------------
+
+/**
+ * Cell size of the zombie navigation grid, in world pixels. Kept below the
+ * thinnest wall (the houses are one 64px tile thick) so a wall can't slip
+ * between two cell centres and leave a phantom gap in the field; smaller still
+ * would thread tighter but costs more to flood each retarget.
+ */
+export const FLOW_CELL = 40;
+
+/**
+ * Clearance used when marking grid cells blocked: a cell is impassable if a
+ * static collider sits within this distance of its centre. Set to the zombie
+ * radius plus a margin so the routed path keeps bodies off obstacle corners
+ * instead of scraping along them.
+ */
+export const FLOW_CLEARANCE = ZOMBIE_RADIUS + 8;
