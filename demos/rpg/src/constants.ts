@@ -36,10 +36,11 @@ export const TAG = {
 
 /**
  * How far the camera leads from the player toward the mouse, as a fraction of
- * the player→cursor vector. `0.5` looks at the midpoint — aiming reveals more
- * of the world in the direction you're facing.
+ * the player→cursor vector. A small lead nudges the view slightly toward where
+ * you're aiming without yanking the player off-centre; `0.12` keeps the player
+ * near the middle and just hints at the world ahead.
  */
-export const CAMERA_LOOK_AHEAD = 0.5;
+export const CAMERA_LOOK_AHEAD = 0.12;
 
 /**
  * Exponential smoothing rate for the camera ease, in "per second". Higher is
