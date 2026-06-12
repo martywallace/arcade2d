@@ -1,7 +1,7 @@
 import './style.css';
 
 import { Game, PhysicsWorld, initPhysics } from '@arcade2d/engine';
-import { characters, furniture, props, terrain } from './assets';
+import { characters, terrain, tilesheet } from './assets';
 import { buildMap } from './map';
 import { PlayerPrefab } from './objects/player/player.prefab';
 
@@ -21,8 +21,7 @@ async function start(): Promise<void> {
   await Promise.all([
     game.assets.use(characters).load(),
     game.assets.use(terrain).load(),
-    game.assets.use(props).load(),
-    game.assets.use(furniture).load(),
+    game.assets.use(tilesheet).load(),
   ]);
 
   // Top-down world: no gravity, collisions only.

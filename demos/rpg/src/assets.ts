@@ -6,27 +6,20 @@ import { defineAssetBundle } from '@arcade2d/engine';
 import playerUrl from '../assets/kenney_top-down-shooter/PNG/Survivor 1/survivor1_gun.png';
 import zombieUrl from '../assets/kenney_top-down-shooter/PNG/Zombie 1/zoimbie1_hold.png';
 
-// Terrain tiles, used as tiled fills (grass ground, wood floors, walls).
+// Terrain tiles, used as tiled fills (grass ground, wood floors, walls). These
+// stay as standalone single-tile images on purpose: a TilingSprite repeats its
+// whole texture source, so sampling a sub-region of a packed atlas would bleed
+// neighbouring tiles in at every seam. A frame of the shared tilesheet is the
+// right tool for discrete sprites (see `tiles.ts`), not for tiled fills.
 import grassUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_01.png';
 import floorWoodUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_42.png';
 import wallUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_124.png';
 
-// Outdoor props.
-import treeUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_181.png';
-import treeAutumnUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_184.png';
-import hedgeUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_208.png';
-import rockUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_237.png';
-
-// Interior furniture.
-import sofaGreenUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_450.png';
-import sofaOrangeUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_474.png';
-import chairBlueUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_451.png';
-import tableRoundUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_132.png';
-import tableOrangeUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_345.png';
-import bedUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_399.png';
-import crateUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_129.png';
-import rugUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_131.png';
-import plantUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_134.png';
+// The complete Kenney tile atlas: a 27x20 grid of 64px tiles in one image.
+// Every discrete prop and furniture sprite is a `Texture` frame carved out of
+// this one source (see `tiles.ts`) — including the multi-tile objects (the
+// 2x2 trees) that a single 64px tile would only show a quarter of.
+import tilesheetUrl from '../assets/kenney_top-down-shooter/Tilesheet/tilesheet_complete.png';
 
 /**
  * Player and enemy art. A typed bundle gives compile-checked keys —
@@ -49,41 +42,11 @@ export const terrain = defineAssetBundle('terrain', {
 });
 
 /**
- * Outdoor scenery props scattered across the grass.
+ * The shared object atlas. A single image backs every prop and furniture
+ * sprite; `tiles.ts` turns named regions of it into {@link Texture}s. Loading
+ * one atlas instead of dozens of individual files is both faster to fetch and
+ * the only way to render the art's genuinely multi-tile objects whole.
  */
-export const props = defineAssetBundle('props', {
-  tree: treeUrl,
-  treeAutumn: treeAutumnUrl,
-  hedge: hedgeUrl,
-  rock: rockUrl,
+export const tilesheet = defineAssetBundle('tilesheet', {
+  sheet: tilesheetUrl,
 });
-
-/** The keys of the {@link props} bundle. */
-export type PropKey = 'tree' | 'treeAutumn' | 'hedge' | 'rock';
-
-/**
- * Indoor furniture placed inside the houses.
- */
-export const furniture = defineAssetBundle('furniture', {
-  sofaGreen: sofaGreenUrl,
-  sofaOrange: sofaOrangeUrl,
-  chairBlue: chairBlueUrl,
-  tableRound: tableRoundUrl,
-  tableOrange: tableOrangeUrl,
-  bed: bedUrl,
-  crate: crateUrl,
-  rug: rugUrl,
-  plant: plantUrl,
-});
-
-/** The keys of the {@link furniture} bundle — names a house layout can place. */
-export type FurnitureKey =
-  | 'sofaGreen'
-  | 'sofaOrange'
-  | 'chairBlue'
-  | 'tableRound'
-  | 'tableOrange'
-  | 'bed'
-  | 'crate'
-  | 'rug'
-  | 'plant';

@@ -12,8 +12,9 @@ import {
   Texture,
   TilingSprite,
 } from '@arcade2d/engine';
-import { furniture, terrain } from '../../assets';
+import { terrain } from '../../assets';
 import { TAG, TILE } from '../../constants';
+import { tileTexture } from '../../tiles';
 import type { HouseConfig } from './house.types';
 
 /** Half-width of the south-wall doorway, in pixels (a two-tile gap). */
@@ -46,6 +47,11 @@ interface Panel {
  *   top-level object, those offsets land at the correct world positions. The
  *   root is tagged `structure`, so a bullet that hits any wall reports the
  *   house as its collision partner and is consumed.
+ * - **Rotated rigid bodies.** Setting {@link HouseConfig.rotation} turns the
+ *   root before the body is built, so the whole compound — every wall and
+ *   furniture collider — is seeded into Rapier already rotated. The player
+ *   slides along the real angled walls; this is genuine rigid-body physics, not
+ *   an axis-aligned bounding box pretending otherwise.
  *
  * A doorway gap is left in the middle of the south wall so the player can enter.
  *
@@ -121,9 +127,7 @@ export function createHouse(world: World, config: HouseConfig): WorldObject {
   for (const piece of config.furniture ?? []) {
     const lx = piece.tx * TILE;
     const ly = piece.ty * TILE;
-    const texture = new Texture(
-      assets.use(furniture).getAs(piece.key, ImageAsset),
-    );
+    const texture = tileTexture(assets, piece.key);
 
     const child = addChild(
       world,
@@ -141,6 +145,15 @@ export function createHouse(world: World, config: HouseConfig): WorldObject {
       });
     }
   }
+
+  // Rotate the root only now that every child is parented. `addChild` defaults
+  // to keepWorldTransform, so a child added to an already-rotated root would
+  // get a counter-rotation baked into its local transform that cancels the
+  // turn — the walls would look axis-aligned while only the body rotated. With
+  // the children in place first, the rotation composes cleanly down the
+  // hierarchy, and the fixed body (attached next) reads it once so the whole
+  // compound collider lands at the same angle.
+  root.rotation = config.rotation ?? 0;
 
   // One compound static body carries every wall and solid-furniture collider.
   root.addComponentsFromFactories({

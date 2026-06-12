@@ -1,13 +1,13 @@
 import type { PointPrimitive } from '@arcade2d/engine';
-import type { FurnitureKey } from '../../assets';
+import type { TileKey } from '../../tiles';
 
 /**
  * One piece of furniture placed inside a house, positioned on the interior tile
  * grid relative to the house centre.
  */
 export interface FurniturePiece {
-  /** Which furniture art to use — a key of the {@link furniture} bundle. */
-  readonly key: FurnitureKey;
+  /** Which atlas region to draw — a key of {@link TILE_FRAMES}. */
+  readonly key: TileKey;
 
   /** Column offset from the house centre, in tiles (may be fractional). */
   readonly tx: number;
@@ -40,6 +40,14 @@ export interface HouseConfig {
 
   /** Interior height, in tiles. */
   readonly tilesH: number;
+
+  /**
+   * Rotation of the whole building, in radians. The root carries it, so the
+   * walls, floor, furniture, *and* the compound collider all turn as one rigid
+   * unit — an angled house is blocked along its real angled walls, not an
+   * axis-aligned box. Defaults to `0`.
+   */
+  readonly rotation?: number;
 
   /** Furniture to place inside. */
   readonly furniture?: readonly FurniturePiece[];
