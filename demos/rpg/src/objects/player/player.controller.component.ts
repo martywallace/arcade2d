@@ -12,6 +12,7 @@ import {
   PLAYER_RADIUS,
   PLAYER_SPEED,
 } from '../../constants';
+import { Health } from '../../components/health.component';
 import { BulletPrefab } from '../bullet/bullet.prefab';
 
 /**
@@ -35,12 +36,22 @@ export class PlayerController extends AbstractWorldObjectComponent {
   private readonly _fireCooldown = new WorldTimer(PLAYER_FIRE_INTERVAL);
   private readonly _random = new Random();
   private _body!: RigidBody;
+  private _health!: Health;
 
   public override onAdded(): void {
     this._body = this.host.getComponentByType(RigidBody);
+    this._health = this.host.getComponentByType(Health);
   }
 
   public override onUpdate(update: WorldUpdate): void {
+    // Overwhelmed: the player's Health survives depletion (destroyOnDeath is
+    // off), so respawn it in place at full health with a jolt of camera shake
+    // rather than ending the demo.
+    if (this._health.isDead) {
+      this._health.restore();
+      this.world.camera.shake(16, 320);
+    }
+
     const keyboard = this.game.getKeyboardState();
 
     // Screen-axis movement, normalised so diagonals aren't faster. Velocity is

@@ -2,7 +2,9 @@ import './style.css';
 
 import { Game, PhysicsWorld, initPhysics } from '@arcade2d/engine';
 import { characters, terrain, tilesheet } from './assets';
+import { KillCount } from './components/kill-count.component';
 import { buildMap } from './map';
+import { HudPrefab } from './objects/hud/hud.prefab';
 import { PlayerPrefab } from './objects/player/player.prefab';
 
 async function start(): Promise<void> {
@@ -10,6 +12,11 @@ async function start(): Promise<void> {
     backgroundColour: 0x12121c,
     canvas: { fill: 'window' },
     debug: true,
+    // Game-tier kill tally — outlives the world and is reached by the bullet
+    // (to score) and the HUD (to display).
+    components: (game) => ({
+      kills: () => new KillCount(game),
+    }),
   });
 
   // Rapier is WebAssembly and must be initialised before any PhysicsWorld or
@@ -33,8 +40,11 @@ async function start(): Promise<void> {
 
   buildMap(world);
 
-  // Player last so it renders above the scene and the spawned zombies.
+  // Player above the scene and the spawned zombies.
   world.createFromPrefab(PlayerPrefab);
+
+  // HUD last so it parents above everything in the scene graph.
+  world.createFromPrefab(HudPrefab);
 }
 
 void start();

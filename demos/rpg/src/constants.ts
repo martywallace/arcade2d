@@ -27,6 +27,7 @@ export const PLAYER_SPEED = 230; // px/s
 export const PLAYER_RADIUS = 18; // collider radius, px
 export const PLAYER_FIRE_INTERVAL = 170; // ms between shots
 export const PLAYER_FIRE_SPREAD = 0.05; // radians of random aim jitter
+export const PLAYER_HEALTH = 20; // hit points before a (full-health) respawn
 
 // --- Bullets ---------------------------------------------------------------
 
@@ -40,6 +41,8 @@ export const BULLET_DAMAGE = 1;
 export const ZOMBIE_SPEED = 68; // px/s
 export const ZOMBIE_RADIUS = 16; // collider radius, px
 export const ZOMBIE_HEALTH = 3; // bullet hits to kill
+export const ZOMBIE_DAMAGE = 1; // hit points removed per bite
+export const ZOMBIE_ATTACK_INTERVAL = 800; // ms between bites while in contact
 
 // --- Spawners --------------------------------------------------------------
 

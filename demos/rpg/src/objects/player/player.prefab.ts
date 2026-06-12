@@ -7,7 +7,13 @@ import {
   Texture,
 } from '@arcade2d/engine';
 import { characters } from '../../assets';
-import { CHARACTER_SCALE, PLAYER_RADIUS, TAG } from '../../constants';
+import {
+  CHARACTER_SCALE,
+  PLAYER_HEALTH,
+  PLAYER_RADIUS,
+  TAG,
+} from '../../constants';
+import { Health } from '../../components/health.component';
 import { PlayerController } from './player.controller.component';
 
 /**
@@ -33,6 +39,10 @@ export const PlayerPrefab = new Prefab({
         lockRotation: true,
         collider: { shape: new Circle(PLAYER_RADIUS) },
       }),
+    // Survives depletion (`destroyOnDeath: false`) — the controller respawns it
+    // at full health instead, so the demo keeps running.
+    health: ({ object }) =>
+      new Health(object, PLAYER_HEALTH, { destroyOnDeath: false }),
     controller: ({ object }) => new PlayerController(object),
   },
 });

@@ -1,6 +1,7 @@
 import { Circle, CircleGraphics, Prefab, RigidBody } from '@arcade2d/engine';
 import { BULLET_DAMAGE, BULLET_RADIUS, TAG } from '../../constants';
 import { Health } from '../../components/health.component';
+import { KillCount } from '../../components/kill-count.component';
 import { BulletController } from './bullet.controller.component';
 
 /**
@@ -26,7 +27,7 @@ export const BulletPrefab = new Prefab({
     graphics: ({ object }) =>
       new CircleGraphics(object, new Circle(BULLET_RADIUS), 0xffe066),
     controller: ({ object }) => new BulletController(object),
-    body: ({ object }) =>
+    body: ({ object, world }) =>
       new RigidBody(object, {
         type: 'dynamic',
         gravityScale: 0,
@@ -37,9 +38,17 @@ export const BulletPrefab = new Prefab({
           const { tags } = event.otherObject.metadata;
 
           if (tags.has(TAG.enemy)) {
-            event.otherObject
+            const killed = event.otherObject
               .getNullableComponentByType(Health)
               ?.damage(BULLET_DAMAGE);
+
+            // Only the blow that actually drops the zombie scores — `damage`
+            // returns false for a corpse, so two pellets landing the same frame
+            // can't both claim the kill.
+            if (killed) {
+              world.game.getComponentByType(KillCount).add();
+            }
+
             object.destroy();
           } else if (tags.has(TAG.structure)) {
             object.destroy();
