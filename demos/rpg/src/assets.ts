@@ -6,14 +6,14 @@ import { defineAssetBundle } from '@arcade2d/engine';
 import playerUrl from '../assets/kenney_top-down-shooter/PNG/Survivor 1/survivor1_gun.png';
 import zombieUrl from '../assets/kenney_top-down-shooter/PNG/Zombie 1/zoimbie1_hold.png';
 
-// Terrain tiles, used as tiled fills (grass ground, wood floors, walls). These
-// stay as standalone single-tile images on purpose: a TilingSprite repeats its
-// whole texture source, so sampling a sub-region of a packed atlas would bleed
+// Terrain tiles, used as tiled fills (grass ground, wood floors). These stay as
+// standalone single-tile images on purpose: a TilingSprite repeats its whole
+// texture source, so sampling a sub-region of a packed atlas would bleed
 // neighbouring tiles in at every seam. A frame of the shared tilesheet is the
-// right tool for discrete sprites (see `tiles.ts`), not for tiled fills.
+// right tool for discrete sprites (see `tiles.ts`), not for tiled fills. The
+// walls are discrete autotile frames now (see `WALL_FRAMES`), not a tiled fill.
 import grassUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_01.png';
 import floorWoodUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_42.png';
-import wallUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_124.png';
 
 // The complete Kenney tile atlas: a 27x20 grid of 64px tiles in one image.
 // Every discrete prop and furniture sprite is a `Texture` frame carved out of
@@ -38,7 +38,6 @@ export const characters = defineAssetBundle('characters', {
 export const terrain = defineAssetBundle('terrain', {
   grass: grassUrl,
   floorWood: floorWoodUrl,
-  wall: wallUrl,
 });
 
 /**

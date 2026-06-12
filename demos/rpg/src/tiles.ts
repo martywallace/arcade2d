@@ -74,6 +74,35 @@ export const TILE_FRAMES = {
 export type TileKey = keyof typeof TILE_FRAMES;
 
 /**
+ * The Kenney wall autotile set, keyed by which sides of the cell carry the
+ * exterior (orange) face. Each piece draws that face along the named edge(s)
+ * and the darker wall *top* across the rest of the cell, so a room laid out as
+ * a one-tile ring — a straight piece along each side, a corner where two meet —
+ * reads as one continuous wall with the floor showing through the middle.
+ *
+ * The convention is **outward-facing**: the orange face hugs the building's
+ * outside edge and the dark top sits toward the interior, matching the pack's
+ * sample scene. {@link createHouse} consumes these to build seamless walls
+ * instead of repeating a single end-cap tile.
+ *
+ * - `n` / `e` / `s` / `w` — a straight run along that one edge.
+ * - `nw` / `ne` / `sw` / `se` — an outer corner wrapping those two edges.
+ */
+export const WALL_FRAMES = {
+  n: frame(112),
+  e: frame(140),
+  s: frame(113),
+  w: frame(139),
+  nw: frame(109),
+  ne: frame(110),
+  sw: frame(136),
+  se: frame(137),
+} as const;
+
+/** One wall piece in the autotile set — a key of {@link WALL_FRAMES}. */
+export type WallKey = keyof typeof WALL_FRAMES;
+
+/**
  * Builds a {@link Texture} for one named atlas region. The atlas must already
  * be loaded (see `main.ts`). Cheap to call per object — every texture shares
  * the atlas's single GPU source and only wraps it with a frame rectangle.
@@ -85,4 +114,18 @@ export function tileTexture(assets: AssetLibrary, key: TileKey): Texture {
   const sheet = assets.use(tilesheet).getAs('sheet', ImageAsset);
 
   return new Texture(sheet, TILE_FRAMES[key]);
+}
+
+/**
+ * Builds a {@link Texture} for one wall autotile piece — the wall counterpart of
+ * {@link tileTexture}, reading from {@link WALL_FRAMES} instead. Same atlas, same
+ * cheap per-call wrapping.
+ *
+ * @param assets The game asset library (`world.game.assets`).
+ * @param key Which wall piece to draw — a key of {@link WALL_FRAMES}.
+ */
+export function wallTexture(assets: AssetLibrary, key: WallKey): Texture {
+  const sheet = assets.use(tilesheet).getAs('sheet', ImageAsset);
+
+  return new Texture(sheet, WALL_FRAMES[key]);
 }
