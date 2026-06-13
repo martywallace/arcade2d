@@ -30,9 +30,10 @@ const FURNITURE_COLLIDER = 48;
  * - **Parent/child hierarchy.** The floor, every wall tile, and every piece of
  *   furniture are child objects nested under the root and positioned in
  *   house-local space. The walls are laid as a one-tile-thick ring of autotiled
- *   sprites — a corner piece at each corner, straight runs between — so the
- *   segments join seamlessly. Their world transforms compose the root's, so the
- *   whole building is one unit, and destroying the root cascades to all of it.
+ *   sprites — corners, straight runs, and capped ends beside the doorway — whose
+ *   orange outlines join into one unbroken edge. Their world transforms compose
+ *   the root's, so the whole building is one unit, and destroying the root
+ *   cascades to all of it.
  * - **Compound physics colliders.** Rather than a body per tile, the root
  *   carries one `fixed` {@link RigidBody} whose colliders are a handful of wall
  *   rectangles and the solid furniture, each placed by a local `offset`. Because
@@ -95,9 +96,9 @@ export function createHouse(world: World, config: HouseConfig): WorldObject {
   );
 
   // Walls: one autotiled sprite per ring cell. Picking the piece by the cell's
-  // position — corner where two edges meet, straight run along one — makes the
-  // segments join seamlessly, where a single repeated tile read as disjoint
-  // end-caps. The south doorway cells are left empty.
+  // position — corner where two edges meet, a capped end beside the doorway, a
+  // straight run otherwise — makes the orange outline join seamlessly all the
+  // way round. The south doorway cells themselves are left empty.
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const onN = row === 0;
@@ -113,7 +114,7 @@ export function createHouse(world: World, config: HouseConfig): WorldObject {
         continue; // doorway gap
       }
 
-      const key = wallKey(onN, onS, onE, onW);
+      const key = wallKey(col, row, cols, rows, doorStart, doorEnd);
       const texture = wallTexture(assets, key);
 
       addChild(
@@ -197,41 +198,50 @@ export function createHouse(world: World, config: HouseConfig): WorldObject {
 }
 
 /**
- * Picks the wall autotile piece for a ring cell from which building edges it
- * sits on: an outer corner where two edges meet (e.g. north-west), otherwise a
- * straight run along the single edge.
+ * Picks the wall autotile piece for a ring cell from where it sits on the
+ * perimeter: an outer corner where two edges meet, a capped end on the south
+ * cells flanking the doorway, otherwise a straight run (`horizontal` for the
+ * north/south edges, `vertical` for east/west).
  */
 function wallKey(
-  onN: boolean,
-  onS: boolean,
-  onE: boolean,
-  onW: boolean,
+  col: number,
+  row: number,
+  cols: number,
+  rows: number,
+  doorStart: number,
+  doorEnd: number,
 ): WallKey {
+  const onN = row === 0;
+  const onS = row === rows - 1;
+  const onW = col === 0;
+  const onE = col === cols - 1;
+
   if (onN && onW) {
-    return 'nw';
+    return 'cornerNW';
   }
 
   if (onN && onE) {
-    return 'ne';
+    return 'cornerNE';
   }
 
   if (onS && onW) {
-    return 'sw';
+    return 'cornerSW';
   }
 
   if (onS && onE) {
-    return 'se';
+    return 'cornerSE';
   }
 
-  if (onN) {
-    return 'n';
+  // South cells abutting the doorway gap cap the outline around the opening.
+  if (onS && col === doorStart - 1) {
+    return 'capE';
   }
 
-  if (onS) {
-    return 's';
+  if (onS && col === doorEnd) {
+    return 'capW';
   }
 
-  return onW ? 'w' : 'e';
+  return onN || onS ? 'horizontal' : 'vertical';
 }
 
 /**

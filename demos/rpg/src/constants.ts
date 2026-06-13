@@ -72,11 +72,21 @@ export const ZOMBIE_HEALTH = 3; // bullet hits to kill
 export const ZOMBIE_DAMAGE = 1; // hit points removed per bite
 export const ZOMBIE_ATTACK_INTERVAL = 800; // ms between bites while in contact
 
+/**
+ * How fast a zombie turns toward a new heading, in radians per second. The
+ * pathfinder can hand back a sharply different direction from one frame to the
+ * next (the flow field steers in 45-degree steps); easing the facing at this
+ * capped rate makes the zombie sweep into the turn instead of snapping. Set so
+ * a full 180-degree about-face takes ~200ms (`PI / 0.2`), which still reads as
+ * quick without being jarring.
+ */
+export const ZOMBIE_TURN_RATE = Math.PI / 0.2;
+
 // --- Spawners --------------------------------------------------------------
 
-export const SPAWNER_CAP = 3; // live zombies a spawn point maintains
+export const SPAWNER_CAP = 8; // live zombies a spawn point maintains
 export const SPAWN_INTERVAL = 2600; // ms between respawns once below the cap
-export const SPAWN_JITTER = 48; // px of scatter around a spawn point
+export const SPAWN_JITTER = 120; // px of scatter around a spawn point
 
 // --- Navigation (zombie flow field) ----------------------------------------
 

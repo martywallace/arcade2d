@@ -1,4 +1,5 @@
 import type { World } from '@arcade2d/engine';
+import { createBuilding } from './objects/building/building';
 import { GroundPrefab } from './objects/ground/ground.prefab';
 import { createHouse } from './objects/house/house';
 import type { PropCollider } from './objects/prop/prop';
@@ -70,7 +71,12 @@ const SCATTER: readonly ScatterProp[] = [
 const SPAWN_POINTS: readonly (readonly [number, number])[] = [
   [-1200, -900],
   [1200, -900],
+  [-1200, 900],
+  [1200, 900],
+  [-1500, 100],
+  [1500, 100],
   [0, 1150],
+  [2400, -1250], // near the north-east building so that corner sees action
 ];
 
 /**
@@ -125,6 +131,73 @@ export function buildMap(world: World): void {
       { key: 'crate', tx: 1.6, ty: 1.5, collide: true },
       { key: 'crate', tx: 0.7, ty: 1.5, collide: true, rotation: 0.4 },
       { key: 'plant', tx: -1.7, ty: 1.6 },
+    ],
+  });
+
+  // North-east: a larger structure — two rooms either side of a through-hallway,
+  // each opening onto it, with the hallway open to the outside at its west end.
+  // One floorplan, autotiled into walls; see createBuilding.
+  createBuilding(world, {
+    center: { x: 2050, y: -2000 },
+    rotation: 0.15,
+    // '#' = wall, '.' = floor. Door gaps are just floor left in a wall line.
+    plan: [
+      '###############',
+      '#......#......#',
+      '#......#......#',
+      '#......#......#',
+      '#......#......#',
+      '#......#......#',
+      '###..#####..###',
+      '..............#',
+      '..............#',
+      '###..#####..###',
+      '#......#......#',
+      '#......#......#',
+      '#......#......#',
+      '#......#......#',
+      '#......#......#',
+      '###..#####..###',
+    ],
+    furniture: [
+      // Top-left room: a sitting room.
+      { key: 'rugGreen', col: 3.5, row: 3 },
+      { key: 'tableRound', col: 3.5, row: 3, collide: true },
+      { key: 'armchairGreen', col: 2, row: 1.7, collide: true },
+      {
+        key: 'armchairOrange',
+        col: 5,
+        row: 1.7,
+        collide: true,
+        rotation: Math.PI,
+      },
+      { key: 'plant', col: 1.4, row: 4.4 },
+      // Top-right room: a study.
+      { key: 'rugBlue', col: 10.5, row: 3 },
+      { key: 'tableSquare', col: 11.4, row: 2, collide: true },
+      { key: 'armchairBlue', col: 9.2, row: 2, collide: true },
+      { key: 'crate', col: 12, row: 4.3, collide: true, rotation: 0.3 },
+      { key: 'plant', col: 9, row: 4.4 },
+      // Hallway: a little greenery by the entrance.
+      { key: 'plant', col: 1.4, row: 7.5 },
+      // Bottom-left room: a dining nook.
+      { key: 'rugBlue', col: 3.5, row: 12 },
+      { key: 'tableSquare', col: 3.5, row: 12, collide: true },
+      { key: 'armchairOrange', col: 2, row: 10.8, collide: true },
+      {
+        key: 'armchairGreen',
+        col: 5,
+        row: 10.8,
+        collide: true,
+        rotation: Math.PI,
+      },
+      { key: 'plant', col: 5.4, row: 13.4 },
+      // Bottom-right room: a storeroom of crates.
+      { key: 'crate', col: 9.3, row: 10.8, collide: true, rotation: 0.2 },
+      { key: 'crate', col: 10.3, row: 10.9, collide: true, rotation: -0.4 },
+      { key: 'crate', col: 12, row: 13.2, collide: true, rotation: 0.5 },
+      { key: 'tableRound', col: 11, row: 12, collide: true },
+      { key: 'plant', col: 9, row: 13.4 },
     ],
   });
 

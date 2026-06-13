@@ -15,6 +15,7 @@ import {
   ZOMBIE_DAMAGE,
   ZOMBIE_RADIUS,
   ZOMBIE_SPEED,
+  ZOMBIE_TURN_RATE,
 } from '../../constants';
 import { FlowField } from '../../components/flow-field.component';
 import { Health } from '../../components/health.component';
@@ -35,6 +36,12 @@ const ATTACK_RANGE = PLAYER_RADIUS + ZOMBIE_RADIUS + 4;
  *   seeks the player directly, for a smooth straight chase across open ground.
  * - **Occluded** by a wall — it follows the shared {@link FlowField}, whose
  *   downhill direction routes the whole horde around the houses and props.
+ *
+ * The chosen heading is not applied raw: the zombie's facing eases toward it at
+ * {@link ZOMBIE_TURN_RATE}, so a sharply different direction (the flow field
+ * steers in 45-degree steps) sweeps in over a few frames rather than snapping.
+ * Both the sprite *and* the velocity follow that eased facing, so the body banks
+ * into the turn — it never moves one way while pointing another.
  *
  * Either way it only sets a *desired* velocity; the physics solver does the
  * actual collision resolution (sliding along angled walls, shoving through the
@@ -58,6 +65,12 @@ export class ZombieController extends AbstractWorldObjectComponent {
   private _body!: RigidBody;
   private _sprite!: WorldObject;
   private _field!: FlowField;
+
+  // Current facing, eased toward the desired heading each frame. Seeded on the
+  // first tick (see `_turnToward`) so a freshly spawned zombie points where it
+  // means to go instead of spinning up from zero.
+  private _facing = 0;
+  private _facingReady = false;
 
   // Per-zombie bite cooldown, so a single zombie pressed against the player
   // chews at a fixed rate while a whole swarm stacks damage from each member.
@@ -95,21 +108,25 @@ export class ZombieController extends AbstractWorldObjectComponent {
 
     // Seek the player directly when nothing's in the way; otherwise steer along
     // the flow field, which routes around the obstacle the line of sight hit.
-    let angle: number;
+    let target: number;
 
     if (this._field.hasClearPath(this.host.position, player.position)) {
-      angle = this.host.position.angleTo(player.position);
+      target = this.host.position.angleTo(player.position);
     } else {
       const flow = this._field.directionAt(this.host.position);
-      angle = flow
+      target = flow
         ? Math.atan2(flow.y, flow.x)
         : this.host.position.angleTo(player.position);
     }
 
-    this._sprite.rotation = angle;
+    // Ease toward the desired heading rather than snapping, then drive both the
+    // facing and the movement from the result so the zombie banks into the turn.
+    const facing = this._turnToward(target, update.deltaMilliseconds);
+
+    this._sprite.rotation = facing;
     this._body.velocity = {
-      x: Math.cos(angle) * ZOMBIE_SPEED,
-      y: Math.sin(angle) * ZOMBIE_SPEED,
+      x: Math.cos(facing) * ZOMBIE_SPEED,
+      y: Math.sin(facing) * ZOMBIE_SPEED,
     };
 
     // Bite the player when pressed against them and the cooldown has elapsed.
@@ -123,6 +140,33 @@ export class ZombieController extends AbstractWorldObjectComponent {
         this._attackCooldown.reset();
       }
     }
+  }
+
+  /**
+   * Steps `_facing` toward `target` by at most {@link ZOMBIE_TURN_RATE} this
+   * frame and returns it. Turns take the shortest way round (the difference is
+   * wrapped to [-PI, PI]), so a heading that flips across the +/-PI seam still
+   * turns the short way. The very first call seeds the facing to the target
+   * outright so a new zombie doesn't spin up from a default angle.
+   */
+  private _turnToward(target: number, deltaMs: number): number {
+    if (!this._facingReady) {
+      this._facingReady = true;
+      this._facing = target;
+
+      return target;
+    }
+
+    const delta = Math.atan2(
+      Math.sin(target - this._facing),
+      Math.cos(target - this._facing),
+    );
+    const maxStep = (ZOMBIE_TURN_RATE * deltaMs) / 1000;
+
+    this._facing +=
+      Math.abs(delta) <= maxStep ? delta : Math.sign(delta) * maxStep;
+
+    return this._facing;
   }
 
   public override onDestroy(): void {

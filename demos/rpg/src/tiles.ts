@@ -74,29 +74,44 @@ export const TILE_FRAMES = {
 export type TileKey = keyof typeof TILE_FRAMES;
 
 /**
- * The Kenney wall autotile set, keyed by which sides of the cell carry the
- * exterior (orange) face. Each piece draws that face along the named edge(s)
- * and the darker wall *top* across the rest of the cell, so a room laid out as
- * a one-tile ring — a straight piece along each side, a corner where two meet —
- * reads as one continuous wall with the floor showing through the middle.
+ * The Kenney wall autotile set — every shape a one-tile-thick wall network can
+ * take, so a layout can be rendered by stamping the piece that matches each wall
+ * cell's neighbours.
  *
- * The convention is **outward-facing**: the orange face hugs the building's
- * outside edge and the dark top sits toward the interior, matching the pack's
- * sample scene. {@link createHouse} consumes these to build seamless walls
- * instead of repeating a single end-cap tile.
+ * Each piece is the **double-line** variant: a continuous orange outline framing
+ * the darker wall *top*, so adjacent pieces join into one unbroken orange edge on
+ * both faces — matching the pack's sample scene. The set is exhaustive over the
+ * 16 ways a cell can connect to its four orthogonal neighbours; the rule a piece
+ * obeys is *orange caps the edges with no neighbour, the wall top continues
+ * through the edges that do connect.* {@link createBuilding} relies on exactly
+ * this to autotile arbitrary floorplans.
  *
- * - `n` / `e` / `s` / `w` — a straight run along that one edge.
- * - `nw` / `ne` / `sw` / `se` — an outer corner wrapping those two edges.
+ * - `horizontal` / `vertical` — a straight run (two opposite neighbours).
+ * - `cornerNW` / `cornerNE` / `cornerSW` / `cornerSE` — an outer corner (two
+ *   perpendicular neighbours); named for the outer angle it wraps.
+ * - `teeN` / `teeS` / `teeE` / `teeW` — a T-junction (three neighbours); named
+ *   for the direction its stem points.
+ * - `capN` / `capS` / `capE` / `capW` — a terminating end (one neighbour); named
+ *   for the side the cap faces, i.e. the *opposite* of the neighbour.
+ * - `cross` — a four-way crossing. `post` — an isolated block (no neighbours).
  */
 export const WALL_FRAMES = {
-  n: frame(112),
-  e: frame(140),
-  s: frame(113),
-  w: frame(139),
-  nw: frame(109),
-  ne: frame(110),
-  sw: frame(136),
-  se: frame(137),
+  horizontal: frame(111),
+  vertical: frame(138),
+  cornerNW: frame(116),
+  cornerNE: frame(117),
+  cornerSW: frame(143),
+  cornerSE: frame(144),
+  teeN: frame(113),
+  teeS: frame(112),
+  teeE: frame(139),
+  teeW: frame(140),
+  capN: frame(141),
+  capS: frame(115),
+  capE: frame(114),
+  capW: frame(142),
+  cross: frame(170),
+  post: frame(171),
 } as const;
 
 /** One wall piece in the autotile set — a key of {@link WALL_FRAMES}. */
