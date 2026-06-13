@@ -87,6 +87,24 @@ describe('Mouse', () => {
     expect(game.getMouseState().buttons.left).toBe(false);
   });
 
+  test('window blur clears every held button', () => {
+    const { game, canvas } = createTestHarness();
+
+    canvas.dispatchEvent(new MouseEvent('mousedown', { button: 0 }));
+    canvas.dispatchEvent(new MouseEvent('mousedown', { button: 2 }));
+    game.update();
+    expect(game.getMouseState().buttons.left).toBe(true);
+    expect(game.getMouseState().buttons.right).toBe(true);
+
+    // Focus loss delivers the eventual mouseup to another window, so without
+    // this the button would read held forever. Assume nothing is held on blur.
+    window.dispatchEvent(new Event('blur'));
+    game.update();
+
+    expect(game.getMouseState().buttons.left).toBe(false);
+    expect(game.getMouseState().buttons.right).toBe(false);
+  });
+
   test('ignores buttons outside the standard left/middle/right range', () => {
     const { game, canvas } = createTestHarness();
 

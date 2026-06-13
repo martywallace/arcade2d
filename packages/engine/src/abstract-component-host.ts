@@ -366,20 +366,74 @@ export abstract class AbstractComponentHost<
     return false;
   }
 
-  public removeComponent(key: string): void {
-    const component = this.getNullableComponent(key);
+  public removeComponent(key: string): Component<THost> | null {
+    const component = this.getNullableComponent<Component<THost>>(key);
 
-    if (component) {
-      const deps = this._depsByComponent.get(component) ?? EMPTY_DEPS;
+    if (!component) {
+      return null;
+    }
+
+    // Run onDestroy with the component still registered (so it can reach its
+    // siblings during teardown), then delete unconditionally. A throwing
+    // onDestroy is routed to the host's error channel rather than propagating
+    // — matching removeAllComponents — so a single bad teardown can neither
+    // escape nor leave the component stranded in the host's maps.
+    this._runComponentDestroy(key, component);
+    this._deleteComponent(key, component);
+
+    return component;
+  }
+
+  public removeComponents(keys: readonly string[]): void {
+    // Snapshot the targeted components first so every one's onDestroy can
+    // still reach the others in the batch via `getComponent` before any are
+    // deleted — the same "siblings remain reachable during teardown"
+    // guarantee removeAllComponents provides, scoped to this subset. Unknown
+    // keys are skipped silently, consistent with single-key removeComponent.
+    const targets: Array<[string, Component<THost>]> = [];
+
+    for (const key of keys) {
+      const component = this.getNullableComponent<Component<THost>>(key);
+
+      if (component) {
+        targets.push([key, component]);
+      }
+    }
+
+    for (const [key, component] of targets) {
+      this._runComponentDestroy(key, component);
+    }
+
+    for (const [key, component] of targets) {
+      this._deleteComponent(key, component);
+    }
+  }
+
+  // Invokes a component's onDestroy, isolating a throw through the host's
+  // error channel. Shared by removeComponent, removeComponents, and
+  // removeAllComponents so the per-component error-isolation contract is
+  // identical across every teardown path.
+  private _runComponentDestroy(key: string, component: Component<THost>): void {
+    const deps = this._depsByComponent.get(component) ?? EMPTY_DEPS;
+
+    try {
       component.onDestroy(deps);
+    } catch (error) {
+      this._handleComponentDestroyError(error, key);
+    }
+  }
 
-      this.components.delete(key);
-      this._depsByComponent.delete(component);
+  // Removes a component from every host map. The single mutation primitive
+  // through which components leave the host, so the by-type cache can never
+  // desync from `components` — invalidation lives here rather than being
+  // re-implemented at each call site.
+  private _deleteComponent(key: string, component: Component<THost>): void {
+    this.components.delete(key);
+    this._depsByComponent.delete(component);
 
-      for (const [ref, componentKey] of this._componentByTypeCache) {
-        if (componentKey === key) {
-          this._componentByTypeCache.delete(ref);
-        }
+    for (const [ref, componentKey] of this._componentByTypeCache) {
+      if (componentKey === key) {
+        this._componentByTypeCache.delete(ref);
       }
     }
   }
@@ -391,12 +445,7 @@ export abstract class AbstractComponentHost<
     const snapshot = [...this.components];
 
     for (const [key, component] of snapshot) {
-      const deps = this._depsByComponent.get(component) ?? EMPTY_DEPS;
-      try {
-        component.onDestroy(deps);
-      } catch (error) {
-        this._handleComponentDestroyError(error, key);
-      }
+      this._runComponentDestroy(key, component);
     }
 
     this.components.clear();

@@ -210,11 +210,12 @@ export class PhysicsWorld extends AbstractWorldComponent {
   }
 
   /**
-   * The world's gravity, in pixels per second squared. Returns a fresh
-   * {@link Point} (a mutable copy — writing to it does not change the
-   * simulation; assign through the setter instead).
+   * The world's gravity, in pixels per second squared. Returned as a fresh
+   * `Readonly` {@link Point} so writing to it (which would not change the
+   * simulation) is a compile error — assign a new value through the setter
+   * instead.
    */
-  public get gravity(): Point {
+  public get gravity(): Readonly<Point> {
     return new Point(this._world.gravity.x, this._world.gravity.y);
   }
 

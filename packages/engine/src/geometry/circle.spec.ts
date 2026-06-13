@@ -25,6 +25,19 @@ describe('Circle', () => {
       expect(circle.getArea()).toBe(circle.area);
       expect(circle.getPerimeter()).toBe(circle.circumference);
     });
+
+    test('a negative radius is clamped to zero across every measurement', () => {
+      const degenerate = new Circle(-5);
+
+      // The getters clamp like the queries do, so a degenerate circle never
+      // reports a negative size — including through the polymorphic
+      // Shape.getPerimeter()/getArea() surface collision code relies on.
+      expect(degenerate.diameter).toBe(0);
+      expect(degenerate.circumference).toBe(0);
+      expect(degenerate.area).toBe(0);
+      expect(degenerate.getPerimeter()).toBe(0);
+      expect(degenerate.getArea()).toBe(0);
+    });
   });
 
   describe('containsPoint', () => {

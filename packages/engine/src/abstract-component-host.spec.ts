@@ -218,4 +218,115 @@ describe('AbstractComponentHost', () => {
       expect(host.getComponent('legacy')).toBe(component);
     });
   });
+
+  describe('add variants', () => {
+    test('addComponentFromFactory constructs the component with the host', () => {
+      const host = new TestHost();
+
+      const alpha = host.addComponentFromFactory('alpha', (h) => new Alpha(h));
+
+      expect(alpha).toBeInstanceOf(Alpha);
+      expect(host.getComponent('alpha')).toBe(alpha);
+    });
+
+    test('allowReplacement swaps an existing key, tearing the old one down', () => {
+      const host = new TestHost();
+      let oldDestroyed = false;
+      host.addComponent(
+        'slot',
+        makeComponent(host, {
+          onDestroy: () => {
+            oldDestroyed = true;
+          },
+        }),
+      );
+
+      const replacement = new Alpha(host);
+      host.addComponent('slot', replacement, { allowReplacement: true });
+
+      // Replacement routes through removeComponent, so the old component's
+      // onDestroy runs and the new instance takes the key.
+      expect(oldDestroyed).toBe(true);
+      expect(host.getComponent('slot')).toBe(replacement);
+    });
+  });
+
+  describe('removeComponent / removeComponents', () => {
+    test('removeComponent returns the removed component', () => {
+      const host = new TestHost();
+      const alpha = new Alpha(host);
+      host.addComponent('alpha', alpha);
+
+      expect(host.removeComponent('alpha')).toBe(alpha);
+      expect(host.hasComponent('alpha')).toBe(false);
+    });
+
+    test('removeComponent returns null for an unknown key', () => {
+      const host = new TestHost();
+
+      expect(host.removeComponent('nope')).toBeNull();
+    });
+
+    test('removeComponent isolates a throwing onDestroy and still removes the component', () => {
+      const host = new TestHost();
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      try {
+        host.addComponent(
+          'bad',
+          makeComponent(host, {
+            onDestroy: () => {
+              throw new Error('boom');
+            },
+          }),
+        );
+
+        // The throw is routed to the host's destroy-error channel rather
+        // than propagating, and the component leaves the host either way —
+        // it must not be stranded in the maps by its own failed teardown.
+        expect(() => host.removeComponent('bad')).not.toThrow();
+        expect(host.hasComponent('bad')).toBe(false);
+        expect(consoleSpy).toHaveBeenCalled();
+      } finally {
+        consoleSpy.mockRestore();
+      }
+    });
+
+    test('removeComponents runs every onDestroy before deleting, so siblings stay reachable', () => {
+      const host = new TestHost();
+      const seen: string[] = [];
+
+      host.addComponents({
+        first: makeComponent(host, {
+          onDestroy: () => {
+            seen.push(`first sees second: ${host.hasComponent('second')}`);
+          },
+        }),
+        second: makeComponent(host, {
+          onDestroy: () => {
+            seen.push(`second sees first: ${host.hasComponent('first')}`);
+          },
+        }),
+      });
+
+      host.removeComponents(['first', 'second']);
+
+      // Both onDestroy hooks ran while both components were still registered
+      // — the batch's defining guarantee over removeComponent-in-a-loop.
+      expect(seen).toEqual([
+        'first sees second: true',
+        'second sees first: true',
+      ]);
+      expect(host.hasComponent('first')).toBe(false);
+      expect(host.hasComponent('second')).toBe(false);
+    });
+
+    test('removeComponents skips unknown keys without throwing', () => {
+      const host = new TestHost();
+      host.addComponent('alpha', new Alpha(host));
+
+      expect(() => host.removeComponents(['alpha', 'ghost'])).not.toThrow();
+      expect(host.hasComponent('alpha')).toBe(false);
+    });
+  });
 });

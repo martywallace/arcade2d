@@ -143,6 +143,21 @@ describe('AudioEngine', () => {
       expect(engine.sfxVolume).toBeCloseTo(0.7);
     });
 
+    test('clamps out-of-range bus volumes to the documented 0..1 range', () => {
+      const engine = Game.createHeadless().audio;
+
+      // Unclamped, these would amplify (5x = clipping), invert phase (-1),
+      // or poison the gain node (NaN). The setters clamp so the documented
+      // contract is real, not just advisory.
+      engine.masterVolume = 5;
+      engine.musicVolume = -1;
+      engine.sfxVolume = NaN;
+
+      expect(engine.masterVolume).toBe(1);
+      expect(engine.musicVolume).toBe(0);
+      expect(engine.sfxVolume).toBe(0);
+    });
+
     test('decodeAudioData delegates to the underlying context', async () => {
       const engine = Game.createHeadless().audio;
       const buf = await engine.decodeAudioData(new ArrayBuffer(16));

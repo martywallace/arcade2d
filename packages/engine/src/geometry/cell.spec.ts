@@ -40,6 +40,25 @@ describe('Cell', () => {
     expect(grid.cellAt(1, 1)!.grid).toBe(grid);
   });
 
+  describe('equals', () => {
+    test('defaults to an exact comparison, unlike Point.equals', () => {
+      const cell = grid.cellAt(2, 2)!;
+
+      // Point.equals defaults to a tolerance of 1, which on discrete grid
+      // coordinates would call two adjacent cells equal. Cell overrides the
+      // default to 0 (exact), so an adjacent coordinate is not equal.
+      expect(cell.equals({ x: 2, y: 2 })).toBe(true);
+      expect(cell.equals({ x: 3, y: 2 })).toBe(false);
+      expect(cell.equals({ x: 2, y: 3 })).toBe(false);
+    });
+
+    test('still honours an explicit precision argument', () => {
+      const cell = grid.cellAt(2, 2)!;
+
+      expect(cell.equals({ x: 3, y: 2 }, 1)).toBe(true);
+    });
+  });
+
   describe('data and metadata', () => {
     test('cells start empty, passable, with unit cost', () => {
       const cell = grid.cellAt(0, 0)!;

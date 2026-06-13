@@ -163,6 +163,7 @@ export class Game extends AbstractComponentHost<Game> {
   }
 
   private _activeWorld: World | null = null;
+  private _destroyed = false;
   private readonly _tickerCallback: () => void;
 
   /**
@@ -425,6 +426,16 @@ export class Game extends AbstractComponentHost<Game> {
    * twice is safe and the second call is a no-op.
    */
   public destroy(): void {
+    // Guard the second call: PIXI's `Application.destroy` nulls its own
+    // internals, so calling it twice throws. The `_destroyed` flag makes the
+    // whole teardown a no-op after the first call, matching the documented
+    // idempotence and the same contract as World.destroy / onDestroy.
+    if (this._destroyed) {
+      return;
+    }
+
+    this._destroyed = true;
+
     if (this._activeWorld) {
       this._activeWorld.destroy();
       this._activeWorld = null;

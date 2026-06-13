@@ -536,6 +536,47 @@ describe('World', () => {
       expect(() => world.update()).not.toThrow();
       expect(nextSpy.updates).toBe(1);
     });
+
+    test('the world clock and frame index still advance when a fail-fast onError re-throws', () => {
+      const nowSpy = jest.spyOn(performance, 'now');
+
+      try {
+        nowSpy.mockReturnValueOnce(1000).mockReturnValueOnce(1016);
+
+        const world = new World(Game.createHeadless(), {
+          components: () => ({}),
+          onError: (context) => {
+            throw context.error;
+          },
+        });
+
+        let shouldThrow = true;
+        const object = world.createEmpty();
+        attachHook(object, {
+          onUpdate: () => {
+            if (shouldThrow) {
+              throw new Error('boom');
+            }
+          },
+        });
+
+        // Tick 1 (the first ever): the throw propagates out (fail-fast). The
+        // clock and frame index must still be committed in `finally`.
+        expect(() => world.update()).toThrow('boom');
+
+        shouldThrow = false;
+
+        // Tick 2 reports frameIndex 1 and a real 16ms delta against tick 1's
+        // committed timestamp. Without the finally-commit, the throwing tick
+        // would leave both untouched — frameIndex would repeat 0 and the
+        // delta would be 0 (this tick mistaken for the first).
+        const next = world.update();
+        expect(next.frameIndex).toBe(1);
+        expect(next.deltaMilliseconds).toBe(16);
+      } finally {
+        nowSpy.mockRestore();
+      }
+    });
   });
 
   describe('tag queries', () => {
@@ -652,6 +693,36 @@ describe('World', () => {
       );
       expect(world.findOneByTag('enemy')).toBeNull();
       expect(world.findOneByTag('enemy', { includePending: true })).toBeNull();
+    });
+
+    test('tag queries exclude a live object destroyed by an earlier object in the same tick', () => {
+      const world = createWorld();
+      // Spawn order is iteration order: the killer runs before the observer.
+      const victim = world.createEmpty(undefined, ['enemy']);
+      const killer = world.createEmpty();
+      const observer = world.createEmpty();
+
+      let observedAll: readonly WorldObject[] | null = null;
+      let observedOne: WorldObject | null = null;
+
+      attachHook(killer, { onUpdate: () => victim.destroy() });
+      attachHook(observer, {
+        onUpdate: () => {
+          observedAll = world.findByTag('enemy');
+          observedOne = world.findOneByTag('enemy');
+        },
+      });
+
+      // Tick 1 promotes the three setup-time spawns into the live set (their
+      // onUpdate hooks don't run until they're live). Tick 2 is the real
+      // test: the killer destroys the now-live victim, then the observer
+      // queries before the end-of-tick sweep removes it.
+      world.update();
+      world.update();
+
+      expect(victim.destroyed).toBe(true);
+      expect(observedAll).toHaveLength(0);
+      expect(observedOne).toBeNull();
     });
   });
 

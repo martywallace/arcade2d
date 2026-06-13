@@ -92,9 +92,27 @@ it all back, exactly once, in the right order:
 2. **Release every resource `onAdded` acquired** — Pixi `Container`/`Graphics`
    (`removeChild` then `.destroy()`), Rapier bodies/colliders (deregister from
    the `PhysicsWorld`), Web Audio nodes (`disconnect`/`stop`), and **event
-   listeners** (a forgotten listener keeps the whole component alive). The
-   leak-hardening pass added exactly these: `AudioInstance.destroy` clears its
-   ended-listeners, `Texture.destroy` disposes the framed wrapper.
+   listeners** (a forgotten listener keeps the whole component alive — `Mouse`
+   and `Keyboard` remove their `window`/canvas listeners *and* their `blur`
+   handler in `onDestroy`). The leak-hardening pass added exactly these:
+   `AudioInstance.destroy` clears its ended-listeners, `Texture.destroy`
+   disposes the framed wrapper. Two non-obvious leak classes the audit caught:
+   - **Secondary resources a wrapped object owns.** A Pixi display built from a
+     *plain options object* can own resources that a bare `.destroy()` won't
+     free without flags: a `Text` makes Pixi build (and attach a listener to) a
+     `TextStyle`, leaked unless you `destroy({ style: true })`. Graphics
+     components do this through the `AbstractGraphics._destroyOptions()` seam —
+     override it to return the right flags. But **never destroy a *shared*
+     resource**: a `Texture` handed out by the `AssetLibrary` is shared across
+     instances, so the default leaves `{ texture: false }`; only pass
+     `texture: true` for a per-instance texture you alone own (e.g. a `Text`'s
+     rasterised glyphs).
+   - **Container/aggregate objects you created, not just leaf displays.** A
+     component that builds its own containers (`Scene` owns a root container
+     plus one bucket per layer) must `destroy({ children: true })` them on
+     teardown — detaching from the stage with `removeChild` is *not* freeing.
+     Order it after the children's own `onDestroy` has run (graphics remove
+     themselves from their parent first), so it only sweeps the containers.
 3. **Null out the handles** (`this._body = null`, etc.) so a stray later call
    can't touch freed memory.
 4. **Be idempotent.** `onDestroy` may run during a normal removal and again on

@@ -1,4 +1,5 @@
 export * from './audio.constants';
+export * from './audio.support';
 export * from './audio-asset';
 export * from './audio-engine';
 export * from './audio-engine.types';

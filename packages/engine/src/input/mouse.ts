@@ -49,6 +49,11 @@ import type { MouseSnapshot } from './mouse.types';
  *   and clear the held-button state. Without this, the button would
  *   appear stuck-down until the user came back over the canvas and
  *   released again.
+ * - `blur` on `window` clears every held button. A press held when the
+ *   user alt-tabs or a native dialog steals focus has its `mouseup`
+ *   delivered to the other application, so the window never sees it; the
+ *   button would otherwise stay "stuck down" forever. This mirrors the
+ *   identical defence in {@link Keyboard}.
  *
  * The engine does not call `event.preventDefault()` on any of these — game
  * code is free to do that itself if it wants to suppress browser
@@ -88,6 +93,16 @@ export class Mouse extends AbstractGameComponent {
     this._writeButton(event.button, false);
   };
 
+  private readonly _onBlur = (): void => {
+    // Releases that happen while the window is unfocused (the user alt-tabbed
+    // away mid-click, or a native dialog stole focus) never reach us as
+    // `mouseup`, so the safe thing is to assume nothing is held the moment
+    // focus is lost. The next press over the canvas repopulates state.
+    this._pendingLeft = false;
+    this._pendingRight = false;
+    this._pendingMiddle = false;
+  };
+
   public override onAdded(): void {
     const canvas = this.host.canvas;
 
@@ -95,11 +110,13 @@ export class Mouse extends AbstractGameComponent {
     canvas.addEventListener('mousedown', this._onMouseDown);
 
     // Listen on window for mouseup so that releases off-canvas (after
-    // dragging the cursor away from the game) clear the button state.
-    // Guarded for non-browser environments — Jest's jsdom provides
-    // `window`, but Node-only tooling running the engine won't.
+    // dragging the cursor away from the game) clear the button state, and on
+    // blur so focus loss can't leave a button stuck down. Guarded for
+    // non-browser environments — Jest's jsdom provides `window`, but
+    // Node-only tooling running the engine won't.
     if (typeof window !== 'undefined') {
       window.addEventListener('mouseup', this._onMouseUp);
+      window.addEventListener('blur', this._onBlur);
     }
   }
 
@@ -121,6 +138,7 @@ export class Mouse extends AbstractGameComponent {
 
     if (typeof window !== 'undefined') {
       window.removeEventListener('mouseup', this._onMouseUp);
+      window.removeEventListener('blur', this._onBlur);
     }
   }
 

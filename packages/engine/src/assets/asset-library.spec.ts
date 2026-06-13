@@ -305,6 +305,32 @@ describe('AssetLibrary', () => {
 
       expect(unloadSpy).not.toHaveBeenCalled();
     });
+
+    test('waits for an in-flight load of the same key before freeing it', async () => {
+      const assets = createLibrary();
+
+      // Deferred load: it stays in flight until we resolve it below.
+      let resolveLoad!: (texture: Texture) => void;
+      mockLoad(
+        () =>
+          new Promise<Texture>((resolve) => {
+            resolveLoad = resolve;
+          }),
+      );
+
+      const loadPromise = assets.load('a.png'); // in flight, not awaited
+      const unloadPromise = assets.unload('a.png'); // must await the load
+
+      // Resolve the load after the unload has been issued. Without the await,
+      // unload would have no-op'd past the not-yet-stored asset and the load
+      // would re-register it with its GPU resource never freed.
+      resolveLoad(fakeTexture());
+      await loadPromise;
+      await unloadPromise;
+
+      expect(unloadSpy).toHaveBeenCalledWith('a.png');
+      expect(assets.getNullable('a.png')).toBeNull();
+    });
   });
 
   describe('unloadNamespace', () => {
@@ -325,6 +351,28 @@ describe('AssetLibrary', () => {
       await assets.unloadNamespace('nope');
 
       expect(unloadSpy).not.toHaveBeenCalled();
+    });
+
+    test('waits for in-flight loads in the namespace before dropping it', async () => {
+      const assets = createLibrary();
+
+      let resolveLoad!: (texture: Texture) => void;
+      mockLoad(
+        () =>
+          new Promise<Texture>((resolve) => {
+            resolveLoad = resolve;
+          }),
+      );
+
+      const loadPromise = assets.load('a.png', { namespace: 'level-1' });
+      const unloadPromise = assets.unloadNamespace('level-1');
+
+      resolveLoad(fakeTexture());
+      await loadPromise;
+      await unloadPromise;
+
+      expect(unloadSpy).toHaveBeenCalledWith(['a.png']);
+      expect(assets.has('a.png', 'level-1')).toBe(false);
     });
   });
 

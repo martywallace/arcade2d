@@ -409,6 +409,16 @@ export class AssetLibrary extends AbstractGameComponent {
     key: string,
     namespace: string = DEFAULT_ASSET_NAMESPACE,
   ): Promise<void> {
+    // A load for this key may still be in flight. If we went straight to the
+    // bucket we'd find nothing, no-op, and the load would then resolve and
+    // re-register the asset — with its GPU resource never freed. Wait for the
+    // load to settle so the unload below actually sees (and frees) it. A
+    // failed load registers nothing, so there is nothing left to unload.
+    const inFlight = this._loading.get(this._compositeKey(key, namespace));
+    if (inFlight) {
+      await inFlight.catch(() => undefined);
+    }
+
     const bucket = this._namespaces.get(namespace);
     const asset = bucket?.get(key);
 
@@ -448,6 +458,20 @@ export class AssetLibrary extends AbstractGameComponent {
    * ```
    */
   public async unloadNamespace(namespace: string): Promise<void> {
+    // Drain any loads still in flight for this namespace first — same race as
+    // single-key unload: a load resolving after the sweep would re-register
+    // an asset into a namespace the caller asked to drop. Composite keys are
+    // `namespace\0key`, so the namespace prefix isolates this namespace's
+    // in-flight loads from any other's.
+    const prefix = this._compositeKey('', namespace);
+    const inFlight = [...this._loading.entries()]
+      .filter(([compositeKey]) => compositeKey.startsWith(prefix))
+      .map(([, promise]) => promise.catch(() => undefined));
+
+    if (inFlight.length > 0) {
+      await Promise.all(inFlight);
+    }
+
     const bucket = this._namespaces.get(namespace);
 
     if (!bucket) {

@@ -59,6 +59,34 @@ describe('Scene', () => {
     expect(app.stage.children).not.toContain(scene.raw);
   });
 
+  test('destroys its container tree on destroy so it is not leaked', () => {
+    const { scene, world } = createWorldWithScene();
+    const container = scene.raw;
+
+    world.removeComponent('scene');
+
+    // Without the destroy, the root container (and any per-layer buckets)
+    // leak on every world teardown — level transitions, restarts.
+    expect(container.destroyed).toBe(true);
+  });
+
+  test('destroys per-layer bucket containers on destroy', () => {
+    const app = createFakeApp();
+    const layers = defineLayers('ground', 'characters');
+    const world = new World(Game.createHeadless(), {
+      layers,
+      components: (world) => ({
+        scene: () => new Scene(world, app, layers),
+      }),
+    });
+    const scene = world.getComponentByType(Scene);
+    const bucket = scene.containerForLayer(layers.get('ground'));
+
+    world.removeComponent('scene');
+
+    expect(bucket.destroyed).toBe(true);
+  });
+
   test('default camera frames world origin at the canvas centre after one tick', () => {
     const { scene, world } = createWorldWithScene(800, 600);
 

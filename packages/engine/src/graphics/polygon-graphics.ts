@@ -141,7 +141,7 @@ export class PolygonGraphics extends AbstractGraphics<PixiGraphics> {
    * @param polygon The polygon shape to draw. Stored as-is for inspection.
    * Polygons with fewer than three vertices produce no draw output.
    * @param fill The fill color, as a 24-bit RGB integer. Defaults to white.
-   * Change it later with {@link PolygonGraphics.setFill}.
+   * Change it later by assigning {@link PolygonGraphics.fill}.
    * @param options Optional {@link ShapeGraphicsOptions} (alpha, visibility).
    */
   constructor(
@@ -157,20 +157,17 @@ export class PolygonGraphics extends AbstractGraphics<PixiGraphics> {
   }
 
   /**
-   * The current fill colour, as a 24-bit RGB integer.
+   * The fill colour, as a 24-bit RGB integer. Assigning re-issues the fill
+   * into the underlying renderer graphic without rebuilding the component.
+   * Settable to match {@link Text.fill} and the `tint` accessor on textured
+   * graphics, rather than a `setX()` method.
    */
   public get fill(): number {
     return this._fill;
   }
 
-  /**
-   * Recolours the polygon, re-issuing the fill into the underlying renderer
-   * graphic — without rebuilding the component.
-   *
-   * @param fill The new fill colour, as a 24-bit RGB integer.
-   */
-  public setFill(fill: number): void {
-    this._fill = fill;
+  public set fill(value: number) {
+    this._fill = value;
     this._redraw();
   }
 

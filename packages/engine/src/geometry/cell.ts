@@ -228,6 +228,24 @@ export class Cell<TData = unknown> extends Point {
   }
 
   /**
+   * Determines whether this cell sits at the same grid coordinate as a target.
+   *
+   * Overrides {@link Point.equals} to default `precision` to `0` (exact)
+   * rather than `Point`'s deliberately-loose `1`. Cell coordinates are
+   * discrete integers, so the inherited tolerance of `1` would report two
+   * *adjacent* cells as equal — almost never what grid code wants. Within a
+   * single grid, cells are stable singletons, so `===` identity is the
+   * cheapest exact test; this method is for comparing against a bare
+   * coordinate (e.g. a `{ x, y }` target).
+   *
+   * @param target The cell or coordinate to compare against.
+   * @param precision The maximum allowed per-axis difference. Defaults to `0`.
+   */
+  public override equals(target: PointPrimitive, precision = 0): boolean {
+    return super.equals(target, precision);
+  }
+
+  /**
    * Returns a string representation of this cell (its grid coordinate).
    */
   public override toString(): string {

@@ -1,4 +1,4 @@
-import { Text as PixiText } from 'pixi.js';
+import { type DestroyOptions, Text as PixiText } from 'pixi.js';
 import { FontAsset } from '../assets/font-asset';
 import { WorldObject } from '../world';
 import { AbstractTexturedGraphics } from './abstract-textured-graphics';
@@ -90,6 +90,15 @@ export class Text extends AbstractTexturedGraphics<PixiText> {
     // anchor/tint/alpha/visible are applied by AbstractTexturedGraphics. Note
     // `fill` is the glyph colour; `tint` multiplies on top of it.
     super(host, display, options);
+  }
+
+  // Pixi creates and owns a TextStyle when a PixiText is constructed from a
+  // plain style object (as above), and registers an update listener on it.
+  // The base onDestroy would leave that style — and its listener — alive, so
+  // override to free it. `text: true` also releases the rasterised glyph
+  // texture, which is unique to this instance and not a shared asset.
+  protected override _destroyOptions(): DestroyOptions {
+    return { style: true, texture: true };
   }
 
   /**

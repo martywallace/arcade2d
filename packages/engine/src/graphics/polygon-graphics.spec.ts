@@ -121,7 +121,7 @@ describe('PolygonGraphics', () => {
   });
 
   describe('fill and visibility', () => {
-    test('exposes the constructed fill and recolours via setFill', () => {
+    test('exposes the constructed fill and recolours via the fill setter', () => {
       const { world } = createWorldWithScene();
       const object = world.createEmpty();
       const triangle = new Polygon([
@@ -133,7 +133,7 @@ describe('PolygonGraphics', () => {
 
       expect(graphics.fill).toBe(0xff0000);
 
-      graphics.setFill(0x0000ff);
+      graphics.fill = 0x0000ff;
 
       expect(graphics.fill).toBe(0x0000ff);
       expect(graphics.raw.context.instructions.length).toBeGreaterThan(0);

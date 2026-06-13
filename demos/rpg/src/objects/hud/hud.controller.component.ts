@@ -134,7 +134,7 @@ export class HudController extends AbstractWorldObjectComponent {
     if (ratio !== this._lastRatio) {
       this._lastRatio = ratio;
       this._fill.scale.set(ratio, 1);
-      this._fillGraphics.setFill(healthFillColour(ratio));
+      this._fillGraphics.fill = healthFillColour(ratio);
     }
 
     const kills = this.game.getComponentByType(KillCount).count;

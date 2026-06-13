@@ -116,6 +116,32 @@ describe('AudioSource', () => {
       world.update();
       expect(source.activeVoiceCount).toBe(0);
     });
+
+    test('pause/resume toggle the aggregate playing state of active voices', () => {
+      const { source } = setup();
+
+      source.play();
+      source.play();
+      expect(source.playing).toBe(true);
+
+      source.pause();
+      expect(source.playing).toBe(false);
+      // Paused voices are kept (not pruned), so resume can restart them.
+      expect(source.activeVoiceCount).toBe(2);
+
+      source.resume();
+      expect(source.playing).toBe(true);
+    });
+
+    test('clamps the default volume to 0..1 on assignment', () => {
+      const { source } = setup();
+
+      source.volume = 5;
+      expect(source.volume).toBe(1);
+
+      source.volume = -1;
+      expect(source.volume).toBe(0);
+    });
   });
 
   describe('with a faked AudioContext', () => {

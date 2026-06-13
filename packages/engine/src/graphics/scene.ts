@@ -315,6 +315,15 @@ export class Scene extends AbstractWorldComponent<SceneDeps> {
   }
 
   public override onDestroy(): void {
+    // Detach from the stage, then destroy the container tree the scene owns.
+    // By the time a world tears down, every graphics component has already
+    // run its own onDestroy (which removes its display from its parent before
+    // destroying it), so the only descendants left are the per-layer bucket
+    // containers the scene itself created — `{ children: true }` sweeps them.
+    // Without this the root container and every layer bucket leak on each
+    // world teardown (level transition, restart).
     this._app.stage.removeChild(this._container);
+    this._container.destroy({ children: true });
+    this._layerContainers.clear();
   }
 }

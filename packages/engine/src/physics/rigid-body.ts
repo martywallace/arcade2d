@@ -188,10 +188,11 @@ export class RigidBody extends AbstractWorldObjectComponent<RigidBodyDeps> {
 
   /**
    * The body's linear velocity, in pixels per second, as a fresh
-   * {@link Point}. Mutating the returned point does nothing — assign through
-   * the setter.
+   * {@link Point}. Returned as `Readonly` so the "I mutated it and nothing
+   * happened" footgun is a compile error — assign a new value through the
+   * setter to change the body's velocity.
    */
-  public get velocity(): Point {
+  public get velocity(): Readonly<Point> {
     const velocity = this._requireBody().linvel();
 
     return new Point(velocity.x, velocity.y);
@@ -269,6 +270,40 @@ export class RigidBody extends AbstractWorldObjectComponent<RigidBodyDeps> {
    */
   public wake(): void {
     this._requireBody().wakeUp();
+  }
+
+  /**
+   * Teleports the body to a world position, in pixels, bypassing the
+   * simulation. This is the supported way to respawn, warp, or reset a body
+   * — a `dynamic` body's transform is owned by the simulation, so writing
+   * `host.position` does nothing for it and the influence verbs
+   * ({@link RigidBody.velocity}, {@link RigidBody.applyImpulse}) can't place
+   * a body at an exact spot. The move is instantaneous and generates no
+   * contacts along the way; existing linear velocity is preserved (zero it
+   * via {@link RigidBody.velocity} for a clean stop). Wakes the body so the
+   * change takes effect on the next step.
+   *
+   * @param position The target world position, in pixels.
+   */
+  public setPosition(position: PointPrimitive): void {
+    this._requireBody().setTranslation({ x: position.x, y: position.y }, true);
+
+    // Mirror onto the host immediately so the teleport is visible this frame
+    // regardless of when it was called relative to the pre-update readback;
+    // the next step's readback re-derives the same value.
+    this.host.position.set(position.x, position.y);
+  }
+
+  /**
+   * Teleports the body to an absolute rotation, in radians, bypassing the
+   * simulation — the angular counterpart to {@link RigidBody.setPosition}.
+   * Existing angular velocity is preserved; the body is woken.
+   *
+   * @param rotation The target rotation, in radians.
+   */
+  public setRotation(rotation: number): void {
+    this._requireBody().setRotation(rotation, true);
+    this.host.rotation = rotation;
   }
 
   /**

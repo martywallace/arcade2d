@@ -315,5 +315,21 @@ describe('Game', () => {
       expect(tickerRemove).toHaveBeenCalledTimes(1);
       expect(appDestroy).toHaveBeenCalledTimes(1);
     });
+
+    test('is idempotent — a second destroy is a no-op, not a re-teardown', () => {
+      const app = createFakeApp();
+      const appDestroy = app.destroy as jest.Mock;
+      const tickerRemove = app.ticker.remove as jest.Mock;
+      const game = new Game(app);
+      game.createWorld();
+
+      game.destroy();
+
+      // A real PIXI Application throws if destroyed twice (it nulls its own
+      // internals), so the guard must prevent the second teardown entirely.
+      expect(() => game.destroy()).not.toThrow();
+      expect(appDestroy).toHaveBeenCalledTimes(1);
+      expect(tickerRemove).toHaveBeenCalledTimes(1);
+    });
   });
 });

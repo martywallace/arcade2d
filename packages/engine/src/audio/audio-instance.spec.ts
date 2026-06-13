@@ -54,6 +54,20 @@ describe('AudioInstance', () => {
       expect(inst.loop).toBe(true);
     });
 
+    test('clamps volume to 0..1 on assignment and construction', () => {
+      const inst = engine.createInstance(fakeBuffer(), AudioCategory.Sfx);
+
+      inst.volume = 5;
+      expect(inst.volume).toBe(1);
+      inst.volume = -2;
+      expect(inst.volume).toBe(0);
+
+      const loud = engine.createInstance(fakeBuffer(), AudioCategory.Sfx, {
+        volume: 3,
+      });
+      expect(loud.volume).toBe(1);
+    });
+
     test('destroy is safe in headless mode', () => {
       const inst = engine.createInstance(fakeBuffer(), AudioCategory.Sfx);
       inst.play();

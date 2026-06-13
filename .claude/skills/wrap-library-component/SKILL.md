@@ -240,9 +240,21 @@ property you add:
   `pos`; `rotation` in radians (engine convention); method names that mirror
   sibling components (e.g. all wrapping components that hold a resource use
   `setX` rather than mixing `setX`/`updateX`/`replaceX`).
-- **Mirror arcade2d mutability rules.** Components expose state with `get`
-  and `set` accessors; favor `readonly` on internal fields unless mutation
-  is genuinely required.
+- **Mirror arcade2d mutability rules, and split accessors by arity:**
+  - **Scalar props** (a single `number`/`string`/`boolean`/color — `fill`,
+    `tint`, `alpha`, `fontSize`, `loop`) use a plain `get`/`set` accessor.
+    Do **not** spell a scalar mutation as a `setX()` method — `circle.fill =
+    0xff0000` should work the same as `sprite.tint = 0xff0000` and
+    `text.fill = …`. (A lone `setFill()` method was the inconsistency the
+    audit removed.)
+  - **Vector/multi-component props** (`Point`-shaped — `velocity`, `gravity`,
+    `tileScale`, `anchor`) use a `get` returning **`Readonly<Point>`** (a
+    fresh copy, or a live instance the caller must not touch) plus a
+    `setX(x, y)` method. Returning a plain mutable `Point` is a footgun:
+    `body.velocity.x = 5` compiles and silently does nothing. The `Readonly`
+    return type makes that a compile error. (This is the engine-wide rule in
+    CLAUDE.md's "Vector getters return `Readonly<Point>`.")
+  - Favor `readonly` on internal fields unless mutation is genuinely required.
 - **Don't reflect every upstream method.** A proxy isn't a transparent
   forwarder — surface what an arcade2d user actually needs. The escape hatch
   exists for the long tail.

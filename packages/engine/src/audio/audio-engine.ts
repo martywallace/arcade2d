@@ -2,6 +2,7 @@ import { AbstractGameComponent } from '../abstract-game-component';
 import { ErrorCode } from '../error.constants';
 import { throwEngineError } from '../error.support';
 import { AudioCategory } from './audio.constants';
+import { clampVolume } from './audio.support';
 import type { AudioEngineOptions } from './audio-engine.types';
 import { AudioInstance } from './audio-instance';
 import type { AudioInstanceOptions } from './audio-instance.types';
@@ -156,7 +157,7 @@ export class AudioEngine extends AbstractGameComponent {
 
   public set masterVolume(value: number) {
     if (this._masterGain) {
-      this._masterGain.gain.value = value;
+      this._masterGain.gain.value = clampVolume(value);
     }
   }
 
@@ -171,7 +172,7 @@ export class AudioEngine extends AbstractGameComponent {
 
   public set musicVolume(value: number) {
     if (this._musicGain) {
-      this._musicGain.gain.value = value;
+      this._musicGain.gain.value = clampVolume(value);
     }
   }
 
@@ -186,7 +187,7 @@ export class AudioEngine extends AbstractGameComponent {
 
   public set sfxVolume(value: number) {
     if (this._sfxGain) {
-      this._sfxGain.gain.value = value;
+      this._sfxGain.gain.value = clampVolume(value);
     }
   }
 

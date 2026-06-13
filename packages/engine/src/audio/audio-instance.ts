@@ -1,4 +1,5 @@
 import type { AudioEngine } from './audio-engine';
+import { clampVolume } from './audio.support';
 import type { AudioInstanceOptions } from './audio-instance.types';
 
 /**
@@ -80,7 +81,7 @@ export class AudioInstance {
     private readonly _categoryGain: GainNode | null,
     options: AudioInstanceOptions = {},
   ) {
-    this._volume = options.volume ?? 1;
+    this._volume = clampVolume(options.volume ?? 1);
     this._pan = options.pan ?? 0;
     this._loop = options.loop ?? false;
 
@@ -141,9 +142,9 @@ export class AudioInstance {
   }
 
   public set volume(value: number) {
-    this._volume = value;
+    this._volume = clampVolume(value);
     if (this._gain) {
-      this._gain.gain.value = value;
+      this._gain.gain.value = this._volume;
     }
   }
 

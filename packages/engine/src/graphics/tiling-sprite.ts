@@ -133,10 +133,11 @@ export class TilingSprite extends AbstractTexturedGraphics<PixiTilingSprite> {
   }
 
   /**
-   * The per-tile scale as a fresh {@link Point}. Returned by value; use
+   * The per-tile scale as a fresh `Readonly` {@link Point}. Returned by
+   * value so mutating it is inert (and now a compile error); use
    * {@link TilingSprite.setTileScale} to change it.
    */
-  public get tileScale(): Point {
+  public get tileScale(): Readonly<Point> {
     return new Point(this.raw.tileScale.x, this.raw.tileScale.y);
   }
 
@@ -152,10 +153,11 @@ export class TilingSprite extends AbstractTexturedGraphics<PixiTilingSprite> {
   }
 
   /**
-   * The current tiling-pattern offset as a fresh {@link Point}. Returned by
-   * value; use {@link TilingSprite.setTileOffset} to change it.
+   * The current tiling-pattern offset as a fresh `Readonly` {@link Point}.
+   * Returned by value so mutating it is inert (and now a compile error); use
+   * {@link TilingSprite.setTileOffset} to change it.
    */
-  public get tileOffset(): Point {
+  public get tileOffset(): Readonly<Point> {
     return new Point(this.raw.tilePosition.x, this.raw.tilePosition.y);
   }
 

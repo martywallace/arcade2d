@@ -3,6 +3,7 @@ import { throwEngineError } from '../error.support';
 import { AbstractWorldObjectComponent } from '../world/abstract-world-object-component';
 import type { WorldObject } from '../world/world-object';
 import { AudioCategory } from './audio.constants';
+import { clampVolume } from './audio.support';
 import type { AudioAsset } from './audio-asset';
 import type { AudioInstance } from './audio-instance';
 import type {
@@ -90,7 +91,7 @@ export class AudioSource extends AbstractWorldObjectComponent {
   ) {
     super(host);
     this._asset = asset;
-    this._volume = options.volume ?? 1;
+    this._volume = clampVolume(options.volume ?? 1);
     this._pan = options.pan ?? 0;
   }
 
@@ -123,9 +124,9 @@ export class AudioSource extends AbstractWorldObjectComponent {
   }
 
   public set volume(value: number) {
-    this._volume = value;
+    this._volume = clampVolume(value);
     for (const voice of this._voices) {
-      voice.volume = value;
+      voice.volume = this._volume;
     }
   }
 
@@ -210,6 +211,32 @@ export class AudioSource extends AbstractWorldObjectComponent {
   }
 
   /**
+   * Pauses every voice this source currently has playing, each keeping its
+   * resume position; a later {@link AudioSource.resume} restarts them from
+   * where they paused. The aggregate counterpart to
+   * {@link AudioInstance.pause}, mirroring the per-voice surface up to the
+   * source. Voices that are not playing are left untouched.
+   */
+  public pause(): void {
+    for (const voice of this._voices) {
+      voice.pause();
+    }
+  }
+
+  /**
+   * Resumes every voice this source paused with {@link AudioSource.pause},
+   * each from its saved position. Voices that are not paused (still playing,
+   * or already finished) are left untouched.
+   */
+  public resume(): void {
+    for (const voice of this._voices) {
+      if (voice.paused) {
+        voice.play();
+      }
+    }
+  }
+
+  /**
    * The number of voices this source currently has running. Useful for
    * tests and for caps ("don't spawn more than four concurrent footsteps").
    */
@@ -218,8 +245,25 @@ export class AudioSource extends AbstractWorldObjectComponent {
   }
 
   /**
-   * Stops every active voice and releases the source's audio graph
-   * resources when the host {@link WorldObject} is destroyed.
+   * Whether this source has at least one voice currently advancing through
+   * its buffer (playing and unpaused). The aggregate counterpart to
+   * {@link AudioInstance.playing}.
+   */
+  public get playing(): boolean {
+    for (const voice of this._voices) {
+      if (voice.playing) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Stops and tears down every voice this source spawned when the host
+   * {@link WorldObject} is destroyed. The source itself owns no audio-graph
+   * nodes — each voice owns and disconnects its own gain/panner — so this is
+   * just a bulk {@link AudioSource.stop}.
    */
   public override onDestroy(): void {
     this.stop();

@@ -20,7 +20,15 @@ post on the topic). Today the repo contains:
   documentation of "what idiomatic arcade2d code looks like."
 - **`demos/dungeon-crawler`** — a dungeon crawler that exercises texture and
   sprite rendering, built on the bundled tileset and character assets.
+- **`demos/physics-playground`** — a sandbox exercising the Rapier-backed
+  `PhysicsWorld` / `RigidBody` (bodies, colliders, the fixed-step loop).
+- **`demos/rpg`** — a top-down zombie-survival RPG and the most integrated
+  demo: dynamic physics bodies, grid flow-field pathfinding, gunshot SFX,
+  sprites + `Text` HUD over a tiled ground. Use it when a change spans
+  subsystems.
 - **`apps/devserver`** — the dev-server / editor surface, in progress.
+- **`apps/website`** — the docs/marketing site, including the generated
+  API reference (TypeDoc from the engine JSDoc).
 
 The repo is a Yarn 4 workspaces monorepo orchestrated by Turborepo
 (`turbo.json` at the root). Scripts at the root level (`yarn build`,
@@ -118,6 +126,16 @@ message, context)` with a code from the `ErrorCode` enum in
   fields and types liberally. Use `as const`, frozen options objects, etc.
   Where mutability is intentional (e.g. component-internal state, game
   loop hot paths), it's fine to skip.
+- **Vector getters return `Readonly<Point>`.** A getter that hands back a
+  `Point` — whether a fresh copy (`RigidBody.velocity`, `PhysicsWorld.gravity`,
+  `TilingSprite.tileScale`) or a live internal instance (`Camera.shakeOffset`)
+  — must be typed `Readonly<Point>`. Otherwise `body.velocity.x = 5` compiles,
+  runs, and silently does nothing (the value is a throwaway, or mutating the
+  live instance is a contract violation). Make that a compile error and expose
+  mutation through a dedicated setter or a `setX(x, y)` method instead. Scalar
+  visual props (`fill`, `tint`, `alpha`) use a plain `get`/`set` accessor, not
+  a `setX()` method — see the `wrap-library-component` skill for the full
+  scalar-vs-vector rule.
 - **No comments at the top of files describing the file.** Use class- or
   symbol-level JSDoc instead so it shows up in tooling.
 
@@ -170,6 +188,14 @@ type are registered', ...)`.
 - **New public APIs require tests.** Cover the happy path, the throwing
   paths (with the specific `ErrorCode` asserted), and any non-obvious
   edge cases (re-entrancy, idempotence, ordering invariants).
+- **Don't let a test double mask the failure mode.** Idempotence and teardown
+  tests are only meaningful against something that exhibits the real failure.
+  `Game.destroy`'s "is idempotent" test passed for a long time _vacuously_ —
+  it ran against `Game.createHeadless`, whose stub `Application.destroy` is a
+  no-op, so it never exercised the real Pixi `Application.destroy` that throws
+  on a second call. Test double-destroy/double-free against a fake that mimics
+  the real resource (e.g. a `createFakeApp` whose `destroy` is a spy you assert
+  is called exactly once), or in a demo.
 - Aim for 100% line coverage on new files. The coverage report is part of
   `yarn workspace @arcade2d/engine test`.
 
@@ -178,15 +204,17 @@ type are registered', ...)`.
 Most operations should be issued from the repo root and let Turborepo
 fan them out:
 
-| Command                                 | What it does                                    |
-| --------------------------------------- | ----------------------------------------------- |
-| `yarn build`                            | Build every workspace                           |
-| `yarn typecheck`                        | Run `tsc --noEmit` across every workspace       |
-| `yarn lint`                             | ESLint across every workspace                   |
-| `yarn test`                             | Jest across every workspace                     |
-| `yarn workspace @arcade2d/engine <cmd>` | Run `<cmd>` only in the engine                  |
-| `yarn demo:simple-shooter`              | Run the simple-shooter demo against the engine  |
-| `yarn demo:dungeon-crawler`             | Run the dungeon-crawler demo against the engine |
+| Command                                 | What it does                                       |
+| --------------------------------------- | -------------------------------------------------- |
+| `yarn build`                            | Build every workspace                              |
+| `yarn typecheck`                        | Run `tsc --noEmit` across every workspace          |
+| `yarn lint`                             | ESLint across every workspace                      |
+| `yarn test`                             | Jest across every workspace                        |
+| `yarn workspace @arcade2d/engine <cmd>` | Run `<cmd>` only in the engine                     |
+| `yarn demo:simple-shooter`              | Run the simple-shooter demo against the engine     |
+| `yarn demo:dungeon-crawler`             | Run the dungeon-crawler demo against the engine    |
+| `yarn demo:physics-playground`          | Run the physics-playground demo against the engine |
+| `yarn demo:rpg`                         | Run the rpg demo against the engine                |
 
 The demos' `dev` script invokes `yarn workspace @arcade2d/root exec turbo run
 build --filter=...^...` before starting Vite, so the demo always runs against

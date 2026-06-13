@@ -299,14 +299,36 @@ export interface ComponentHost<THost extends ComponentHost<THost>> {
   ): boolean;
 
   /**
-   * Removes a component from the host object. Care should be taken when
-   * manually removing components, as methods like `getComponent()` will throw
-   * if components do not exist. Removal is idempotent and will do nothing if
-   * the component does not exist i.e. was already removed, or never existed.
+   * Removes a component from the host object and returns it, so callers can
+   * keep inspecting the detached component (or move it to another host).
+   * Care should be taken when manually removing components, as methods like
+   * `getComponent()` will throw if components do not exist. Removal is
+   * idempotent: removing a key that does not exist (already removed, or never
+   * present) is a no-op that returns `null`.
+   *
+   * The component's `onDestroy` runs while it is still registered (so it can
+   * reach its siblings during teardown); a throw from `onDestroy` is routed
+   * to the host's error channel rather than propagating, and the component is
+   * removed from the host either way.
    *
    * @param key The key of the component to remove.
+   * @returns The removed component, or `null` if no component was registered
+   * under `key`.
    */
-  removeComponent(key: string): void;
+  removeComponent(key: string): Component<THost> | null;
+
+  /**
+   * Removes several components in one batch, mirroring the four
+   * `addComponents*` variants on the add side. Unlike calling
+   * {@link ComponentHost.removeComponent} in a loop, this runs every targeted
+   * component's `onDestroy` *first* and only then deletes them — so two
+   * interdependent components can still reach each other during teardown,
+   * the same guarantee {@link ComponentHost.removeAllComponents} provides,
+   * scoped to the named subset. Unknown keys are skipped silently.
+   *
+   * @param keys The keys of the components to remove.
+   */
+  removeComponents(keys: readonly string[]): void;
 
   /**
    * Removes all components from the host object. Typically called internally

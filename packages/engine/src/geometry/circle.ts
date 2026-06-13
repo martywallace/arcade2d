@@ -31,24 +31,29 @@ export class Circle implements Shape {
   constructor(public readonly radius = 0) {}
 
   /**
-   * The distance across the circle through its center (`radius * 2`).
+   * The distance across the circle through its center (`radius * 2`). A
+   * negative radius is clamped to zero, matching the containment and
+   * intersection queries, so a degenerate circle never reports a negative
+   * measurement (including through the polymorphic {@link Shape.getPerimeter}).
    */
   public get diameter(): number {
-    return this.radius * 2;
+    return Math.max(0, this.radius) * 2;
   }
 
   /**
-   * The distance around the circle (`2πr`).
+   * The distance around the circle (`2πr`). A negative radius is clamped to
+   * zero — see {@link Circle.diameter}.
    */
   public get circumference(): number {
-    return this.radius * 2 * Math.PI;
+    return Math.max(0, this.radius) * 2 * Math.PI;
   }
 
   /**
-   * The area enclosed by the circle (`πr²`).
+   * The area enclosed by the circle (`πr²`). A negative radius is clamped to
+   * zero — see {@link Circle.diameter}.
    */
   public get area(): number {
-    return Math.PI * this.radius ** 2;
+    return Math.PI * Math.max(0, this.radius) ** 2;
   }
 
   /**

@@ -43,6 +43,20 @@ describe('Text', () => {
     expect(text.text).toBe('Hello');
   });
 
+  test('onDestroy releases the owned TextStyle and glyph texture', () => {
+    const { world } = createWorldWithScene();
+    const text = new Text(world.createEmpty(), 'Hello');
+    const destroySpy = jest.spyOn(text.raw, 'destroy');
+
+    text.onDestroy();
+
+    // Pixi builds and owns a TextStyle (plus an update listener) from the
+    // plain style object the constructor passes; destroying the display
+    // without { style: true } leaks it. The glyph texture is unique to this
+    // instance, so { texture: true } frees that too.
+    expect(destroySpy).toHaveBeenCalledWith({ style: true, texture: true });
+  });
+
   describe('options', () => {
     test('defaults to sans-serif at 16px white centred', () => {
       const { world } = createWorldWithScene();

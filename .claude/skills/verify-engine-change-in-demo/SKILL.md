@@ -38,6 +38,12 @@ Pick the demo that exercises the code you touched:
 | geometry, shapes, physics, colliders | `physics-playground` |
 | sprites, textures, tiling, text, tilesets | `dungeon-crawler` |
 | basic shape graphics, world/object loop, input | `simple-shooter` |
+| physics + graphics + audio + input together, grid/pathfinding | `rpg` |
+
+`rpg` is the most integrated demo (dynamic bodies, shape graphics, `Text`,
+tiled ground, gunshot SFX, WASD+mouse input, flow-field pathfinding) — reach
+for it when a change spans subsystems or you want one demo that touches most of
+the engine at once.
 
 When a change is bundling-structural (could affect *any* consumer), run a demo
 that constructs the affected types directly — the physics demo's
@@ -54,7 +60,8 @@ that constructs the affected types directly — the physics demo's
 
 2. **Start the demo** via the preview tools (never `yarn dev`/Bash for servers).
    The demos are registered in `.claude/launch.json` (`physics-playground`,
-   `dungeon-crawler`, `simple-shooter`). Use `preview_start` with that name.
+   `dungeon-crawler`, `simple-shooter`, `rpg`). Use `preview_start` with that
+   name.
 
 3. **Check for errors first.** `preview_console_logs` (level `error`). Note the
    log buffer **persists across reloads** — after a fix + reload, stale

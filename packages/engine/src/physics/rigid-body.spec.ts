@@ -291,6 +291,31 @@ describe('RigidBody', () => {
       expect(() => body.wake()).not.toThrow();
     });
 
+    test('setPosition teleports the body and mirrors onto the host immediately', () => {
+      const world = makeWorld();
+      const { object, body } = addBody(world, CIRCLE);
+
+      body.setPosition({ x: 120, y: -40 });
+
+      const translation = body.raw.translation();
+      expect(translation.x).toBeCloseTo(120);
+      expect(translation.y).toBeCloseTo(-40);
+      // Mirrored onto the host so the teleport is visible this frame rather
+      // than after the next pre-update readback.
+      expect(object.position.x).toBeCloseTo(120);
+      expect(object.position.y).toBeCloseTo(-40);
+    });
+
+    test('setRotation teleports the body angle and mirrors onto the host', () => {
+      const world = makeWorld();
+      const { object, body } = addBody(world, CIRCLE);
+
+      body.setRotation(Math.PI / 2);
+
+      expect(body.raw.rotation()).toBeCloseTo(Math.PI / 2);
+      expect(object.rotation).toBeCloseTo(Math.PI / 2);
+    });
+
     test('control methods throw PHYSICS_BODY_NOT_ATTACHED before the component is added', () => {
       const object = makeWorld().createEmpty();
       const detached = new RigidBody(object, CIRCLE);

@@ -111,6 +111,6 @@ export class HealthBar extends AbstractWorldObjectComponent {
 
     this._lastRatio = ratio;
     this._fill.scale.set(ratio, 1);
-    this._fillGraphics.setFill(healthFillColour(ratio));
+    this._fillGraphics.fill = healthFillColour(ratio);
   }
 }

@@ -66,14 +66,14 @@ describe('CircleGraphics', () => {
   });
 
   describe('fill', () => {
-    test('exposes the constructed fill and recolours via setFill', () => {
+    test('exposes the constructed fill and recolours via the fill setter', () => {
       const { world } = createWorldWithScene();
       const object = world.createEmpty();
       const graphics = new CircleGraphics(object, new Circle(5), 0xff0000);
 
       expect(graphics.fill).toBe(0xff0000);
 
-      graphics.setFill(0x00ff00);
+      graphics.fill = 0x00ff00;
 
       expect(graphics.fill).toBe(0x00ff00);
       // Recolouring re-issues the fill, so the graphic still draws something.

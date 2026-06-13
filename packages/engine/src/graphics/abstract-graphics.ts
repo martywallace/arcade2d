@@ -1,4 +1,4 @@
-import { Container, Matrix as PixiMatrix } from 'pixi.js';
+import { Container, type DestroyOptions, Matrix as PixiMatrix } from 'pixi.js';
 import { ErrorCode } from '../error.constants';
 import { throwEngineError } from '../error.support';
 import { AbstractWorldObjectComponent, WorldObject } from '../world';
@@ -138,7 +138,20 @@ export abstract class AbstractGraphics<
     // Detach from whatever container actually holds the display — the scene
     // root in layer-less mode, or a layer bucket otherwise — then release it.
     this._display.parent?.removeChild(this._display);
-    this._display.destroy();
+    this._display.destroy(this._destroyOptions());
+  }
+
+  /**
+   * The options handed to the underlying Pixi display object's `destroy`
+   * during {@link AbstractGraphics.onDestroy}. The base returns `{}` —
+   * destroy the node itself but leave *shared* resources alone, since
+   * textures are owned by the asset layer and shared across instances.
+   * Subclasses that construct an **owned, non-shared** Pixi resource
+   * override this to release it (e.g. {@link Text} returns `{ style: true }`
+   * to free the `TextStyle` Pixi created for it).
+   */
+  protected _destroyOptions(): DestroyOptions {
+    return {};
   }
 
   /**

@@ -741,10 +741,16 @@ export class World extends AbstractComponentHost<World> {
       }
     } finally {
       this._isUpdating = false;
-    }
 
-    this._previousTickTimestamp = now;
-    this._frameIndex += 1;
+      // Commit the clock and frame index in `finally` so the documented
+      // fail-fast escape hatch (a re-throwing `onError`) still advances them.
+      // If these ran only on the normal path, a propagating error would leave
+      // the next tick diffing against a stale `_previousTickTimestamp` (an
+      // inflated delta that teleports every moving entity) and repeating the
+      // previous `_frameIndex` (breaking "every N frames" stride logic).
+      this._previousTickTimestamp = now;
+      this._frameIndex += 1;
+    }
 
     return update;
   }
@@ -791,7 +797,10 @@ export class World extends AbstractComponentHost<World> {
   }
 
   /**
-   * Finds all live objects in the world with the given tag. By default
+   * Finds all live objects in the world with the given tag. Objects that
+   * were marked destroyed earlier in the current tick but not yet swept are
+   * **always** excluded — they are no longer live, even though they remain
+   * in the iteration set until the end-of-tick sweep. By default this also
    * **excludes** objects that were spawned during the current tick and are
    * still awaiting promotion into the live set — bulk iteration that
    * mixes fully-ticked objects with ones whose components have never run
@@ -810,13 +819,16 @@ export class World extends AbstractComponentHost<World> {
     tag: string,
     options: FindByTagOptions = {},
   ): readonly WorldObject[] {
-    const matches = this._objects.filter((object) =>
-      object.metadata.tags.has(tag),
+    // Exclude objects marked destroyed earlier this tick but not yet swept:
+    // they linger in `_objects` until Phase 4a, and a query named "live"
+    // must not hand back something whose `onDestroy` is already pending.
+    const matches = this._objects.filter(
+      (object) => !object.destroyed && object.metadata.tags.has(tag),
     );
 
     if (options.includePending) {
       for (const object of this._pendingObjects) {
-        if (object.metadata.tags.has(tag)) {
+        if (!object.destroyed && object.metadata.tags.has(tag)) {
           matches.push(object);
         }
       }
@@ -842,7 +854,9 @@ export class World extends AbstractComponentHost<World> {
     tag: string,
     options: FindByTagOptions = {},
   ): WorldObject | null {
-    const match = this._objects.find((object) => object.metadata.tags.has(tag));
+    const match = this._objects.find(
+      (object) => !object.destroyed && object.metadata.tags.has(tag),
+    );
 
     if (match) {
       return match;
@@ -850,8 +864,9 @@ export class World extends AbstractComponentHost<World> {
 
     if (options.includePending) {
       return (
-        this._pendingObjects.find((object) => object.metadata.tags.has(tag)) ??
-        null
+        this._pendingObjects.find(
+          (object) => !object.destroyed && object.metadata.tags.has(tag),
+        ) ?? null
       );
     }
 

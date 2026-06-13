@@ -119,8 +119,8 @@ export class PlayerController extends AbstractWorldObjectComponent {
       this._body.velocity = { x: 0, y: 0 };
     }
 
-    // Keep the player on the tiled ground. The body is dynamic, so the
-    // correction goes straight to the Rapier body; host.position alone would be
+    // Keep the player on the tiled ground. The body is dynamic, so teleport it
+    // with RigidBody.setPosition — writing host.position alone would be
     // clobbered by RigidBody's next pre-update readback. Inset by the radius so
     // the sprite never overhangs the edge. Zero the outward velocity component
     // on the axis that hit, so the next physics step doesn't drive the body
@@ -133,8 +133,7 @@ export class PlayerController extends AbstractWorldObjectComponent {
     const hitY = clampedY !== pos.y;
 
     if (hitX || hitY) {
-      pos.set(clampedX, clampedY);
-      this._body.raw.setTranslation({ x: clampedX, y: clampedY }, true);
+      this._body.setPosition({ x: clampedX, y: clampedY });
 
       const velocity = this._body.velocity;
       this._body.velocity = {
