@@ -1,7 +1,7 @@
 import './style.css';
 
 import { Game, PhysicsWorld, initPhysics } from '@arcade2d/engine';
-import { characters, terrain, tilesheet } from './assets';
+import { characters, sfx, terrain, tilesheet } from './assets';
 import { FlowField } from './components/flow-field.component';
 import { KillCount } from './components/kill-count.component';
 import { buildMap } from './map';
@@ -30,7 +30,20 @@ async function start(): Promise<void> {
     game.assets.use(characters).load(),
     game.assets.use(terrain).load(),
     game.assets.use(tilesheet).load(),
+    game.assets.use(sfx).load(),
   ]);
+
+  // Browsers suspend the AudioContext until the page sees a user gesture, so
+  // resume it on the first click or key press — until then the gunshot SFX would
+  // decode fine but play silently. One-shot listeners: once unlocked, the
+  // context stays running for the rest of the session.
+  const unlockAudio = (): void => {
+    void game.audio.resume();
+    window.removeEventListener('pointerdown', unlockAudio);
+    window.removeEventListener('keydown', unlockAudio);
+  };
+  window.addEventListener('pointerdown', unlockAudio);
+  window.addEventListener('keydown', unlockAudio);
 
   // Top-down world: no gravity, collisions only. The shared FlowField gives the
   // zombie horde a single navigation map to route around the houses and props.

@@ -21,6 +21,10 @@ import floorWoodUrl from '../assets/kenney_top-down-shooter/PNG/Tiles/tile_42.pn
 // 2x2 trees) that a single 64px tile would only show a quarter of.
 import tilesheetUrl from '../assets/kenney_top-down-shooter/Tilesheet/tilesheet_complete.png';
 
+// Sound effects. Vite resolves the import to a URL; the AssetLibrary infers the
+// audio type from the `.mp3` extension and decodes it into an AudioAsset.
+import gunshotUrl from '../assets/sfx/gunshot.mp3';
+
 /**
  * Player and enemy art. A typed bundle gives compile-checked keys —
  * `characters.get('player')` is valid, a typo is a TypeScript error rather than
@@ -48,4 +52,14 @@ export const terrain = defineAssetBundle('terrain', {
  */
 export const tilesheet = defineAssetBundle('tilesheet', {
   sheet: tilesheetUrl,
+});
+
+/**
+ * Sound effects. Its own bundle so audio can be preloaded (and, later, unloaded)
+ * independently of the art. Each entry decodes to an {@link AudioAsset} an
+ * {@link AudioSource} component plays — `gunshot` is fired by the player on every
+ * shot.
+ */
+export const sfx = defineAssetBundle('sfx', {
+  gunshot: gunshotUrl,
 });

@@ -1,6 +1,7 @@
 import type { WorldUpdate } from '@arcade2d/engine';
 import {
   AbstractWorldObjectComponent,
+  AudioSource,
   Point,
   Random,
   RigidBody,
@@ -78,10 +79,12 @@ export class PlayerController extends AbstractWorldObjectComponent {
 
   private _body!: RigidBody;
   private _health!: Health;
+  private _gunshot!: AudioSource;
 
   public override onAdded(): void {
     this._body = this.host.getComponentByType(RigidBody);
     this._health = this.host.getComponentByType(Health);
+    this._gunshot = this.host.getComponentByType(AudioSource);
   }
 
   public override onUpdate(update: WorldUpdate): void {
@@ -183,6 +186,10 @@ export class PlayerController extends AbstractWorldObjectComponent {
   }
 
   private _fire(aim: number): void {
+    // A fresh voice per shot, so a rapid burst layers overlapping reports rather
+    // than restarting one clip.
+    this._gunshot.play();
+
     const angle =
       aim + this._random.between(-PLAYER_FIRE_SPREAD, PLAYER_FIRE_SPREAD);
 

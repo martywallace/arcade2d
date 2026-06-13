@@ -1,4 +1,6 @@
 import {
+  AudioAsset,
+  AudioSource,
   Circle,
   ImageAsset,
   Prefab,
@@ -6,7 +8,7 @@ import {
   Sprite,
   Texture,
 } from '@arcade2d/engine';
-import { characters } from '../../assets';
+import { characters, sfx } from '../../assets';
 import {
   CHARACTER_SCALE,
   PLAYER_HEALTH,
@@ -21,6 +23,10 @@ import { PlayerController } from './player.controller.component';
  * slides along walls instead of passing through them), a survivor sprite that
  * turns to face the cursor, and the {@link PlayerController} that ties input,
  * aiming, the camera, and firing together.
+ *
+ * An {@link AudioSource} carries the gunshot clip; {@link PlayerController}
+ * resolves it on add and fires a fresh voice per shot, so rapid fire layers
+ * overlapping reports rather than retriggering one.
  */
 export const PlayerPrefab = new Prefab({
   name: 'player',
@@ -43,6 +49,12 @@ export const PlayerPrefab = new Prefab({
     // at full health instead, so the demo keeps running.
     health: ({ object }) =>
       new Health(object, PLAYER_HEALTH, { destroyOnDeath: false }),
+    // The gunshot voice. Pulled a touch below full so a sustained burst doesn't
+    // clip; the controller plays it on each shot.
+    audio: ({ assets, object }) =>
+      new AudioSource(object, assets.use(sfx).getAs('gunshot', AudioAsset), {
+        volume: 0.5,
+      }),
     controller: ({ object }) => new PlayerController(object),
   },
 });
