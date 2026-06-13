@@ -23,7 +23,12 @@ import { Rectangle } from './rectangle';
  */
 export const SHAPE_CONSTRUCTORS = [Polygon, Rectangle, Circle] as const;
 
+export * from './cell';
 export * from './circle';
+export * from './grid';
+export * from './grid.constants';
+export * from './grid.support';
+export * from './grid.types';
 export * from './intersection.support';
 export * from './matrix';
 export * from './matrix.types';

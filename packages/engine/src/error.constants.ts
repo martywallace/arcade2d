@@ -5,8 +5,8 @@
  * a code is a breaking change.
  *
  * Each value is prefixed with a short domain tag (`COMP`, `PREFAB`, `DEP`,
- * `GAME`, `WORLD`, `ASSET`, `RAND`, `GFX`, `AUDIO`, `PHYS`) followed by a
- * zero-padded
+ * `GAME`, `WORLD`, `ASSET`, `RAND`, `GFX`, `AUDIO`, `PHYS`, `GRID`) followed by
+ * a zero-padded
  * sequence number, so codes sort by domain and the wire format is stable
  * across catalog growth.
  */
@@ -205,4 +205,20 @@ export enum ErrorCode {
    * {@link PhysicsWorld}, but it wasn't (yet, or any longer).
    */
   PHYSICS_BODY_NOT_ATTACHED = 'PHYS004_PHYSICS_BODY_NOT_ATTACHED',
+  /**
+   * A {@link Grid} was constructed with a `width` or `height` that isn't a
+   * positive integer. A grid's dimensions are its fixed cell counts, so a
+   * fractional, zero, or negative size has no meaning. Context:
+   * `{ width, height }`.
+   */
+  GRID_INVALID_SIZE = 'GRID001_GRID_INVALID_SIZE',
+  /**
+   * A write was attempted to a {@link Cell}'s `x` or `y` coordinate — directly
+   * (`cell.x = …`) or via an inherited {@link Point} mutator (`add`, `scale`,
+   * `forward`, …). A cell's coordinate is its identity within the
+   * {@link Grid} index and is immutable; mutating it would desynchronise
+   * lookups. Call {@link Point.clone} to obtain a detached, mutable point for
+   * vector math. Context: `{ cell, axis }`.
+   */
+  GRID_CELL_IMMUTABLE = 'GRID002_GRID_CELL_IMMUTABLE',
 }
