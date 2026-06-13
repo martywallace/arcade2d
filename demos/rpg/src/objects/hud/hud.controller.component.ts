@@ -5,6 +5,7 @@ import {
   Scene,
   Text,
 } from '@arcade2d/engine';
+import { layers } from '../../layers';
 import {
   BAR_COLOUR_BACKDROP,
   healthFillColour,
@@ -74,6 +75,7 @@ export class HudController extends AbstractWorldObjectComponent {
           BAR_WIDTH,
           BAR_HEIGHT,
           BAR_COLOUR_BACKDROP,
+          { layer: layers.get('ui') },
         ),
     });
 
@@ -89,6 +91,7 @@ export class HudController extends AbstractWorldObjectComponent {
           object,
           leftAnchoredRect(INNER_WIDTH, INNER_HEIGHT),
           healthFillColour(1),
+          { layer: layers.get('ui') },
         );
 
         return this._fillGraphics;
@@ -105,6 +108,7 @@ export class HudController extends AbstractWorldObjectComponent {
           fontSize: 18,
           fill: 0xffffff,
           anchor: 0,
+          layer: layers.get('ui'),
         });
 
         return this._kills;

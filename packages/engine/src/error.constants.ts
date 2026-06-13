@@ -142,6 +142,36 @@ export enum ErrorCode {
    */
   ANIMATED_SPRITE_INVALID_FPS = 'GFX002_ANIMATED_SPRITE_INVALID_FPS',
   /**
+   * {@link defineLayers} (or the {@link LayerSet} constructor) was called with
+   * no layer names — a layer set must declare at least one layer.
+   */
+  LAYER_SET_EMPTY = 'GFX003_LAYER_SET_EMPTY',
+  /**
+   * {@link defineLayers} was given the same layer name twice. Layer names are
+   * the lookup key, so they must be unique within a set. Context: `{ name }`.
+   */
+  LAYER_DUPLICATE_NAME = 'GFX004_LAYER_DUPLICATE_NAME',
+  /**
+   * A layer was looked up that the set doesn't contain: {@link LayerSet.get}
+   * with an unknown name, or {@link Scene.containerForLayer} / the
+   * {@link AbstractGraphics.layer} setter with a {@link Layer} token minted by
+   * a *different* {@link LayerSet}. Context: `{ name }`.
+   */
+  LAYER_NOT_IN_SET = 'GFX005_LAYER_NOT_IN_SET',
+  /**
+   * A graphics component was added to a world whose {@link Scene} has a
+   * {@link LayerSet}, but the component named no {@link GraphicsOptions.layer}.
+   * In a layered world every graphic must choose a layer — there is no implicit
+   * default. Context identifies the host.
+   */
+  LAYER_UNSPECIFIED = 'GFX006_LAYER_UNSPECIFIED',
+  /**
+   * A graphics component named a {@link GraphicsOptions.layer}, but its world's
+   * {@link Scene} has no {@link LayerSet} — most often a forgotten `layers:` on
+   * the {@link Game.createWorld} call. Context identifies the host.
+   */
+  LAYER_SET_ABSENT = 'GFX007_LAYER_SET_ABSENT',
+  /**
    * An audio operation was attempted while the {@link AudioEngine} is in
    * headless mode (no `AudioContext` — e.g. a test or server environment).
    */

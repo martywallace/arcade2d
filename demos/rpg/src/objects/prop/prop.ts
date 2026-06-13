@@ -1,6 +1,7 @@
 import type { PointPrimitive, World, WorldObject } from '@arcade2d/engine';
 import { Circle, Rectangle, RigidBody, Sprite } from '@arcade2d/engine';
 import { TAG } from '../../constants';
+import { layers } from '../../layers';
 import type { TileKey } from '../../tiles';
 import { tileTexture } from '../../tiles';
 
@@ -62,7 +63,8 @@ export function createProp(
   prop.rotation = rotation ?? 0;
 
   prop.addComponentsFromFactories({
-    graphics: (object) => new Sprite(object, texture),
+    graphics: (object) =>
+      new Sprite(object, texture, { layer: layers.get('structures') }),
   });
 
   if (collider) {

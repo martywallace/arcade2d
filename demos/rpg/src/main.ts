@@ -4,6 +4,7 @@ import { Game, PhysicsWorld, initPhysics } from '@arcade2d/engine';
 import { characters, sfx, terrain, tilesheet } from './assets';
 import { FlowField } from './components/flow-field.component';
 import { KillCount } from './components/kill-count.component';
+import { layers } from './layers';
 import { buildMap } from './map';
 import { HudPrefab } from './objects/hud/hud.prefab';
 import { PlayerPrefab } from './objects/player/player.prefab';
@@ -48,6 +49,10 @@ async function start(): Promise<void> {
   // Top-down world: no gravity, collisions only. The shared FlowField gives the
   // zombie horde a single navigation map to route around the houses and props.
   const world = game.createWorld({
+    // The scene's draw order. With this set, every graphics component names a
+    // layer (see ./layers); the engine renders them ground → characters →
+    // structures → ui regardless of spawn order.
+    layers,
     components: (world) => ({
       physics: () => new PhysicsWorld(world, { gravity: { x: 0, y: 0 } }),
       flow: () => new FlowField(world),

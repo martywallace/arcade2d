@@ -17,6 +17,7 @@ import {
   ZOMBIE_SPEED,
   ZOMBIE_TURN_RATE,
 } from '../../constants';
+import { layers } from '../../layers';
 import { FlowField } from '../../components/flow-field.component';
 import { Health } from '../../components/health.component';
 
@@ -93,7 +94,10 @@ export class ZombieController extends AbstractWorldObjectComponent {
 
     const asset = this.game.assets.use(characters).getAs('zombie', ImageAsset);
     this._sprite.addComponentsFromFactories({
-      graphics: (object) => new Sprite(object, new Texture(asset)),
+      graphics: (object) =>
+        new Sprite(object, new Texture(asset), {
+          layer: layers.get('characters'),
+        }),
     });
   }
 

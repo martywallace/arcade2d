@@ -53,12 +53,16 @@ export class PolygonGraphics extends AbstractGraphics<PixiGraphics> {
    * @param width The rectangle width in world units.
    * @param height The rectangle height in world units.
    * @param fill The fill color as a 24-bit RGB integer. Defaults to white.
+   * @param options Optional {@link ShapeGraphicsOptions} (alpha, visibility,
+   * and — in a layered world — the required `layer`), forwarded to the
+   * constructed graphic.
    */
   public static asRectangle(
     host: WorldObject,
     width: number,
     height: number,
     fill: number = 0xffffff,
+    options: ShapeGraphicsOptions = {},
   ): PolygonGraphics {
     const halfWidth = width / 2;
     const halfHeight = height / 2;
@@ -72,6 +76,7 @@ export class PolygonGraphics extends AbstractGraphics<PixiGraphics> {
         { x: -halfWidth, y: halfHeight },
       ]),
       fill,
+      options,
     );
   }
 
@@ -91,6 +96,9 @@ export class PolygonGraphics extends AbstractGraphics<PixiGraphics> {
    * @param thickness The line's width perpendicular to its direction.
    * Expected to be non-negative.
    * @param fill The fill color as a 24-bit RGB integer. Defaults to white.
+   * @param options Optional {@link ShapeGraphicsOptions} (alpha, visibility,
+   * and — in a layered world — the required `layer`), forwarded to the
+   * constructed graphic.
    */
   public static asLine(
     host: WorldObject,
@@ -98,13 +106,14 @@ export class PolygonGraphics extends AbstractGraphics<PixiGraphics> {
     to: PointPrimitive,
     thickness: number,
     fill: number = 0xffffff,
+    options: ShapeGraphicsOptions = {},
   ): PolygonGraphics {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const length = Math.sqrt(dx * dx + dy * dy);
 
     if (length === 0) {
-      return new PolygonGraphics(host, new Polygon([]), fill);
+      return new PolygonGraphics(host, new Polygon([]), fill, options);
     }
 
     // Perpendicular to (dx, dy), scaled to half-thickness, so the resulting
@@ -121,6 +130,7 @@ export class PolygonGraphics extends AbstractGraphics<PixiGraphics> {
         { x: from.x - px, y: from.y - py },
       ]),
       fill,
+      options,
     );
   }
 

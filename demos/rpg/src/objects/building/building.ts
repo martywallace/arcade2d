@@ -14,6 +14,7 @@ import {
 } from '@arcade2d/engine';
 import { terrain } from '../../assets';
 import { TAG, TILE } from '../../constants';
+import { layers } from '../../layers';
 import type { WallKey } from '../../tiles';
 import { tileTexture, wallTexture } from '../../tiles';
 import type { BuildingConfig } from './building.types';
@@ -94,6 +95,7 @@ export function createBuilding(
       new TilingSprite(object, floorTexture, {
         width: cols * TILE,
         height: rows * TILE,
+        layer: layers.get('ground'),
       }),
   );
 
@@ -120,7 +122,8 @@ export function createBuilding(
         root,
         cellX(col),
         cellY(row),
-        (object) => new Sprite(object, texture),
+        (object) =>
+          new Sprite(object, texture, { layer: layers.get('structures') }),
       );
     }
   }
@@ -138,7 +141,10 @@ export function createBuilding(
       root,
       lx,
       ly,
-      (object) => new Sprite(object, texture),
+      (object) =>
+        new Sprite(object, texture, {
+          layer: layers.get(piece.floor ? 'ground' : 'structures'),
+        }),
     );
     child.rotation = piece.rotation ?? 0;
 

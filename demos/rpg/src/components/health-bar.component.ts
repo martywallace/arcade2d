@@ -3,6 +3,7 @@ import {
   AbstractWorldObjectComponent,
   PolygonGraphics,
 } from '@arcade2d/engine';
+import { layers } from '../layers';
 import {
   BAR_COLOUR_BACKDROP,
   healthFillColour,
@@ -70,6 +71,7 @@ export class HealthBar extends AbstractWorldObjectComponent {
           BAR_WIDTH,
           BAR_HEIGHT,
           BAR_COLOUR_BACKDROP,
+          { layer: layers.get('ui') },
         ),
     });
 
@@ -85,6 +87,7 @@ export class HealthBar extends AbstractWorldObjectComponent {
           object,
           leftAnchoredRect(INNER_WIDTH, INNER_HEIGHT),
           healthFillColour(1),
+          { layer: layers.get('ui') },
         );
 
         return this._fillGraphics;

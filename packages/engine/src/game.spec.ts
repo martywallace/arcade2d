@@ -8,7 +8,7 @@ import { EngineError } from './error';
 import { ErrorCode } from './error.constants';
 import { Game } from './game';
 import { MOUSE_COMPONENT_KEY } from './game.constants';
-import { Scene } from './graphics';
+import { defineLayers, Scene } from './graphics';
 import { Mouse } from './input';
 import {
   CAMERA_COMPONENT_KEY,
@@ -92,6 +92,20 @@ describe('Game', () => {
       const world = game.createWorld();
 
       expect(world.game).toBe(game);
+    });
+
+    test('createWorld threads a layer set into the auto-attached Scene', () => {
+      const game = new Game(createFakeApp());
+
+      const layered = game.createWorld({
+        layers: defineLayers('ground', 'ui'),
+      });
+      expect(layered.getComponentByType(Scene).hasLayers).toBe(true);
+
+      game.destroyWorld();
+
+      const plain = game.createWorld();
+      expect(plain.getComponentByType(Scene).hasLayers).toBe(false);
     });
 
     test('createWorld throws GAME_WORLD_ALREADY_EXISTS when one is already active', () => {

@@ -24,6 +24,14 @@ export interface FurniturePiece {
 
   /** Optional sprite rotation, in radians, for visual variety. */
   readonly rotation?: number;
+
+  /**
+   * When `true`, the piece is flat floor decor (a rug) and renders on the
+   * `ground` layer, *under* characters, so the player and zombies walk over it.
+   * Solid furniture leaves this `false` and renders on `structures`, above
+   * characters.
+   */
+  readonly floor?: boolean;
 }
 
 /**

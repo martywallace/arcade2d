@@ -15,6 +15,7 @@ import {
   PLAYER_RADIUS,
   TAG,
 } from '../../constants';
+import { layers } from '../../layers';
 import { Health } from '../../components/health.component';
 import { PlayerController } from './player.controller.component';
 
@@ -36,7 +37,9 @@ export const PlayerPrefab = new Prefab({
       const asset = assets.use(characters).getAs('player', ImageAsset);
       object.scale.set(CHARACTER_SCALE, CHARACTER_SCALE);
 
-      return new Sprite(object, new Texture(asset));
+      return new Sprite(object, new Texture(asset), {
+        layer: layers.get('characters'),
+      });
     },
     body: ({ object }) =>
       new RigidBody(object, {

@@ -1,6 +1,9 @@
 import { Application, Container } from 'pixi.js';
+import { EngineError } from '../error';
+import { ErrorCode } from '../error.constants';
 import { Game } from '../game';
 import { World } from '../world';
+import { defineLayers } from './layer-set.support';
 import { Scene } from './scene';
 
 function createFakeApp(width = 800, height = 600): Application {
@@ -200,6 +203,98 @@ describe('Scene', () => {
       } finally {
         randomSpy.mockRestore();
       }
+    });
+  });
+
+  describe('layers', () => {
+    const LAYERS = defineLayers('ground', 'structures', 'ui');
+
+    function createLayeredScene(width?: number, height?: number) {
+      const app = createFakeApp(width, height);
+      const world = new World(Game.createHeadless(), {
+        components: (world) => ({
+          scene: () => new Scene(world, app, LAYERS),
+        }),
+      });
+
+      return { world, scene: world.getComponentByType(Scene), app };
+    }
+
+    test('hasLayers is false without a layer set, true with one', () => {
+      expect(createWorldWithScene().scene.hasLayers).toBe(false);
+      expect(createLayeredScene().scene.hasLayers).toBe(true);
+    });
+
+    test('builds one container per layer, parented under raw in order', () => {
+      const { scene } = createLayeredScene();
+
+      const buckets = LAYERS.layers.map((layer) =>
+        scene.containerForLayer(layer),
+      );
+
+      // The layer containers are the direct children of the scene root, in
+      // back-to-front order.
+      expect(scene.raw.children).toEqual(buckets);
+    });
+
+    test('layer containers carry an ascending zIndex and raw sorts children', () => {
+      const { scene } = createLayeredScene();
+
+      expect(scene.raw.sortableChildren).toBe(true);
+      expect(
+        LAYERS.layers.map((layer) => scene.containerForLayer(layer).zIndex),
+      ).toEqual([0, 1, 2]);
+    });
+
+    test('layer containers stay at identity after a camera tick', () => {
+      const { scene, world } = createLayeredScene(800, 600);
+
+      world.camera.position.set(150, 75);
+      world.camera.zoom = 2;
+      world.update();
+
+      // The camera transform lands on the scene root, never on a layer bucket —
+      // so a graphic's baked world matrix means the same thing in any bucket.
+      for (const layer of LAYERS.layers) {
+        const bucket = scene.containerForLayer(layer);
+        expect(bucket.position.x).toBe(0);
+        expect(bucket.position.y).toBe(0);
+        expect(bucket.pivot.x).toBe(0);
+        expect(bucket.pivot.y).toBe(0);
+        expect(bucket.rotation).toBe(0);
+        expect(bucket.scale.x).toBe(1);
+        expect(bucket.scale.y).toBe(1);
+      }
+    });
+
+    test('containerForLayer throws LAYER_NOT_IN_SET for a foreign token', () => {
+      const { scene } = createLayeredScene();
+      const foreign = defineLayers('ground').get('ground');
+
+      let caught: unknown;
+      try {
+        scene.containerForLayer(foreign);
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(caught).toBeInstanceOf(EngineError);
+      expect((caught as EngineError).code).toBe(ErrorCode.LAYER_NOT_IN_SET);
+    });
+
+    test('containerForLayer throws LAYER_NOT_IN_SET on a layer-less scene', () => {
+      const { scene } = createWorldWithScene();
+      const layer = LAYERS.get('ground');
+
+      let caught: unknown;
+      try {
+        scene.containerForLayer(layer);
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(caught).toBeInstanceOf(EngineError);
+      expect((caught as EngineError).code).toBe(ErrorCode.LAYER_NOT_IN_SET);
     });
   });
 });

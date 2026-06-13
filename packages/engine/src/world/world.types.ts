@@ -1,4 +1,5 @@
 import type { Component } from '../components.types';
+import type { LayerSet } from '../graphics/layer-set';
 import type { PrefabRegistry } from './prefab-registry';
 import type { World } from './world';
 import type { WorldObject } from './world-object';
@@ -108,4 +109,16 @@ export type WorldOptions = {
    * regardless of whether a registry is attached.
    */
   readonly prefabs?: PrefabRegistry;
+
+  /**
+   * Optional {@link LayerSet} defining the world's render draw order. When
+   * given (via {@link Game.createWorld}), the world's {@link Scene} renders
+   * graphics in layer order and **every** graphics component must name a
+   * {@link GraphicsOptions.layer}. When omitted, graphics render in flat
+   * insertion order, the engine's default.
+   *
+   * Declare the set once at module scope with {@link defineLayers} and share it
+   * here; pass the tokens it returns to graphics components.
+   */
+  readonly layers?: LayerSet;
 };

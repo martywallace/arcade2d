@@ -376,8 +376,10 @@ export class Game extends AbstractComponentHost<Game> {
       ...options,
       components: (w) => ({
         // Engine auto-attached components come first so the user's
-        // factories run against a world that already has a Scene.
-        [SCENE_COMPONENT_KEY]: () => new Scene(w, app),
+        // factories run against a world that already has a Scene. The Scene is
+        // seeded with the world's layer set (if any), so its layer containers
+        // exist before any graphics component is constructed.
+        [SCENE_COMPONENT_KEY]: () => new Scene(w, app, options.layers),
         ...userComponents(w),
       }),
     });

@@ -102,7 +102,7 @@ export function buildMap(world: World): void {
     tilesH: 5,
     rotation: Math.PI / 6, // 30 degrees
     furniture: [
-      { key: 'rugGreen', tx: 0, ty: 0.3 },
+      { key: 'rugGreen', tx: 0, ty: 0.3, floor: true },
       { key: 'tableRound', tx: 0, ty: 0.3, collide: true },
       { key: 'armchairGreen', tx: -1.8, ty: -1.5, collide: true },
       {
@@ -125,7 +125,7 @@ export function buildMap(world: World): void {
     tilesH: 5,
     rotation: -Math.PI / 5, // -36 degrees
     furniture: [
-      { key: 'rugBlue', tx: 0, ty: 0 },
+      { key: 'rugBlue', tx: 0, ty: 0, floor: true },
       { key: 'tableSquare', tx: 1.3, ty: -1.4, collide: true },
       { key: 'armchairOrange', tx: -1.4, ty: -1.4, collide: true },
       { key: 'crate', tx: 1.6, ty: 1.5, collide: true },
@@ -161,7 +161,7 @@ export function buildMap(world: World): void {
     ],
     furniture: [
       // Top-left room: a sitting room.
-      { key: 'rugGreen', col: 3.5, row: 3 },
+      { key: 'rugGreen', col: 3.5, row: 3, floor: true },
       { key: 'tableRound', col: 3.5, row: 3, collide: true },
       { key: 'armchairGreen', col: 2, row: 1.7, collide: true },
       {
@@ -173,7 +173,7 @@ export function buildMap(world: World): void {
       },
       { key: 'plant', col: 1.4, row: 4.4 },
       // Top-right room: a study.
-      { key: 'rugBlue', col: 10.5, row: 3 },
+      { key: 'rugBlue', col: 10.5, row: 3, floor: true },
       { key: 'tableSquare', col: 11.4, row: 2, collide: true },
       { key: 'armchairBlue', col: 9.2, row: 2, collide: true },
       { key: 'crate', col: 12, row: 4.3, collide: true, rotation: 0.3 },
@@ -181,7 +181,7 @@ export function buildMap(world: World): void {
       // Hallway: a little greenery by the entrance.
       { key: 'plant', col: 1.4, row: 7.5 },
       // Bottom-left room: a dining nook.
-      { key: 'rugBlue', col: 3.5, row: 12 },
+      { key: 'rugBlue', col: 3.5, row: 12, floor: true },
       { key: 'tableSquare', col: 3.5, row: 12, collide: true },
       { key: 'armchairOrange', col: 2, row: 10.8, collide: true },
       {

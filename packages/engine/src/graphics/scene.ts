@@ -1,4 +1,6 @@
 import { Application, Container } from 'pixi.js';
+import { ErrorCode } from '../error.constants';
+import { throwEngineError } from '../error.support';
 import { Point } from '../geometry';
 import type { PointPrimitive } from '../geometry/point.types';
 import {
@@ -8,6 +10,8 @@ import {
   WorldDependencyResolver,
   WorldUpdate,
 } from '../world';
+import type { Layer } from './layer';
+import type { LayerSet } from './layer-set';
 
 type SceneDeps = {
   readonly camera: Camera;
@@ -58,6 +62,18 @@ type SceneDeps = {
  * almost always want — clicking during a shake should still land on the
  * world point the player aimed at.
  *
+ * ## Layers
+ *
+ * By default every graphic is a flat child of the scene container and draws in
+ * insertion (spawn) order. Passing a {@link LayerSet} (via
+ * `game.createWorld({ layers })`) opts the world into a developer-defined draw
+ * order: the scene builds one identity sub-container per layer, in order, and
+ * each {@link AbstractGraphics} parents into the container for its
+ * {@link GraphicsOptions.layer}. Cross-layer order is then fixed by the layer
+ * order; within a layer, insertion order still applies. The sub-containers add
+ * no transform of their own — only the scene container carries the camera — so
+ * layering changes nothing about where a graphic lands, only what it draws over.
+ *
  * @example
  * ```ts
  * // In normal use, the engine wires Scene up for you: `game.createWorld()`
@@ -73,17 +89,83 @@ type SceneDeps = {
 export class Scene extends AbstractWorldComponent<SceneDeps> {
   private readonly _container: Container;
 
+  // One render container per layer when a LayerSet is configured, keyed by the
+  // Layer token. Empty (and unused) in the opt-out, layer-less mode, where
+  // graphics parent straight onto `_container`.
+  private readonly _layerContainers = new Map<Layer, Container>();
+
   /**
    * @param host The world this scene belongs to.
    * @param _app The Pixi application whose `stage` the scene mounts under.
+   * @param _layers Optional {@link LayerSet} defining the world's draw order.
+   * When given, the scene builds one identity sub-container per layer (in
+   * order) under {@link Scene.raw}, and every graphics component must name a
+   * {@link GraphicsOptions.layer}. When omitted, graphics render in flat
+   * insertion order as before.
    */
   constructor(
     host: World,
     private readonly _app: Application,
+    private readonly _layers?: LayerSet,
   ) {
     super(host);
 
     this._container = new Container();
+
+    if (this._layers) {
+      // Build a bucket per layer, parented under the scene root in order. Each
+      // bucket stays at identity — only `_container` carries the camera
+      // transform (see onPostUpdate) — so a graphic's baked world matrix lands
+      // in exactly the same place whichever bucket it sits in; the bucket only
+      // decides draw order. `sortableChildren` + ascending zIndex keeps the
+      // band order robust even alongside the physics debug overlay, which sits
+      // on `_container` with a far higher zIndex.
+      this._container.sortableChildren = true;
+
+      for (const layer of this._layers.layers) {
+        const bucket = new Container();
+        bucket.zIndex = layer.order;
+        this._container.addChild(bucket);
+        this._layerContainers.set(layer, bucket);
+      }
+    }
+  }
+
+  /**
+   * Whether this scene was created with a {@link LayerSet}. When `true`, every
+   * graphics component must name a {@link GraphicsOptions.layer}; when `false`,
+   * graphics render in flat insertion order.
+   */
+  public get hasLayers(): boolean {
+    return this._layers !== undefined;
+  }
+
+  /**
+   * The render container for a layer, into which {@link AbstractGraphics}
+   * parents a graphic assigned to that layer.
+   *
+   * @param layer A {@link Layer} from this scene's {@link LayerSet}.
+   * @returns The Pixi container backing that layer.
+   * @throws {@link EngineError} with code {@link ErrorCode.LAYER_NOT_IN_SET}
+   * when this scene has no layer set, or the token was minted by a different
+   * {@link LayerSet}.
+   */
+  public containerForLayer(layer: Layer): Container {
+    const bucket =
+      this._layers && this._layers.owns(layer)
+        ? this._layerContainers.get(layer)
+        : undefined;
+
+    if (!bucket) {
+      throwEngineError(
+        ErrorCode.LAYER_NOT_IN_SET,
+        `Layer "${layer.name}" does not belong to this scene's layer set. ` +
+          'Use a layer from the same set passed to game.createWorld({ layers }).',
+        { name: layer.name },
+      );
+    }
+
+    return bucket;
   }
 
   public resolveDependencies(resolver: WorldDependencyResolver): SceneDeps {

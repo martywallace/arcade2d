@@ -1,6 +1,9 @@
 import { Container, Matrix as PixiMatrix } from 'pixi.js';
+import { ErrorCode } from '../error.constants';
+import { throwEngineError } from '../error.support';
 import { AbstractWorldObjectComponent, WorldObject } from '../world';
 import type { GraphicsOptions } from './abstract-graphics.types';
+import type { Layer } from './layer';
 import { Scene } from './scene';
 
 /**
@@ -72,6 +75,7 @@ export abstract class AbstractGraphics<
 > extends AbstractWorldObjectComponent {
   private readonly _display: T;
   private readonly _scene: Scene;
+  private _layer?: Layer;
 
   /**
    * @param host The {@link WorldObject} this component is attached to. The
@@ -90,6 +94,7 @@ export abstract class AbstractGraphics<
     this._display = display;
     this._display.alpha = options.alpha ?? 1;
     this._display.visible = options.visible ?? true;
+    this._layer = options.layer;
     this._scene = host.world.getComponentByType(Scene);
   }
 
@@ -116,7 +121,7 @@ export abstract class AbstractGraphics<
   }
 
   public override onAdded(): void {
-    this._scene.addChild(this._display);
+    this._mount();
 
     // Seed the display's transform from the host immediately. Spawns that
     // happen mid-tick (or between bootstrap and the first tick) would
@@ -130,8 +135,67 @@ export abstract class AbstractGraphics<
   }
 
   public override onDestroy(): void {
-    this._scene.removeChild(this._display);
+    // Detach from whatever container actually holds the display — the scene
+    // root in layer-less mode, or a layer bucket otherwise — then release it.
+    this._display.parent?.removeChild(this._display);
     this._display.destroy();
+  }
+
+  /**
+   * The render layer this graphic is in, or `undefined` in a layer-less world.
+   *
+   * Assigning a different {@link Layer} re-parents the display into that layer's
+   * container, moving the graphic between bands at runtime (e.g. dropping a
+   * dying enemy below the living). The same opt-in rules as
+   * {@link GraphicsOptions.layer} apply: a layered world rejects `undefined`
+   * ({@link ErrorCode.LAYER_UNSPECIFIED}), a layer-less world rejects a token
+   * ({@link ErrorCode.LAYER_SET_ABSENT}), and a foreign token is rejected by
+   * {@link Scene.containerForLayer} ({@link ErrorCode.LAYER_NOT_IN_SET}).
+   */
+  public get layer(): Layer | undefined {
+    return this._layer;
+  }
+
+  public set layer(value: Layer | undefined) {
+    this._layer = value;
+
+    // Re-home the display only once it is mounted; before onAdded there is
+    // nothing parented yet, so just remember the choice for _mount to apply.
+    if (this._display.parent) {
+      this._display.parent.removeChild(this._display);
+      this._mount();
+    }
+  }
+
+  // Parents the display into the right container: a layer bucket when the
+  // scene has a layer set (a layer is then mandatory), or the scene root
+  // otherwise (a layer is then forbidden).
+  private _mount(): void {
+    if (this._scene.hasLayers) {
+      if (!this._layer) {
+        throwEngineError(
+          ErrorCode.LAYER_UNSPECIFIED,
+          'This graphic was added to a layered world but named no layer. ' +
+            'Pass one via the `layer` option, e.g. ' +
+            "`{ layer: layers.get('characters') }`.",
+          { host: this.host },
+        );
+      }
+
+      this._scene.containerForLayer(this._layer).addChild(this._display);
+      return;
+    }
+
+    if (this._layer) {
+      throwEngineError(
+        ErrorCode.LAYER_SET_ABSENT,
+        'This graphic named a layer, but its world has no layer set. Pass ' +
+          '`layers` to game.createWorld, or drop the `layer` option.',
+        { host: this.host },
+      );
+    }
+
+    this._scene.addChild(this._display);
   }
 
   /**

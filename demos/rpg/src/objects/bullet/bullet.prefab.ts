@@ -1,5 +1,6 @@
 import { Circle, CircleGraphics, Prefab, RigidBody } from '@arcade2d/engine';
 import { BULLET_DAMAGE, BULLET_RADIUS, TAG } from '../../constants';
+import { layers } from '../../layers';
 import { Health } from '../../components/health.component';
 import { KillCount } from '../../components/kill-count.component';
 import { BulletController } from './bullet.controller.component';
@@ -25,7 +26,9 @@ export const BulletPrefab = new Prefab({
   tags: [TAG.bullet],
   components: {
     graphics: ({ object }) =>
-      new CircleGraphics(object, new Circle(BULLET_RADIUS), 0xffe066),
+      new CircleGraphics(object, new Circle(BULLET_RADIUS), 0xffe066, {
+        layer: layers.get('characters'),
+      }),
     controller: ({ object }) => new BulletController(object),
     body: ({ object, world }) =>
       new RigidBody(object, {

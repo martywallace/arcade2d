@@ -1,6 +1,6 @@
 import { Application, Container } from 'pixi.js';
 import { Game } from '../game';
-import { Scene } from '../graphics';
+import { defineLayers, Scene } from '../graphics';
 import { ErrorCode } from '../error.constants';
 import { EngineError } from '../error';
 import { World } from '../world';
@@ -86,6 +86,28 @@ describe('PhysicsDebugRenderer', () => {
 
       expect(debug.raw.zIndex).toBe(DEBUG_OVERLAY_Z_INDEX);
       expect(scene.raw.sortableChildren).toBe(true);
+    });
+
+    test('sorts the overlay above every render layer', () => {
+      const app = createFakeApp();
+      const layers = defineLayers('ground', 'structures', 'ui');
+      const world = new World(Game.createHeadless(), {
+        components: (w) => ({
+          scene: () => new Scene(w, app, layers),
+          physics: () => new PhysicsWorld(w),
+          debug: () => new PhysicsDebugRenderer(w),
+        }),
+      });
+      const scene = world.getComponentByType(Scene);
+      const debug = world.getComponentByType(PhysicsDebugRenderer);
+
+      // The overlay's zIndex must clear every layer bucket's so it draws on top
+      // when the scene root sorts its children.
+      const maxLayerZ = Math.max(
+        ...layers.layers.map((layer) => scene.containerForLayer(layer).zIndex),
+      );
+      expect(debug.raw.zIndex).toBeGreaterThan(maxLayerZ);
+      expect(scene.raw.children).toContain(debug.raw);
     });
 
     test('destroy is safe before the component was ever added', () => {
